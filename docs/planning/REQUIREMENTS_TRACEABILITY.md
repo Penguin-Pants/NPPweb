@@ -30,14 +30,14 @@ No requirement is unmapped.
 
 | ID | Source | Summary | Tasks | Acceptance criteria | Validation | Status |
 |----|--------|---------|-------|---------------------|------------|--------|
-| ACC-1 | REQ 3.1 | One owner, one password, no other accounts | T05, T07, T10 | Login accepts the one password. No sign-up or account route exists. | `auth.test.js`, `gate.test.js` route sweep, `e2e/login.spec.js` | Planned |
-| ACC-2 | REQ 3.1 | Every page and data route needs a session | T07, T10 | Without a session, HTML navigation gets 302 to `/login`, other requests get 401 with no data. Only the documented public routes are open. | `gate.test.js` sweeps every registered route, `e2e/login.spec.js` | Planned |
-| ACC-3 | REQ 3.1 | First password from a Railway variable | T06, T26 | A fresh deploy accepts `OWNER_PASSWORD`. | `bootstrap.test.js` seed branch, T26 checklist item 1 | Planned |
+| ACC-1 | REQ 3.1 | One owner, one password, no other accounts | T05, T07, T10 | Login accepts the one password. No sign-up or account route exists. | `auth.test.js`, `gate.test.js` route sweep, `e2e/login.spec.js` | Implemented |
+| ACC-2 | REQ 3.1 | Every page and data route needs a session | T07, T10 | Without a session, HTML navigation gets 302 to `/login`, other requests get 401 with no data. Only the documented public routes are open. | `gate.test.js` sweeps every registered route, `e2e/login.spec.js` | Implemented |
+| ACC-3 | REQ 3.1 | First password from a Railway variable | T06, T26 | A fresh deploy accepts `OWNER_PASSWORD`. | `bootstrap.test.js` seed branch, T26 checklist item 1 | Implemented |
 | ACC-4 | REQ 3.1, D4 | Change-password screen; needs current password; in-app password wins; variable only seeds | T05, T06, T09, T14 | Old password fails and new one works, also after restart with `OWNER_PASSWORD` still set. | `password-route.test.js` restart case, `bootstrap.test.js` ignored-variable branch, `e2e/shell.spec.js`, T26 item 4 | Planned |
-| ACC-5 | REQ 3.1, D4 | Reset variable restores the Railway password on start | T06, T26 | With `RESET_PASSWORD` set, a restart makes `OWNER_PASSWORD` work and the in-app password fail. | `bootstrap.test.js` reset branch, T26 item 5 | Planned |
+| ACC-5 | REQ 3.1, D4 | Reset variable restores the Railway password on start | T06, T26 | With `RESET_PASSWORD` set, a restart makes `OWNER_PASSWORD` work and the in-app password fail. | `bootstrap.test.js` reset branch, T26 item 5 | Implemented |
 | ACC-6 | REQ 3.1 | 30-day sessions per device; logout button | T07, T14 | Valid at 30 days minus 1 ms, invalid at 30 days plus 1 ms. Logout ends the session. | `auth.test.js` with injected clock, `e2e/shell.spec.js` | Planned |
-| ACC-7 | REQ 3.1 | Failed logins are rate limited | T08, T10, T26 | 6th failure from one IP in 15 minutes gets 429. Global cap 30. | `rate-limit.test.js`, `e2e/login.spec.js`, T26 item 6 | Planned |
-| ACC-8 | REQ 3.1 | Refuse to start with no variable and no stored password | T06 | Exit 1 with "No password configured. Set OWNER_PASSWORD." | `bootstrap.test.js` refuse branch | Planned |
+| ACC-7 | REQ 3.1 | Failed logins are rate limited | T08, T10, T26 | 6th failure from one IP in 15 minutes gets 429. Global cap 30. | `rate-limit.test.js`, `e2e/login.spec.js`, T26 item 6 | Implemented |
+| ACC-8 | REQ 3.1 | Refuse to start with no variable and no stored password | T06 | Exit 1 with "No password configured. Set OWNER_PASSWORD." | `bootstrap.test.js` refuse branch | Implemented |
 
 ## 3. Editor
 
@@ -78,8 +78,8 @@ No requirement is unmapped.
 |----|--------|---------|-------|---------------------|------------|--------|
 | DEP-1 | REQ 3.5 | Private Railway instance; password is the access control | T04, T07, T26 | Deployed URL shows only the login page without a session. | T04 checklist, T26 item 1 | Planned |
 | DEP-2 | REQ 3.5 | Railway persistent volume | T03, T04 | Production refuses to start without a volume path. Volume mounted at `/data`. | `config.test.js`, T04 checklist | Planned |
-| DEP-3 | REQ 3.5 | Desktop browsers | T10, T26 | Smoke specs pass in Chromium, Firefox and WebKit. Manual check in real browsers. | Playwright `@smoke` projects, T26 item 7 | Planned |
-| DEP-4 | REQ 3.5 | Secure, HttpOnly cookies over HTTPS | T07, T26 | Production config sets `Secure`, `HttpOnly`, `SameSite=Lax` and HSTS. | `headers.test.js`, T26 item 2 | Planned |
+| DEP-3 | REQ 3.5 | Desktop browsers | T10, T26 | Smoke specs pass in Chromium, Firefox and WebKit. Manual check in real browsers. | Playwright `@smoke` projects, T26 item 7 | Implemented |
+| DEP-4 | REQ 3.5 | Secure, HttpOnly cookies over HTTPS | T07, T26 | Production config sets `Secure`, `HttpOnly`, `SameSite=Lax` and HSTS. | `headers.test.js`, T26 item 2 | Implemented |
 | DEP-5 | REQ 3.5 | README notes removing the reset variable | T26 | README has the note and the side effect on sessions. | README review in T26 | Planned |
 | NFR-1 | REQ 3.5 | 1 MB documents stay responsive | T15, T24, T25 | Open under 2 s, 200 typed characters under 3 s, Ctrl+End under 0.5 s. | `e2e/perf.spec.js`, manual scroll check | Planned |
 
@@ -91,10 +91,10 @@ No requirement is unmapped.
 | EDGE-2 | REQ 4 | Save failure | T16 | Error label, text kept, retries, unload warning. | `autosave.test.js`, `e2e/save-reliability.spec.js` | Planned |
 | EDGE-3 | REQ 4 | Content over 1 MB | T12, T24 | Rejected with a clear error. Existing content unchanged. | `documents-save.test.js`, `e2e/size-limit.spec.js` | Planned |
 | EDGE-4 | REQ 4 | Session expires while editing | T16 | Re-login dialog. Unsaved text kept and saved after login. | `e2e/save-reliability.spec.js` | Planned |
-| EDGE-5 | REQ 4 | Wrong password | T07, T08, T10 | Generic error. Rate limit after repeated failures. | `auth.test.js`, `rate-limit.test.js`, `e2e/login.spec.js` | Planned |
-| EDGE-6 | REQ 4 | Password change | T09 | Needs current password. Other sessions signed out. | `password-route.test.js` | Planned |
+| EDGE-5 | REQ 4 | Wrong password | T07, T08, T10 | Generic error. Rate limit after repeated failures. | `auth.test.js`, `rate-limit.test.js`, `e2e/login.spec.js` | Implemented |
+| EDGE-6 | REQ 4 | Password change | T09 | Needs current password. Other sessions signed out. | `password-route.test.js` | Implemented |
 | EDGE-7 | REQ 4 | Reset variable left set | T06, T26 | Every start resets and logs a warning. README explains it. | `bootstrap.test.js`, README review | Planned |
-| EDGE-8 | REQ 4 | No variable and no stored password | T06 | Refuse to start with a clear log message. | `bootstrap.test.js` | Planned |
+| EDGE-8 | REQ 4 | No variable and no stored password | T06 | Refuse to start with a clear log message. | `bootstrap.test.js` | Implemented |
 | EDGE-9 | REQ 4 | Unknown file extension | T20 | Plain text. | `languages.test.js` | Planned |
 
 ## 8. Plan interpretations
@@ -104,14 +104,14 @@ These items are not new product scope. They make an existing requirement precise
 | ID | Parent | Interpretation | Tasks | Validation | Status |
 |----|--------|----------------|-------|------------|--------|
 | INT-1 | DOC-8 | 1 MB = 1,048,576 bytes of UTF-8 | T11, T12, T24 | Boundary tests at 1,048,576 and 1,048,577 bytes | Planned |
-| INT-2 | ACC-6 | Session lifetime is fixed at 30 days from sign-in, not sliding | T07 | `auth.test.js` clock tests | Planned |
-| INT-3 | ACC-2 | Public: login page and its assets, `/healthz`, `POST /api/login` | T07 | `gate.test.js` sweep | Planned |
+| INT-2 | ACC-6 | Session lifetime is fixed at 30 days from sign-in, not sliding | T07 | `auth.test.js` clock tests | Implemented |
+| INT-3 | ACC-2 | Public: login page and its assets, `/healthz`, `POST /api/login` | T07 | `gate.test.js` sweep | Implemented |
 | INT-4 | CON-1 | `version` counts content changes only; rename and language do not conflict | T12, T13 | `documents-meta.test.js` | Planned |
 | INT-5 | DOC-1 | Clean open tabs refresh on focus and activation | T17 | Two-context test in `e2e/tabs.spec.js` | Planned |
 | INT-6 | DOC-2, DEP-2 | Production refuses to start without a volume path | T03 | `config.test.js` | Implemented |
 | INT-7 | CON-1 | "Save mine as new" names the copy "<name> (conflict copy)" | T23 | `e2e/conflict.spec.js` | Planned |
 | INT-8 | EDT-5 | Literal search is case-insensitive with no toggle | T21 | `e2e/find-replace.spec.js` | Planned |
-| INT-9 | ACC-4 | New passwords need 12 to 256 characters; a shorter seed only logs a warning | T05, T06, T09 | `password.test.js`, `bootstrap.test.js` | Planned |
+| INT-9 | ACC-4 | New passwords need 12 to 256 characters; a shorter seed only logs a warning | T05, T06, T09 | `password.test.js`, `bootstrap.test.js` | Implemented |
 | INT-10 | DOC-5 | Keep flushes the save first; a failed save keeps the tab open | T19 | `e2e/close.spec.js` with a failed PUT | Planned |
 | INT-11 | EDT-8 | Manifest, icons and service worker script are public routes | T27 | `gate.test.js` | Planned |
 
@@ -123,7 +123,7 @@ Tests that prove excluded features stay out.
 |----|--------|-------|-------|------------|--------|
 | NG-1 | REQ 8 | No multi-cursor | T15 | `e2e/editor.spec.js` cursor count | Planned |
 | NG-2 | REQ 8 | No regex, whole-word or cross-document search | T21 | `e2e/find-replace.spec.js` | Planned |
-| NG-3 | REQ 8 | No multi-user or sign-up routes | T07 | `gate.test.js` route sweep | Planned |
+| NG-3 | REQ 8 | No multi-user or sign-up routes | T07 | `gate.test.js` route sweep | Implemented |
 | NG-4 | REQ 8 | No live sync (no WebSocket or polling while idle) | T17 | Code review: refresh runs only on focus and activation | Planned |
-| NG-5 | REQ 8 | No hidden-URL or IP-based protection | T07 | `gate.test.js` (all protection is the session) | Planned |
+| NG-5 | REQ 8 | No hidden-URL or IP-based protection | T07 | `gate.test.js` (all protection is the session) | Implemented |
 | NG-6 | REQ 8 | No offline use: any service worker is network-only and caches nothing | T27 | Code review of `sw.js`, `e2e/install.spec.js` checks Cache Storage is empty | Planned |

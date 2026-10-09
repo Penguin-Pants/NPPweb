@@ -671,12 +671,12 @@ Update **Status** to `In progress` or `Done`. Add the PR or commit and short not
 | T02 | Config, app factory, health, entry | P0 | S | T01 | Done | f8543a4 | `start()` is exported from `index.js` with an injected `exit`, so SIGTERM and SIGINT are tested in-process. Extra tests: `app.test.js` (log redaction), `index.test.js`. |
 | T03 | Database module and migrations | P0 | M | T02 | Done | b430bdb | `db.js` also exports `transaction()` (BEGIN IMMEDIATE). `node:sqlite` prints an ExperimentalWarning on start (R3). |
 | T04 | Railway deployment skeleton | P0 | M | T03 | Blocked (owner) | 97e7a91 | `railway.json` and the owner checklist (README) are done. Deploy, `/healthz` check, DB path log and redeploy check are open: Railway CLI is not logged in on the build machine. `railway volume files list /` needs Railway CLI 5 or later. Only T26 depends on T04. |
-| T05 | Password hashing | P1 | S | T01 | Todo | | |
-| T06 | Startup password bootstrap | P1 | M | T03, T05 | Todo | | |
-| T07 | Sessions, gate, auth API, headers | P1 | M | T06 | Todo | | |
-| T08 | Login rate limiting | P1 | S | T07 | Todo | | |
-| T09 | Change password API | P1 | S | T07 | Todo | | |
-| T10 | Login page and E2E harness | P1 | M | T08 | Todo | | |
+| T05 | Password hashing | P1 | S | T01 | Done | cc84ab9 | Salt and hash are base64url. Length counts code points. |
+| T06 | Startup password bootstrap | P1 | M | T03, T05 | Done | c624b79 | Warnings for the ignored variable and the short seed use warn level. A reset seed shorter than 12 characters also warns. |
+| T07 | Sessions, gate, auth API, headers | P1 | M | T06 | Done | 6dbe61e, eb099f0 | `buildApp` is async. Missing session returns 401 `unauthorized`. Review fixes in eb099f0. |
+| T08 | Login rate limiting | P1 | S | T07 | Done | 5f20151 | Each attempt counts before the password check, so parallel guesses cannot pass the limit. A success refunds its global count. |
+| T09 | Change password API | P1 | S | T07 | Done | d39c437 | Hash store and other-session delete run in one transaction. |
+| T10 | Login page and E2E harness | P1 | M | T08 | Done | cbc74f7, eb099f0 | Global setup runs `scripts/build-web.js` with the current Node binary. 15 E2E tests pass in Chromium, Firefox and WebKit. |
 | T11 | Documents list, create, get | P2 | M | T07 | Todo | | |
 | T12 | Content save with version check | P2 | M | T11 | Todo | | |
 | T13 | Rename, language, delete routes | P2 | S | T11 | Todo | | |
@@ -693,7 +693,7 @@ Update **Status** to `In progress` or `Done`. Add the PR or commit and short not
 | T23 | Conflict and deleted-elsewhere dialogs | P6 | M | T17 | Todo | | |
 | T24 | Client size limit | P6 | S | T15 | Todo | | |
 | T25 | Performance check | P7 | S | T20, T24 | Todo | | |
-| T26 | README and production verification | P7 | M | all | Todo | | Owner-assisted |
+| T26 | README and production verification | P7 | M | all | Todo |  | Owner-assisted. Extra owner check (P1 review 4): send 6 wrong logins to the deployed URL, each with a different X-Real-IP header. The 6th must get 429. |
 
 **Resume rule:** Find the first task in table order whose status is not `Done` and whose dependencies are all `Done`. Run `npm test` and `npm run test:e2e` to confirm a green baseline before you continue.
 

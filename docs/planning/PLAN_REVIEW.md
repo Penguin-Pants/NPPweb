@@ -184,6 +184,12 @@ Coding agents record deviations from the plan here.
 | 2026-10-09 | T20, T22, T25, T27 | When all automated acceptance checks pass, the task is marked Done for dependency purposes. Its manual checks (visual check, installed-app shortcuts, deployed install check, scroll feel) are listed as owner-pending in section 9 of `BUILD_PLAN.md` and in T26. | These manual checks need a deployed URL or a human. Without this rule, T22 and T26 stall behind T04. | Agent, not yet approved |
 | 2026-10-09 | T02 | `index.js` exports `start({ env, exit, logger })` and runs it only when it is the main module (`import.meta.main`). | Windows cannot deliver SIGTERM to a child process handler, so the shutdown test emits the signal in-process. | Agent, not yet approved |
 | 2026-10-09 | T04 | The owner deploy checklist lives in `README.md` ("Deploy on Railway"). T26 extends that section. | One place for operations notes. | Agent, not yet approved |
+| 2026-10-09 | T07 | `buildApp` is async. It awaits `@fastify/cookie` so the cookie parser runs before the gate hook. | Fastify loads registered plugins after hooks that are added directly, so the gate would see no cookies. | Agent, not yet approved |
+| 2026-10-09 | T07 | `index.js` builds the app before the password bootstrap, so the bootstrap logs through `app.log`. Listen still runs after the bootstrap and the session purge. | One logger for all startup lines. No request is served before step 5. | Agent, not yet approved |
+| 2026-10-09 | T07, T11, T13 | Error codes the plan does not name: 401 `unauthorized` (no session), 415 `unsupported_media_type` (non-text content body), 400 `invalid_request` (PATCH body is not a JSON object), 400 `bad_request` (malformed URL). | Section 2.7 requires `{ "error": "<code>" }` for every error. | Agent, not yet approved |
+| 2026-10-09 | T08 | The limiter counts each attempt before the password check. A correct password clears the IP bucket and refunds one global count. | scrypt takes about 50 ms, so parallel requests could all pass a check-then-count limiter. | Agent, not yet approved |
+| 2026-10-09 | T10 | Playwright global setup runs `node scripts/build-web.js`, not `npm run build`. | Spawning npm from Node fails on Windows (npm is a `.cmd` file). Same script, same output. | Agent, not yet approved |
+| 2026-10-09 | P1 review | `engines.node` is `>=24.2 <25`. | `import.meta.main` needs Node 24.2. On 24.0 and 24.1, `npm start` would exit without listening. | Agent, not yet approved |
 
 ## 10. Phase review log
 
@@ -199,3 +205,22 @@ Two-pass review of each phase diff. Pass 1 lists findings. Pass 2 classifies eac
 | P0 | 6 | `buildApp` takes `config` but does not read it yet. | Rejected | T07 uses it for cookies and headers. |
 | P0 | 7 | Shutdown does not force an exit if `app.close()` hangs. | Rejected | Railway sends SIGKILL after its drain period. |
 | P0 | 8 | `railway.json` sets no `healthcheckTimeout`. | Rejected | The Railway default applies. The app starts in under a second. |
+| P1 | 1 | `Cache-Control: no-store` was missing when the router decoded a percent-encoded `/api/` path. | Confirmed | Fixed in eb099f0. The check also reads the route pattern. Test added. |
+| P1 | 2 | Malformed URLs returned 400 from Fastify without the security headers. | Confirmed | Fixed in eb099f0 with `frameworkErrors`. Test added. |
+| P1 | 3 | With `trustProxy: true`, the Origin check uses `X-Forwarded-Host` when present. | Rejected | T02 requires `trustProxy`. The Origin check is a CSRF defense, and a browser cannot send that header cross-site without a preflight. A non-browser client can send any Origin anyway. |
+| P1 | 4 | TD-11 assumes the Railway edge overwrites `X-Real-IP`. If it passes client values through, rotating the header defeats the per-IP bucket. | Risk | R2. Owner check added to the T26 notes: 6 wrong logins with 6 different `X-Real-IP` values must get 429 on the 6th. |
+| P1 | 5 | No test proved the Origin check for PUT, PATCH and DELETE. | Confirmed | Test added in eb099f0. |
+| P1 | 6 | No test asserted the startup log line when no password is configured (EDGE-8). | Confirmed | Test added in eb099f0. |
+| P1 | 7 | No test covered paths next to the public allowlist (`/login/`, `/%6cogin.js`, `//login`). | Confirmed | Test added in eb099f0. The gate already failed closed. |
+| P1 | 8 | The E2E fixture left the server running when startup failed. | Confirmed | Fixed in eb099f0. |
+| P1 | 9 | `import.meta.main` needs Node 24.2, but engines allowed 24.0. | Confirmed | Fixed in eb099f0 (`>=24.2 <25`). |
+| P1 | 10 | The app is built before the bootstrap and not closed when the bootstrap fails. | Rejected | The process exits 1 right after. Logged as a deviation. |
+| P1 | 11 | `POST /api/password` has no limit on wrong current-password attempts. A stolen session cookie allows unlimited online guessing. | Risk | The plan limits failed logins only. Proposed out-of-scope fix in section 11. |
+
+## 11. Proposed out-of-scope fixes
+
+Not built. Each one needs a user decision.
+
+| # | From | Proposal | Reason |
+|---|------|----------|--------|
+| 1 | P1 review 11 | Count wrong current passwords on `POST /api/password` in the login limiter. | A stolen session cookie would otherwise allow unlimited password guessing. |
