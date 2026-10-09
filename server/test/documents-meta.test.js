@@ -121,3 +121,49 @@ test('delete returns 204, then GET returns 404 and the list omits it', async () 
   assert.deepEqual(list, []);
   assert.equal((await remove()).statusCode, 404);
 });
+
+test('the list order follows content saves and renames, not language changes', async () => {
+  const create = async (name) =>
+    (
+      await ctx.app.inject({
+        method: 'POST',
+        url: `/api/documents?name=${name}`,
+        headers: { cookie, origin: ORIGIN, 'content-type': 'text/plain' },
+        payload: '',
+      })
+    ).json();
+  const order = async () =>
+    (await ctx.app.inject({ method: 'GET', url: '/api/documents', headers: { cookie } })).json().map((d) => d.name);
+  now += 1000;
+  const b = await create('b.txt');
+  now += 1000;
+  const c = await create('c.txt');
+  assert.deepEqual(await order(), ['c.txt', 'b.txt', 'a.py']);
+  now += 1000;
+  await ctx.app.inject({
+    method: 'PUT',
+    url: `/api/documents/${doc.id}/content`,
+    headers: { cookie, origin: ORIGIN, 'content-type': 'text/plain', 'if-match': '1' },
+    payload: 'saved later',
+  });
+  assert.deepEqual(await order(), ['a.py', 'c.txt', 'b.txt']);
+  now += 1000;
+  await patch({ name: 'b2.txt' }, b.id);
+  assert.deepEqual(await order(), ['b2.txt', 'a.py', 'c.txt']);
+  now += 1000;
+  await patch({ language: 'markdown' }, c.id);
+  assert.deepEqual(await order(), ['b2.txt', 'a.py', 'c.txt']);
+});
+
+test('malformed or empty JSON returns 400 bad_request', async () => {
+  for (const payload of ['{not json', '']) {
+    const res = await ctx.app.inject({
+      method: 'PATCH',
+      url: `/api/documents/${doc.id}`,
+      headers: { cookie, origin: ORIGIN, 'content-type': 'application/json' },
+      payload,
+    });
+    assert.equal(res.statusCode, 400, JSON.stringify(payload));
+    assert.deepEqual(res.json(), { error: 'bad_request' });
+  }
+});

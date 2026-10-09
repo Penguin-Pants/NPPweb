@@ -151,3 +151,48 @@ test('document routes need a session', async () => {
     assert.equal(res.statusCode, 401, `${method} ${url}`);
   }
 });
+
+test('a chunked body over the limit returns 413 (the byte counter, not Content-Length)', async () => {
+  const { Readable } = await import('node:stream');
+  const res = await ctx.app.inject({
+    method: 'POST',
+    url: '/api/documents',
+    headers: { cookie, origin: ORIGIN, 'content-type': 'text/plain; charset=utf-8' },
+    payload: Readable.from([Buffer.from('é'.repeat(LIMIT / 2 + 1))]),
+  });
+  assert.equal(res.statusCode, 413);
+  assert.deepEqual(await list(), []);
+});
+
+test('content must be text/plain in UTF-8', async () => {
+  const cases = [
+    { 'content-type': 'application/json', payload: '"a json string"' },
+    { 'content-type': 'text/plain; charset=iso-8859-1', payload: 'latin' },
+    { 'content-type': 'text/plainish', payload: 'x' },
+  ];
+  for (const { payload, ...headers } of cases) {
+    const res = await ctx.app.inject({
+      method: 'POST',
+      url: '/api/documents',
+      headers: { cookie, origin: ORIGIN, ...headers },
+      payload,
+    });
+    assert.equal(res.statusCode, 415, headers['content-type']);
+    assert.deepEqual(res.json(), { error: 'unsupported_media_type' });
+  }
+  for (const type of ['text/plain', 'text/plain;charset=UTF-8', 'TEXT/PLAIN; charset="utf-8"']) {
+    const typed = await ctx.app.inject({
+      method: 'POST',
+      url: '/api/documents',
+      headers: { cookie, origin: ORIGIN, 'content-type': type },
+      payload: 'ok',
+    });
+    assert.equal(typed.statusCode, 201, type);
+  }
+});
+
+test('content round-trips control characters, NUL and astral characters', async () => {
+  const text = 'a\u0000b\tc\r\nd 😀   end';
+  const res = await create(text);
+  assert.equal((await get(res.json().id)).json().content, text);
+});

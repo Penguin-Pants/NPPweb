@@ -18,20 +18,10 @@ export const CONTENT_LIMIT_BYTES = 1_048_576;
  * @param {{ db: import('node:sqlite').DatabaseSync, clock: () => number }} options
  */
 export async function documentRoutes(app, { db, clock }) {
-  app.setErrorHandler((error, request, reply) => {
-    if (error.code === 'FST_ERR_CTP_BODY_TOO_LARGE') {
-      return reply.code(413).send({ error: 'too_large', limitBytes: CONTENT_LIMIT_BYTES });
-    }
-    if (error.code === 'FST_ERR_CTP_INVALID_MEDIA_TYPE') {
-      return reply.code(415).send({ error: 'unsupported_media_type' });
-    }
-    throw error;
-  });
-
   app.get('/api/documents', async () => listDocuments(db));
 
   app.post('/api/documents', { bodyLimit: CONTENT_LIMIT_BYTES }, async (request, reply) => {
-    const content = textBody(request);
+    const content = textBody(request, { optional: true });
     if (content === null) return reply.code(415).send({ error: 'unsupported_media_type' });
     let name;
     if (request.query.name !== undefined) {
@@ -53,7 +43,7 @@ export async function documentRoutes(app, { db, clock }) {
     if (typeof ifMatch !== 'string' || !/^\d+$/.test(ifMatch)) {
       return reply.code(428).send({ error: 'version_required' });
     }
-    const content = textBody(request);
+    const content = textBody(request, { optional: false });
     if (content === null) return reply.code(415).send({ error: 'unsupported_media_type' });
     const result = saveContent(db, {
       id: request.params.id,
@@ -93,8 +83,17 @@ export async function documentRoutes(app, { db, clock }) {
   });
 }
 
-/** The text/plain body, '' when there is no body, or null for any other type. */
-function textBody(request) {
-  if (request.body === undefined) return '';
-  return typeof request.body === 'string' ? request.body : null;
+/**
+ * The text/plain UTF-8 body (TD-7), or null for any other type or charset.
+ * With `optional`, a request with no body and no Content-Type gives ''.
+ * @param {import('fastify').FastifyRequest} request
+ * @param {{ optional: boolean }} options
+ */
+function textBody(request, { optional }) {
+  const type = request.headers['content-type'];
+  if (type === undefined) return optional && request.body === undefined ? '' : null;
+  if (!/^text\/plain\s*(;|$)/i.test(type)) return null;
+  const charset = /;\s*charset="?([^";\s]+)/i.exec(type)?.[1];
+  if (charset !== undefined && !/^utf-?8$/i.test(charset)) return null;
+  return typeof request.body === 'string' ? request.body : '';
 }

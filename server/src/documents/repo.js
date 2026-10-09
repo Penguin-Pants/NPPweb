@@ -16,6 +16,11 @@ export const LANGUAGES = [
   'shell',
 ];
 
+// node:sqlite (seen in Node 24.13) cuts a bound TEXT value at its first NUL
+// character, so content is stored as UTF-8 bytes (a BLOB in the TEXT column).
+const encodeContent = (text) => Buffer.from(text, 'utf8');
+const decodeContent = (value) => (typeof value === 'string' ? value : Buffer.from(value).toString('utf8'));
+
 const UNTITLED = /^Untitled (\d+)$/;
 const CONTROL_CHARS = /[\u0000-\u001f\u007f-\u009f]/;
 
@@ -72,7 +77,7 @@ export function createDocument(db, { name, content, now }) {
     db.prepare('INSERT INTO documents (id, name, content, created_at, updated_at) VALUES (?, ?, ?, ?, ?)').run(
       id,
       finalName,
-      content,
+      encodeContent(content),
       now,
       now,
     );
@@ -99,7 +104,7 @@ export function getDocument(db, id) {
   const row = db
     .prepare('SELECT id, name, content, version, language, updated_at FROM documents WHERE id = ?')
     .get(id);
-  return row && { ...toMeta(row), content: row.content };
+  return row && { ...toMeta(row), content: decodeContent(row.content) };
 }
 
 /**
@@ -112,7 +117,7 @@ export function getDocument(db, id) {
 export function saveContent(db, { id, content, expectedVersion, now }) {
   const { changes } = db
     .prepare('UPDATE documents SET content = ?, version = version + 1, updated_at = ? WHERE id = ? AND version = ?')
-    .run(content, now, id, expectedVersion);
+    .run(encodeContent(content), now, id, expectedVersion);
   if (changes === 1) return { ok: true, version: expectedVersion + 1, updatedAt: now };
   const row = db.prepare('SELECT version FROM documents WHERE id = ?').get(id);
   return { ok: false, currentVersion: row?.version ?? null };

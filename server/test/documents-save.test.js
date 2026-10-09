@@ -110,3 +110,24 @@ test('a non-text body returns 415 and saves nothing', async () => {
   assert.equal(res.statusCode, 415);
   assert.equal((await stored()).content, 'original');
 });
+
+test('a save with no body is rejected and keeps the content', async () => {
+  const res = await ctx.app.inject({
+    method: 'PUT',
+    url: `/api/documents/${doc.id}/content`,
+    headers: { cookie, origin: ORIGIN, 'if-match': '1' },
+  });
+  assert.equal(res.statusCode, 415);
+  assert.equal((await stored()).content, 'original');
+});
+
+test('a JSON string body is rejected and keeps the content', async () => {
+  const res = await ctx.app.inject({
+    method: 'PUT',
+    url: `/api/documents/${doc.id}/content`,
+    headers: { cookie, origin: ORIGIN, 'if-match': '1', 'content-type': 'application/json' },
+    payload: '"replaced"',
+  });
+  assert.equal(res.statusCode, 415);
+  assert.equal((await stored()).content, 'original');
+});
