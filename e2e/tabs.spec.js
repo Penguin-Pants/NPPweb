@@ -41,11 +41,58 @@ test('a reload restores the open tabs and the active tab', { tag: '@smoke' }, as
     await page.keyboard.type(text);
   }
   await tab(page, 'Untitled 2').click();
-  await expect(page.locator('#save-status')).toHaveText('Saved');
+  await expect(page.locator('.tab.dirty')).toHaveCount(0);
   await page.reload();
   await expect(page.getByRole('tab')).toHaveText(['Untitled 1', 'Untitled 2', 'Untitled 3'].map((n) => new RegExp(n)));
   await expect(tab(page, 'Untitled 2')).toHaveAttribute('aria-selected', 'true');
   await expect(editor(page)).toHaveText('two');
+  await tab(page, 'Untitled 1').click();
+  await expect(editor(page)).toHaveText('one');
+  await tab(page, 'Untitled 3').click();
+  await expect(editor(page)).toHaveText('three');
+});
+
+test('clicking the active tab keeps the typed text', async ({ page, api }) => {
+  await login(page);
+  await newDocument(page);
+  await editor(page).click();
+  await page.keyboard.type('hello');
+  await expect(page.locator('#save-status')).toHaveText('Saved');
+  await tab(page, 'Untitled 1').click();
+  await expect(editor(page)).toHaveText('hello');
+  await page.keyboard.type(' again');
+  await tab(page, 'Untitled 1').click();
+  await expect(editor(page)).toHaveText('hello again');
+  await expect(page.locator('#save-status')).toHaveText('Saved');
+  const [doc] = await (await api.get('/api/documents')).json();
+  expect((await (await api.get(`/api/documents/${doc.id}`)).json()).content).toBe('hello again');
+});
+
+test('while a tab loads, the editor is read-only and no text goes astray', async ({ page, api }) => {
+  const make = async (name, text) =>
+    (await api.post(`/api/documents?name=${name}`, { data: text, headers: { 'Content-Type': 'text/plain' } })).json();
+  const a = await make('a.txt', 'text of a');
+  const b = await make('b.txt', 'text of b');
+  await login(page);
+  await page.evaluate((ids) => localStorage.setItem('pn.openTabs.v1', JSON.stringify({ ids, activeId: ids[0] })), [a.id, b.id]);
+  await page.reload();
+  await expect(editor(page)).toHaveText('text of a');
+  let release;
+  const gate = new Promise((resolve) => (release = resolve));
+  await page.route(`**/api/documents/${b.id}`, async (route) => {
+    await gate;
+    await route.fallback();
+  });
+  await tab(page, 'b.txt').click();
+  await expect(editor(page)).toHaveAttribute('contenteditable', 'false');
+  await page.keyboard.type('stray');
+  release();
+  await expect(editor(page)).toHaveText('text of b');
+  await tab(page, 'a.txt').click();
+  await expect(editor(page)).toHaveText('text of a');
+  const content = async (id) => (await (await api.get(`/api/documents/${id}`)).json()).content;
+  expect(await content(a.id)).toBe('text of a');
+  expect(await content(b.id)).toBe('text of b');
 });
 
 test('a document deleted elsewhere is dropped from the restored tabs', async ({ page, api }) => {

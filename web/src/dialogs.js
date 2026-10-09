@@ -25,6 +25,32 @@ function createDialog(title, message) {
 }
 
 /**
+ * Wires Escape and closing for a modal. A browser can close a modal even when
+ * its cancel event is prevented (for example on a second Escape press), so a
+ * dialog that must not be dismissed opens again, and a cancellable one
+ * counts the close as cancel.
+ * @param {HTMLDialogElement} dialog
+ * @param {boolean} cancellable
+ * @param {() => void} onCancel
+ * @returns {() => void} Call before closing the dialog on purpose.
+ */
+function guardClose(dialog, cancellable, onCancel) {
+  let done = false;
+  dialog.addEventListener('cancel', (event) => {
+    event.preventDefault();
+    if (cancellable) onCancel();
+  });
+  dialog.addEventListener('close', () => {
+    if (done) return;
+    if (cancellable) onCancel();
+    else dialog.showModal();
+  });
+  return () => {
+    done = true;
+  };
+}
+
+/**
  * Shows a modal with one button per choice. Resolves with the chosen value,
  * or cancelValue when the user presses Escape.
  * @param {object} options
@@ -32,7 +58,7 @@ function createDialog(title, message) {
  * @param {string} [options.message]
  * @param {{ value: string, label: string, kind?: 'primary' | 'danger' }[]} options.choices
  * @param {string} options.defaultValue The choice that gets focus.
- * @param {string} options.cancelValue
+ * @param {string} [options.cancelValue] Result for Escape. Without it, the user must choose.
  * @returns {Promise<string>}
  */
 export function choose({ title, message, choices, defaultValue, cancelValue }) {
@@ -41,20 +67,18 @@ export function choose({ title, message, choices, defaultValue, cancelValue }) {
   dialog.append(row);
   return new Promise((resolve) => {
     const finish = (value) => {
+      markDone();
       dialog.close();
       dialog.remove();
       resolve(value);
     };
+    const markDone = guardClose(dialog, cancelValue !== undefined, () => finish(cancelValue));
     for (const choice of choices) {
       const button = el('button', { type: 'button', 'data-value': choice.value }, choice.label);
       if (choice.kind) button.classList.add(choice.kind);
       button.addEventListener('click', () => finish(choice.value));
       row.append(button);
     }
-    dialog.addEventListener('cancel', (event) => {
-      event.preventDefault();
-      finish(cancelValue);
-    });
     dialog.showModal();
     /** @type {HTMLButtonElement} */ (row.querySelector(`[data-value="${defaultValue}"]`)).focus();
   });
@@ -96,19 +120,17 @@ export function formDialog({ title, message, fields, submitLabel, cancellable = 
 
   return new Promise((resolve) => {
     const finish = (values) => {
+      markDone();
       dialog.close();
       dialog.remove();
       resolve(values);
     };
+    const markDone = guardClose(dialog, cancellable, () => finish(null));
     if (cancellable) {
       const cancel = el('button', { type: 'button' }, 'Cancel');
       cancel.addEventListener('click', () => finish(null));
       row.append(cancel);
     }
-    dialog.addEventListener('cancel', (event) => {
-      event.preventDefault();
-      if (cancellable) finish(null);
-    });
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
       const values = Object.fromEntries(inputs.map((input) => [input.name, input.value]));

@@ -269,3 +269,13 @@ test('hasUnsaved is true while any document is unsaved, saving or in error', asy
   await reply(200, { version: 2, updatedAt: 1 });
   assert.equal(autosave.hasUnsaved(), false);
 });
+
+test('resumeAll does not save a document held by a conflict', async () => {
+  await failOnce(412, { error: 'version_conflict', currentVersion: 7 });
+  autosave.edited('b');
+  mock.timers.tick(1000);
+  await reply(401);
+  autosave.resumeAll();
+  assert.deepEqual(calls.slice(2).map((call) => call.id), ['b']);
+  assert.equal(autosave.reason('a'), 'conflict');
+});

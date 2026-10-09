@@ -68,7 +68,14 @@ export function createEditor(parent, { theme, onChange }) {
     }),
   ];
 
-  const view = new EditorView({ parent });
+  // Shown when no tab owns the view (while a tab loads, or with no tab open).
+  // It is read-only, so no keystroke can go to the wrong document or nowhere.
+  const blankState = () =>
+    EditorState.create({
+      extensions: [EditorView.editable.of(false), EditorState.readOnly.of(true), baseTheme, themeSlot.of(themeExtension(currentTheme))],
+    });
+
+  const view = new EditorView({ parent, state: blankState() });
 
   return {
     view,
@@ -82,6 +89,8 @@ export function createEditor(parent, { theme, onChange }) {
       view.setState(state);
       view.dispatch({ effects: themeSlot.reconfigure(themeExtension(currentTheme)) });
     },
+    /** Shows the read-only blank state. */
+    showBlank: () => view.setState(blankState()),
     /** @param {'dark' | 'light'} next */
     setTheme(next) {
       currentTheme = next;

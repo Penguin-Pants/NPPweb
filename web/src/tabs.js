@@ -71,8 +71,9 @@ export function planRefresh(tabs, list) {
  * @param {{ strip: HTMLElement, editor: HTMLElement, empty: HTMLElement }} deps.elements
  * @param {(tab: Tab) => import('@codemirror/state').Extension} deps.languageFor
  * @param {() => void} deps.onActiveChange
+ * @param {(text: string) => void} deps.showMessage
  */
-export function createTabs({ editor, autosave, api, getStorage, elements, languageFor, onActiveChange }) {
+export function createTabs({ editor, autosave, api, getStorage, elements, languageFor, onActiveChange, showMessage }) {
   /** @type {Tab[]} */
   let tabs = [];
   /** @type {string | null} */
@@ -89,11 +90,21 @@ export function createTabs({ editor, autosave, api, getStorage, elements, langua
   /** The live state of a tab: the view's state when the view shows it. */
   const stateOf = (tab) => (tab.id === shownId ? editor.view.state : tab.state);
 
+  // The view's state is the live state of the shown tab. It is copied back
+  // into the tab before the view shows anything else.
   function show(tab) {
+    if (tab.id === shownId) return;
     const shown = find(shownId);
-    if (shown && shown !== tab) shown.state = editor.view.state;
+    if (shown) shown.state = editor.view.state;
     editor.show(tab.state);
     shownId = tab.id;
+  }
+
+  function showBlank() {
+    const shown = find(shownId);
+    if (shown) shown.state = editor.view.state;
+    editor.showBlank();
+    shownId = null;
   }
 
   function render() {
@@ -145,7 +156,10 @@ export function createTabs({ editor, autosave, api, getStorage, elements, langua
     if (index < 0) return;
     autosave.untrack(id);
     tabs.splice(index, 1);
-    if (shownId === id) shownId = null;
+    if (shownId === id) {
+      editor.showBlank();
+      shownId = null;
+    }
     if (activeId === id) {
       activeId = null;
       const next = tabs[index] ?? tabs[index - 1];
@@ -196,13 +210,20 @@ export function createTabs({ editor, autosave, api, getStorage, elements, langua
       persist();
       render();
       if (!tab.state) {
+        showBlank();
+        onActiveChange();
         const { status, data } = await api.getDocument(id);
         if (!find(id)) return;
         if (status === 404) {
           removeTab(id);
           return;
         }
-        if (status !== 200) return;
+        if (status !== 200) {
+          // The view stays blank and read-only. Activation, focus and
+          // sign-in try the load again.
+          if (activeId === id) showMessage('Could not open the document. Click its tab to try again.');
+          return;
+        }
         if (!tab.state) load(tab, data);
         if (activeId !== id) return;
       }
@@ -256,6 +277,9 @@ export function createTabs({ editor, autosave, api, getStorage, elements, langua
       await Promise.all(plan.reload.map((id) => reload(find(id))));
       render();
       onActiveChange();
+      // Retry an active tab whose content failed to load.
+      const active = find(activeId);
+      if (active && !active.state) await controller.activate(active.id, { refresh: false });
     },
 
     render,

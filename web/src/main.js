@@ -110,6 +110,7 @@ tabs = createTabs({
   elements: { strip: $('tabstrip'), editor: $('editor'), empty: $('empty-state') },
   languageFor: () => languageExtension('plain'),
   onActiveChange: renderSaveStatus,
+  showMessage,
 });
 
 // Save status label (DOC-3) for the active tab. Until T23, a conflict or a
@@ -129,7 +130,12 @@ function renderSaveStatus() {
   label.textContent = status === 'error' ? ERROR_TEXT[autosave.reason(id)] : (STATUS_TEXT[status] ?? '');
 }
 
-setupSessionRecovery({ onSignedIn: () => autosave.resumeAll() });
+setupSessionRecovery({
+  onSignedIn: () => {
+    autosave.resumeAll();
+    tabs.refresh();
+  },
+});
 
 // EDGE-2: warn before the page closes with text that is not saved.
 window.addEventListener('beforeunload', (event) => {
