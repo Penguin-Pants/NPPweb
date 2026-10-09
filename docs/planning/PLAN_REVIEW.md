@@ -225,15 +225,6 @@ Two-pass review of each phase diff. Pass 1 lists findings. Pass 2 classifies eac
 | P1 | 9 | `import.meta.main` needs Node 24.2, but engines allowed 24.0. | Confirmed | Fixed in eb099f0 (`>=24.2 <25`). |
 | P1 | 10 | The app is built before the bootstrap and not closed when the bootstrap fails. | Rejected | The process exits 1 right after. Logged as a deviation. |
 | P1 | 11 | `POST /api/password` has no limit on wrong current-password attempts. A stolen session cookie allows unlimited online guessing. | Risk | The plan limits failed logins only. Proposed out-of-scope fix in section 11. |
-
-## 11. Proposed out-of-scope fixes
-
-Not built. Each one needs a user decision.
-
-| # | From | Proposal | Reason |
-|---|------|----------|--------|
-| 1 | P1 review 11 | Count wrong current passwords on `POST /api/password` in the login limiter. | A stolen session cookie would otherwise allow unlimited password guessing. |
-| 2 | P5 review 2 | Match the Mod shortcuts (N, W, S, F, H) by `event.key` and keep `event.code` for Alt+N and Alt+W. | On AZERTY and other layouts, `event.code` maps Ctrl+Z to KeyW, so undo opens the close dialog, and Ctrl+W can reach the browser and close the installed window. T22 specifies `event.code`. |
 | P2 | 1 | The over-limit tests used Content-Length only, so the chunked byte counter was untested. | Confirmed | Chunked test added in 9bcd481. |
 | P2 | 2 | The list-order test could not tell `updated_at` from `created_at`. | Confirmed | Test added in 9bcd481: a save and a rename move a document to the top. A language change does not. |
 | P2 | 3 | A `charset` other than UTF-8 was decoded as UTF-8. | Confirmed | Fixed in 9bcd481: 415. |
@@ -262,3 +253,12 @@ Not built. Each one needs a user decision.
 | P5 | 5 | A held shortcut key repeated its action. | Confirmed | Fixed in c705aca. Unit test added. |
 | P5 | 6 | No test proved that `preventDefault` runs before an action that throws, or the dialog guard for N, S, F and H. | Confirmed | Unit tests added in c705aca. |
 | P5 | 7 | No test covered a hidden tab catching up on a rename, per-tab search state or Cmd+W, Cmd+F and Cmd+H. | Confirmed | Tests added in c705aca. |
+
+## 11. Proposed out-of-scope fixes
+
+Not built. Each one needs a user decision.
+
+| # | From | Proposal | Reason |
+|---|------|----------|--------|
+| 1 | P1 review 11 | Count wrong current passwords on `POST /api/password` in the login limiter. | A stolen session cookie would otherwise allow unlimited password guessing. |
+| 2 | P5 review 2 | Match the Mod shortcuts (N, W, S, F, H) by `event.key` and keep `event.code` for Alt+N and Alt+W. | On AZERTY and other layouts, `event.code` maps Ctrl+Z to KeyW, so undo opens the close dialog, and Ctrl+W can reach the browser and close the installed window. T22 specifies `event.code`. |
