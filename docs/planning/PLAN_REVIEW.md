@@ -261,6 +261,9 @@ Two-pass review of each phase diff. Pass 1 lists findings. Pass 2 classifies eac
 | P6 | 4 | The conflict dialog focused Overwrite with mine, so Enter while typing could overwrite the other version. | Confirmed | Fixed in ec94dfb: focus on Save mine as a new document. E2E test added. |
 | P6 | 5 | The last size-limit E2E assertion could not fail (the earlier message was still visible). | Confirmed | Fixed in ec94dfb: the message is cleared first, and the test checks that no PUT happens and the stored size is still 1 MB. |
 | P6 | 6 | No test covered failed choices, two queued conflicts or typing during a choice. | Confirmed | E2E tests added in ec94dfb. |
+| P7 | 1 | The perf "open" time includes the page reload and the 1 MB GET, so it is an end-to-end number, not render time alone. | Rejected | That matches the target ("open and render under 2 seconds"). |
+| P7 | 2 | The README menu paths for installing in Chrome and Edge were from memory. | Confirmed | Replaced with the address bar install icon and a generic menu entry before 77b91ed. |
+| P7 | 3 | The README said `npm run dev` reads `.env`, but the script did not. | Confirmed | Fixed in 77b91ed with `--env-file-if-exists=.env`. Checked with a temporary `.env`. |
 
 ## 11. Proposed out-of-scope fixes
 

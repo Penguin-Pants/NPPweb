@@ -24,6 +24,8 @@ Update the Status column when the mapped tasks are done.
 
 No requirement is unmapped.
 
+**Status on 2026-10-09:** 55 Implemented, 3 Planned, 0 Verified. DOC-2, DEP-1 and DEP-2 wait for the Railway deploy (T04). Verified needs the owner checks in `BUILD_PLAN.md` section 9.1.
+
 ---
 
 ## 2. Access and security
@@ -80,8 +82,8 @@ No requirement is unmapped.
 | DEP-2 | REQ 3.5 | Railway persistent volume | T03, T04 | Production refuses to start without a volume path. Volume mounted at `/data`. | `config.test.js`, T04 checklist | Planned |
 | DEP-3 | REQ 3.5 | Desktop browsers | T10, T26 | Smoke specs pass in Chromium, Firefox and WebKit. Manual check in real browsers. | Playwright `@smoke` projects, T26 item 7 | Implemented |
 | DEP-4 | REQ 3.5 | Secure, HttpOnly cookies over HTTPS | T07, T26 | Production config sets `Secure`, `HttpOnly`, `SameSite=Lax` and HSTS. | `headers.test.js`, T26 item 2 | Implemented |
-| DEP-5 | REQ 3.5 | README notes removing the reset variable | T26 | README has the note and the side effect on sessions. | README review in T26 | Planned |
-| NFR-1 | REQ 3.5 | 1 MB documents stay responsive | T15, T24, T25 | Open under 2 s, 200 typed characters under 3 s, Ctrl+End under 0.5 s. | `e2e/perf.spec.js`, manual scroll check | Planned |
+| DEP-5 | REQ 3.5 | README notes removing the reset variable | T26 | README has the note and the side effect on sessions. | README review in T26 | Implemented |
+| NFR-1 | REQ 3.5 | 1 MB documents stay responsive | T15, T24, T25 | Open under 2 s, 200 typed characters under 3 s, Ctrl+End under 0.5 s. | `e2e/perf.spec.js`, manual scroll check | Implemented |
 
 ## 7. Edge cases
 
@@ -93,7 +95,7 @@ No requirement is unmapped.
 | EDGE-4 | REQ 4 | Session expires while editing | T16 | Re-login dialog. Unsaved text kept and saved after login. | `e2e/save-reliability.spec.js` | Implemented |
 | EDGE-5 | REQ 4 | Wrong password | T07, T08, T10 | Generic error. Rate limit after repeated failures. | `auth.test.js`, `rate-limit.test.js`, `e2e/login.spec.js` | Implemented |
 | EDGE-6 | REQ 4 | Password change | T09 | Needs current password. Other sessions signed out. | `password-route.test.js` | Implemented |
-| EDGE-7 | REQ 4 | Reset variable left set | T06, T26 | Every start resets and logs a warning. README explains it. | `bootstrap.test.js`, README review | Planned |
+| EDGE-7 | REQ 4 | Reset variable left set | T06, T26 | Every start resets and logs a warning. README explains it. | `bootstrap.test.js`, README review | Implemented |
 | EDGE-8 | REQ 4 | No variable and no stored password | T06 | Refuse to start with a clear log message. | `bootstrap.test.js` | Implemented |
 | EDGE-9 | REQ 4 | Unknown file extension | T20 | Plain text. | `languages.test.js` | Implemented |
 

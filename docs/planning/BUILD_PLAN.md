@@ -1,6 +1,6 @@
 # Build Plan: Private Web Notepad
 
-**Status:** Ready for execution. No open decisions. U1 and U2 are resolved (D12 and D13).
+**Status:** Built through P7 on branch `build/v1` (2026-10-09). 25 of 27 tasks are Done. T04 and T26 are blocked on the owner: they need the Railway deploy and the checks in section 9.1. No open plan decisions. U1 and U2 are resolved (D12 and D13). Proposed out-of-scope fixes are in `PLAN_REVIEW.md` section 11.
 **Date:** 2026-10-09
 **Inputs:** `REQUIREMENTS.md` (copy of `private-notepad-requirements.md`), `REQUIREMENTS_TRACEABILITY.md`, `PLAN_REVIEW.md`
 **Codebase:** None yet. This is a new project.
@@ -692,10 +692,34 @@ Update **Status** to `In progress` or `Done`. Add the PR or commit and short not
 | T27 | Install as a desktop app | P5 | S | T14 | Done | 2c759af | Service worker result: a persistent full Chromium 156.0.8078.4 profile reports no installability errors without a service worker, so no `sw.js` (TD-18). Owner-pending: DevTools Manifest check and install on the deployed URL in Chrome and Edge. |
 | T23 | Conflict and deleted-elsewhere dialogs | P6 | M | T17 | Done | 78c36ee, ec94dfb | Choices run while the dialog stays open. Default focus is Save mine as a new document. The dialogs cannot be dismissed with Escape. |
 | T24 | Client size limit | P6 | S | T15 | Done | 6ca12d8, ec94dfb | A change that makes an oversized document smaller is allowed. Typing in a 1 MB document stays fast (T25). |
-| T25 | Performance check | P7 | S | T20, T24 | Todo | | |
-| T26 | README and production verification | P7 | M | all | Todo |  | Owner-assisted. Extra owner check (P1 review 4): send 6 wrong logins to the deployed URL, each with a different X-Real-IP header. The 6th must get 429. |
+| T25 | Performance check | P7 | S | T20, T24 | Done | 511115a | Chromium, 3 runs: open 75 to 81 ms, 200 typed characters 694 to 747 ms, Ctrl+End 11 to 14 ms, no console errors. Owner-pending: manual scroll check (section 9.1). |
+| T26 | README and production verification | P7 | M | all | Blocked (owner) | 77b91ed | README done. The production checklist (section 9.1) needs the deployed app from T04. Extra owner check (P1 review 4): 6 wrong logins with 6 different X-Real-IP headers must get 429 on the 6th. |
 
 **Resume rule:** Find the first task in table order whose status is not `Done` and whose dependencies are all `Done`. Run `npm test` and `npm run test:e2e` to confirm a green baseline before you continue.
+
+
+### 9.1 Owner checklist record
+
+These checks need the deployed app or a person. Status values: Pending, Passed, Failed. Record the date and result when you run each one.
+
+| # | From | Check | Status |
+|---|------|-------|--------|
+| 1 | T04 | Deploy succeeds. `https://<domain>/healthz` returns 200. | Pending |
+| 2 | T04 | The deploy log shows `Database: /data/notepad.db`. | Pending |
+| 3 | T04 | After a redeploy, `railway volume files list /` still shows `notepad.db`. | Pending |
+| 4 | T26 item 1 | The domain shows the login page. `/` without a session redirects. | Pending |
+| 5 | T26 item 2 | The session cookie has `Secure`, `HttpOnly` and `SameSite=Lax`. | Pending |
+| 6 | T26 item 3 | Create a document and redeploy. Sign in again if needed. The document is still there. | Pending |
+| 7 | T26 item 4 | Change the password in the app. The old one fails. | Pending |
+| 8 | T26 item 5 | Set `RESET_PASSWORD=true` and redeploy. `OWNER_PASSWORD` works. Remove the variable and redeploy. | Pending |
+| 9 | T26 item 6 | Six wrong passwords trigger the rate limit. | Pending |
+| 10 | P1 review 4 | Six wrong passwords, each with a different `X-Real-IP` header, get 429 on the sixth. | Pending |
+| 11 | T26 item 7 | Smoke test in current Chrome, Firefox and Safari or Edge on desktop. | Pending |
+| 12 | T27 | Chrome DevTools > Application > Manifest on the deployed URL shows no installability errors in Chrome and Edge. | Pending |
+| 13 | T26 item 8, T22 | Install the app in Chrome and Edge. In the app window, Ctrl+N creates a document, Ctrl+W starts the close flow without closing the window, and Ctrl+S, Ctrl+F and Ctrl+H work. | Pending |
+| 14 | T26 item 9 | In a normal tab and in Firefox, Alt+N creates a document and Alt+W starts the close flow. | Pending |
+| 15 | T20 | One visual check per language (11 languages) in dark and light themes. | Pending |
+| 16 | T25 | Scrolling a 1 MB document feels smooth. | Pending |
 
 ---
 
