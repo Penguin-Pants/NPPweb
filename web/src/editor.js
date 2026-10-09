@@ -32,16 +32,6 @@ const lightTheme = [
 const themeExtension = (theme) => (theme === 'dark' ? oneDark : lightTheme);
 
 /**
- * The language part of a state. T20 adds parsers. data-language on the
- * content element lets tests read the active language.
- * @param {string} name
- * @param {import('@codemirror/state').Extension} [support]
- */
-export function languageExtension(name, support = []) {
-  return [support, EditorView.contentAttributes.of({ 'data-language': name })];
-}
-
-/**
  * @param {HTMLElement} parent
  * @param {object} options
  * @param {'dark' | 'light'} options.theme
@@ -81,9 +71,9 @@ export function createEditor(parent, { theme, onChange }) {
     view,
     /**
      * @param {string} doc
-     * @param {import('@codemirror/state').Extension} [language]
+     * @param {import('@codemirror/state').Extension} language From languageSupport in languages.js.
      */
-    createState: (doc, language = languageExtension('plain')) => EditorState.create({ doc, extensions: extensions(language) }),
+    createState: (doc, language) => EditorState.create({ doc, extensions: extensions(language) }),
     /** Shows a tab's state. A stored state may have an older theme. */
     show(state) {
       view.setState(state);

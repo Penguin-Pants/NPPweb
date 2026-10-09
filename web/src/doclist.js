@@ -71,7 +71,6 @@ export function createDocList({ api, tabs, panel, toggle, showMessage }) {
       onSubmit: async ({ name }) => {
         const { status, data } = await api.updateDocument(doc.id, { name });
         if (status === 200) {
-          tabs.rename(doc.id, data.name);
           emit('doc-renamed', { id: doc.id, name: data.name });
           return null;
         }

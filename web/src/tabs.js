@@ -3,6 +3,7 @@
 // from the server on window focus and on tab activation (TD-15).
 
 import { choose } from './dialogs.js';
+import { languageSupport, resolveLanguage } from './languages.js';
 
 const STORAGE_KEY = 'pn.openTabs.v1';
 
@@ -62,6 +63,7 @@ export function planRefresh(tabs, list) {
  * @property {string} name
  * @property {string | null} language Manual override, null = auto.
  * @property {import('@codemirror/state').EditorState | null} state Null until loaded.
+ * @property {string} [appliedLanguage] The language id the state's parser uses.
  */
 
 /**
@@ -71,11 +73,10 @@ export function planRefresh(tabs, list) {
  * @param {typeof import('./api.js').api} deps.api
  * @param {() => Storage} deps.getStorage
  * @param {{ strip: HTMLElement, editor: HTMLElement, empty: HTMLElement }} deps.elements
- * @param {(tab: Tab) => import('@codemirror/state').Extension} deps.languageFor
  * @param {() => void} deps.onActiveChange
  * @param {(text: string) => void} deps.showMessage
  */
-export function createTabs({ editor, autosave, api, getStorage, elements, languageFor, onActiveChange, showMessage }) {
+export function createTabs({ editor, autosave, api, getStorage, elements, onActiveChange, showMessage }) {
   /** @type {Tab[]} */
   let tabs = [];
   /** @type {string | null} */
@@ -100,6 +101,18 @@ export function createTabs({ editor, autosave, api, getStorage, elements, langua
     if (shown) shown.state = editor.view.state;
     editor.show(tab.state);
     shownId = tab.id;
+    syncLanguage(tab);
+  }
+
+  /** The language a tab should use now (EDT-4): override, else name extension. */
+  const languageOf = (tab) => resolveLanguage(tab.name, tab.language);
+
+  // Brings the shown tab's parser in line with its name and override. A tab
+  // that is not shown catches up when show() runs.
+  function syncLanguage(tab) {
+    if (tab.id !== shownId || tab.appliedLanguage === languageOf(tab)) return;
+    tab.appliedLanguage = languageOf(tab);
+    editor.setLanguage(languageSupport(tab.appliedLanguage));
   }
 
   function showBlank() {
@@ -115,6 +128,7 @@ export function createTabs({ editor, autosave, api, getStorage, elements, langua
         const node = document.createElement('div');
         node.className = 'tab';
         node.setAttribute('role', 'tab');
+        node.setAttribute('aria-label', tab.name);
         node.dataset.id = tab.id;
         node.setAttribute('aria-selected', String(tab.id === activeId));
         if (!isClean(tab)) node.classList.add('dirty');
@@ -149,7 +163,8 @@ export function createTabs({ editor, autosave, api, getStorage, elements, langua
   function load(tab, doc) {
     tab.name = doc.name;
     tab.language = doc.language;
-    tab.state = editor.createState(doc.content, languageFor(tab));
+    tab.appliedLanguage = languageOf(tab);
+    tab.state = editor.createState(doc.content, languageSupport(tab.appliedLanguage));
     autosave.track(tab.id, { version: doc.version, getContent: () => stateOf(tab).doc.toString() });
   }
 
@@ -318,7 +333,28 @@ export function createTabs({ editor, autosave, api, getStorage, elements, langua
       const tab = find(id);
       if (!tab) return;
       tab.name = name;
+      syncLanguage(tab);
       render();
+    },
+
+    /**
+     * Stores a manual language override, or null for auto (EDT-4).
+     * @returns {Promise<boolean>} false when the server did not accept it.
+     */
+    async setLanguage(id, language) {
+      const { status, data } = await api.updateDocument(id, { language });
+      const tab = find(id);
+      if (status !== 200 || !tab) return false;
+      tab.language = data.language;
+      syncLanguage(tab);
+      onActiveChange();
+      return true;
+    },
+
+    /** The resolved language id of a tab. */
+    languageOf: (id) => {
+      const tab = find(id);
+      return tab ? languageOf(tab) : null;
     },
 
     /** Applies server metadata and reloads clean tabs that changed elsewhere. */
@@ -331,7 +367,10 @@ export function createTabs({ editor, autosave, api, getStorage, elements, langua
       );
       for (const [id, doc] of plan.meta) {
         const tab = find(id);
-        if (tab) tab.name = doc.name;
+        if (!tab) continue;
+        tab.name = doc.name;
+        tab.language = doc.language;
+        syncLanguage(tab);
       }
       for (const id of plan.remove) removeTab(id);
       await Promise.all(plan.reload.map((id) => reload(find(id))));

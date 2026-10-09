@@ -3,8 +3,9 @@ import { api } from './api.js';
 import { createAutosave } from './autosave.js';
 import { formDialog } from './dialogs.js';
 import { createDocList } from './doclist.js';
-import { createEditor, languageExtension } from './editor.js';
-import { emit } from './events.js';
+import { createEditor } from './editor.js';
+import { emit, on } from './events.js';
+import { LANGUAGES } from './languages.js';
 import { setupSessionRecovery } from './session.js';
 import { createTabs } from './tabs.js';
 import { createTheme } from './theme.js';
@@ -109,8 +110,10 @@ tabs = createTabs({
   api,
   getStorage: () => localStorage,
   elements: { strip: $('tabstrip'), editor: $('editor'), empty: $('empty-state') },
-  languageFor: () => languageExtension('plain'),
-  onActiveChange: renderSaveStatus,
+  onActiveChange: () => {
+    renderSaveStatus();
+    renderLanguage();
+  },
   showMessage,
 });
 
@@ -130,6 +133,31 @@ function renderSaveStatus() {
   label.dataset.status = status ?? '';
   label.textContent = status === 'error' ? ERROR_TEXT[autosave.reason(id)] : (STATUS_TEXT[status] ?? '');
 }
+
+// Language selector (EDT-4): Auto plus the 11 languages. The choice is stored
+// with the document, so it follows it to other devices.
+const languageSelect = document.createElement('select');
+languageSelect.setAttribute('aria-label', 'Language');
+languageSelect.append(new Option('Auto (detected)', ''), ...LANGUAGES.map(({ id, label }) => new Option(label, id)));
+$('language-slot').append(languageSelect);
+function renderLanguage() {
+  const tab = tabs.active();
+  languageSelect.hidden = !tab;
+  if (!tab) return;
+  languageSelect.value = tab.language ?? '';
+  const detected = LANGUAGES.find(({ id }) => id === tabs.languageOf(tab.id))?.label;
+  languageSelect.title = `Language: ${detected}`;
+}
+languageSelect.addEventListener('change', async () => {
+  const tab = tabs.active();
+  if (!tab) return;
+  if (!(await tabs.setLanguage(tab.id, languageSelect.value || null))) {
+    showMessage('Could not change the language. Try again.');
+    renderLanguage();
+  }
+});
+// A rename can change the language when no override is set.
+on('doc-renamed', ({ id, name }) => tabs.rename(id, name));
 
 setupSessionRecovery({
   onSignedIn: () => {
