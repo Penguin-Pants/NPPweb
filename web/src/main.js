@@ -1,6 +1,8 @@
 // Editor app entry: wires the modules together.
 import { api } from './api.js';
+import { createAutosave } from './autosave.js';
 import { formDialog } from './dialogs.js';
+import { createEditor } from './editor.js';
 import { on } from './events.js';
 import { createTheme } from './theme.js';
 
@@ -8,7 +10,14 @@ const $ = (id) => /** @type {HTMLElement} */ (document.getElementById(id));
 
 // Theme (EDT-6).
 const themeButton = $('theme-toggle');
-const theme = createTheme({ getStorage: () => localStorage, root: document.documentElement, onChange: showTheme });
+const theme = createTheme({
+  getStorage: () => localStorage,
+  root: document.documentElement,
+  onChange: (next) => {
+    showTheme(next);
+    editor.setTheme(next);
+  },
+});
 function showTheme(current) {
   themeButton.textContent = current === 'dark' ? 'Light theme' : 'Dark theme';
 }
@@ -75,3 +84,27 @@ $('change-password').addEventListener('click', async () => {
 
 // Until the re-login dialog exists (T16), an expired session goes to the login page.
 on('session-expired', () => location.replace('/login'));
+
+// Editor and autosave.
+/** @type {{ id: string } | null} */
+let current = null;
+const editor = createEditor($('editor'), {
+  theme: theme.get(),
+  onChange: () => current && autosave.edited(current.id),
+});
+const autosave = createAutosave({ save: (id, content, version) => api.saveContent(id, content, version) });
+
+// Temporary single-document flow until tabs (T17): open the newest
+// document, or create one when none exist.
+async function openNewestDocument() {
+  const list = await api.listDocuments();
+  if (list.status !== 200) return;
+  const meta = list.data[0] ?? (await api.createDocument()).data;
+  const { status, data: doc } = await api.getDocument(meta.id);
+  if (status !== 200) return;
+  current = doc;
+  editor.show(editor.createState(doc.content));
+  autosave.track(doc.id, { version: doc.version, getContent: editor.content });
+  editor.focus();
+}
+openNewestDocument();
