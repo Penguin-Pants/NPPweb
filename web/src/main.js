@@ -2,6 +2,7 @@
 import { api } from './api.js';
 import { createAutosave } from './autosave.js';
 import { formDialog } from './dialogs.js';
+import { createDocList } from './doclist.js';
 import { createEditor, languageExtension } from './editor.js';
 import { emit } from './events.js';
 import { setupSessionRecovery } from './session.js';
@@ -144,8 +145,20 @@ window.addEventListener('beforeunload', (event) => {
   event.returnValue = '';
 });
 
+const doclist = createDocList({
+  api,
+  tabs,
+  panel: $('doclist'),
+  toggle: /** @type {HTMLButtonElement} */ ($('toggle-doclist')),
+  showMessage,
+});
+
 $('new-doc').addEventListener('click', () => tabs.newDocument());
 $('empty-new').addEventListener('click', () => tabs.newDocument());
-// TD-15: clean tabs refresh when the window gets focus.
-window.addEventListener('focus', () => tabs.refresh());
+$('empty-list').addEventListener('click', () => doclist.show());
+// TD-15: clean tabs and the open document list refresh on window focus.
+window.addEventListener('focus', () => {
+  tabs.refresh();
+  doclist.refresh();
+});
 tabs.boot();

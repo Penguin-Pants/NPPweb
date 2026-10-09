@@ -261,6 +261,14 @@ export function createTabs({ editor, autosave, api, getStorage, elements, langua
     /** Closes a tab without saving (its document is gone). */
     removeTab,
 
+    /** Shows a new name on an open tab. */
+    rename(id, name) {
+      const tab = find(id);
+      if (!tab) return;
+      tab.name = name;
+      render();
+    },
+
     /** Applies server metadata and reloads clean tabs that changed elsewhere. */
     async refresh() {
       const { status, data } = await api.listDocuments();
