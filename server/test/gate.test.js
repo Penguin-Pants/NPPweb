@@ -63,6 +63,7 @@ test('the API has no sign-up, user or account routes', () => {
     'POST /api/login',
     'POST /api/logout',
     'POST /api/password',
+    'PUT /api/documents/:id/content',
   ]);
 });
 

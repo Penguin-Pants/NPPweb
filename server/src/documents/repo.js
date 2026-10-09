@@ -87,3 +87,19 @@ export function getDocument(db, id) {
     .get(id);
   return row && { ...toMeta(row), content: row.content };
 }
+
+/**
+ * Saves content only when the stored version still equals expectedVersion.
+ * @param {import('node:sqlite').DatabaseSync} db
+ * @param {{ id: string, content: string, expectedVersion: number, now: number }} input
+ * @returns {{ ok: true, version: number, updatedAt: number } | { ok: false, currentVersion: number | null }}
+ *   currentVersion is null when the document does not exist.
+ */
+export function saveContent(db, { id, content, expectedVersion, now }) {
+  const { changes } = db
+    .prepare('UPDATE documents SET content = ?, version = version + 1, updated_at = ? WHERE id = ? AND version = ?')
+    .run(content, now, id, expectedVersion);
+  if (changes === 1) return { ok: true, version: expectedVersion + 1, updatedAt: now };
+  const row = db.prepare('SELECT version FROM documents WHERE id = ?').get(id);
+  return { ok: false, currentVersion: row?.version ?? null };
+}

@@ -1,6 +1,6 @@
 // Document API (BUILD_PLAN.md section 2.7). Content travels as text/plain
 // with an exact byte limit (TD-7).
-import { createDocument, getDocument, listDocuments, normalizeName } from './repo.js';
+import { createDocument, getDocument, listDocuments, normalizeName, saveContent } from './repo.js';
 
 export const CONTENT_LIMIT_BYTES = 1_048_576;
 
@@ -36,6 +36,25 @@ export async function documentRoutes(app, { db, clock }) {
     const doc = getDocument(db, request.params.id);
     if (!doc) return reply.code(404).send({ error: 'not_found' });
     return doc;
+  });
+
+  // TD-6: If-Match carries the version the client last saw.
+  app.put('/api/documents/:id/content', { bodyLimit: CONTENT_LIMIT_BYTES }, async (request, reply) => {
+    const ifMatch = request.headers['if-match'];
+    if (typeof ifMatch !== 'string' || !/^\d+$/.test(ifMatch)) {
+      return reply.code(428).send({ error: 'version_required' });
+    }
+    const content = textBody(request);
+    if (content === null) return reply.code(415).send({ error: 'unsupported_media_type' });
+    const result = saveContent(db, {
+      id: request.params.id,
+      content,
+      expectedVersion: Number(ifMatch),
+      now: clock(),
+    });
+    if (result.ok) return { version: result.version, updatedAt: result.updatedAt };
+    if (result.currentVersion === null) return reply.code(404).send({ error: 'not_found' });
+    return reply.code(412).send({ error: 'version_conflict', currentVersion: result.currentVersion });
   });
 
 }
