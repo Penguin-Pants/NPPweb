@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, test } from 'node:test';
 import { start } from '../src/index.js';
 
+const OWNER_PASSWORD = 'index-test-password';
 let dataDir;
 
 beforeEach(async () => {
@@ -18,7 +19,8 @@ for (const signal of ['SIGTERM', 'SIGINT']) {
   test(`start opens the database, serves /healthz and exits 0 on ${signal}`, async () => {
     let exited;
     const exitCode = new Promise((resolve) => (exited = resolve));
-    const app = await start({ env: { PORT: '0', DATA_DIR: dataDir }, exit: exited, logger: false });
+    const env = { PORT: '0', DATA_DIR: dataDir, OWNER_PASSWORD };
+    const app = await start({ env, exit: exited, logger: false });
     assert.ok(existsSync(join(dataDir, 'notepad.db')));
     const { port } = app.server.address();
     const res = await fetch(`http://127.0.0.1:${port}/healthz`);
@@ -32,7 +34,8 @@ for (const signal of ['SIGTERM', 'SIGINT']) {
 test('start exits 1 on a config error', async (t) => {
   t.mock.method(console, 'error', () => {});
   const codes = [];
-  const app = await start({ env: { PORT: 'abc', DATA_DIR: dataDir }, exit: (code) => codes.push(code), logger: false });
+  const env = { PORT: 'abc', DATA_DIR: dataDir, OWNER_PASSWORD };
+  const app = await start({ env, exit: (code) => codes.push(code), logger: false });
   assert.equal(app, undefined);
   assert.deepEqual(codes, [1]);
 });
@@ -40,8 +43,16 @@ test('start exits 1 on a config error', async (t) => {
 test('start in production without a volume path exits 1 with the message', async (t) => {
   const errors = t.mock.method(console, 'error', () => {});
   const codes = [];
-  const app = await start({ env: { NODE_ENV: 'production' }, exit: (code) => codes.push(code), logger: false });
+  const env = { NODE_ENV: 'production', OWNER_PASSWORD };
+  const app = await start({ env, exit: (code) => codes.push(code), logger: false });
   assert.equal(app, undefined);
   assert.deepEqual(codes, [1]);
   assert.equal(errors.mock.calls[0].arguments[0], 'No persistent volume configured. Attach a Railway volume.');
+});
+
+test('start exits 1 when no password is configured', async () => {
+  const codes = [];
+  const app = await start({ env: { PORT: '0', DATA_DIR: dataDir }, exit: (code) => codes.push(code), logger: false });
+  assert.equal(app, undefined);
+  assert.deepEqual(codes, [1]);
 });

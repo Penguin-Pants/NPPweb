@@ -1,5 +1,6 @@
 // Entry point. Startup order follows BUILD_PLAN.md section 2.10.
 import { buildApp } from './app.js';
+import { ensurePassword } from './auth/bootstrap.js';
 import { loadConfig } from './config.js';
 import { openDatabase } from './db.js';
 
@@ -24,6 +25,14 @@ export async function start({ env = process.env, exit = process.exit, logger } =
 
   const app = buildApp({ config, logger });
   app.log.info(`Database: ${db.location()}`);
+  try {
+    await ensurePassword({ db, config, logger: app.log });
+  } catch (err) {
+    app.log.error(err.message);
+    db.close();
+    exit(1);
+    return undefined;
+  }
   await app.listen({ host: '0.0.0.0', port: config.port });
 
   const shutdown = async () => {

@@ -48,3 +48,21 @@ export function validateNewPassword(password) {
   const length = [...password].length;
   return length >= 12 && length <= 256;
 }
+
+/**
+ * @param {import('node:sqlite').DatabaseSync} db
+ * @returns {string | null}
+ */
+export function readPasswordHash(db) {
+  return db.prepare("SELECT value FROM settings WHERE key = 'password_hash'").get()?.value ?? null;
+}
+
+/**
+ * @param {import('node:sqlite').DatabaseSync} db
+ * @param {string} hash
+ */
+export function storePasswordHash(db, hash) {
+  db.prepare(
+    "INSERT INTO settings (key, value) VALUES ('password_hash', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value",
+  ).run(hash);
+}
