@@ -4,6 +4,7 @@ import fastifyCookie from '@fastify/cookie';
 import fastifyStatic from '@fastify/static';
 import Fastify from 'fastify';
 import { addAuthGate } from './auth/gate.js';
+import { documentRoutes } from './documents/routes.js';
 import { authRoutes } from './routes/auth.js';
 import { healthRoutes } from './routes/health.js';
 import { addSecurityHeaders, securityHeaders } from './security-headers.js';
@@ -46,5 +47,6 @@ export async function buildApp({ config, db, clock = Date.now, logger, webRoot =
   app.get('/login', (request, reply) => reply.sendFile('login.html'));
   app.register(healthRoutes);
   app.register(authRoutes, { db, config, clock });
+  app.register(documentRoutes, { db, clock });
   return app;
 }
