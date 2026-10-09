@@ -279,3 +279,24 @@ test('resumeAll does not save a document held by a conflict', async () => {
   assert.deepEqual(calls.slice(2).map((call) => call.id), ['b']);
   assert.equal(autosave.reason('a'), 'conflict');
 });
+
+test('track again clears a hold and settles a flush that waits on an in-flight save', async () => {
+  autosave.edited('a');
+  const pending = autosave.flush('a');
+  autosave.track('a', { version: 7, getContent: () => 'loaded from server' });
+  await reply(200, { version: 2, updatedAt: 1 });
+  assert.equal(await Promise.race([pending, settle().then(() => 'still pending')]), false);
+  assert.equal(autosave.status('a'), 'saved');
+  autosave.edited('a');
+  mock.timers.tick(1000);
+  assert.deepEqual(calls.at(-1), { id: 'a', text: 'loaded from server', version: 7 });
+});
+
+test('a reply for a document that was tracked again is ignored', async () => {
+  autosave.edited('a');
+  mock.timers.tick(1000);
+  autosave.track('a', { version: 9, getContent: () => 'fresh' });
+  await reply(412, { error: 'version_conflict', currentVersion: 9 });
+  assert.equal(autosave.status('a'), 'saved');
+  assert.deepEqual(events, []);
+});

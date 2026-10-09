@@ -120,7 +120,11 @@ export function createAutosave({ save, onStatus = () => {}, onEvent = () => {}, 
      */
     track(id, { version, getContent }) {
       const old = docs.get(id);
-      if (old) clearTimer(old);
+      if (old) {
+        // The old text was replaced, not saved.
+        clearTimer(old);
+        settle(old, false);
+      }
       docs.set(id, {
         id,
         version,

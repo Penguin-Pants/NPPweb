@@ -194,16 +194,23 @@ export function createTabs({ editor, autosave, api, getStorage, elements, onActi
     if (status !== 204 && status !== 404) showMessage('Delete failed. The document is still in the document list.');
   }
 
+  /** Replaces a tab's state with server content. Resets its autosave. */
+  function replaceContent(tab, doc) {
+    const wasShown = tab.id === shownId;
+    if (wasShown) shownId = null;
+    load(tab, doc);
+    if (wasShown) show(tab);
+    render();
+    onActiveChange();
+  }
+
   // Replaces a clean tab's text with the server version. Skips the reload
   // when the user typed while the request was in flight.
   async function reload(tab) {
     const before = autosave.version(tab.id);
     const { status, data } = await api.getDocument(tab.id);
     if (status !== 200 || !find(tab.id) || !isClean(tab) || autosave.version(tab.id) !== before) return;
-    const wasShown = tab.id === shownId;
-    if (wasShown) shownId = null;
-    load(tab, data);
-    if (wasShown) show(tab);
+    replaceContent(tab, data);
   }
 
   const controller = {
@@ -268,10 +275,32 @@ export function createTabs({ editor, autosave, api, getStorage, elements, onActi
     async newDocument() {
       const { status, data } = await api.createDocument();
       if (status !== 201) return false;
-      const tab = { id: data.id, name: data.name, language: data.language, state: null };
+      await controller.addDocument(data, '');
+      return true;
+    },
+
+    /**
+     * Opens a document that was just created with `content` in a new active tab.
+     * @param {import('./api.js').DocumentMeta} meta
+     * @param {string} content
+     */
+    async addDocument(meta, content) {
+      const tab = { id: meta.id, name: meta.name, language: meta.language, state: null };
       tabs.push(tab);
-      load(tab, { ...data, content: '' });
+      load(tab, { ...meta, content });
       await controller.activate(tab.id);
+    },
+
+    /**
+     * Replaces a tab's text with the server version, whatever its state
+     * (conflict choice "Load the other version").
+     * @returns {Promise<boolean>} false when the load failed.
+     */
+    async reloadFromServer(id) {
+      const { status, data } = await api.getDocument(id);
+      const tab = find(id);
+      if (status !== 200 || !tab) return false;
+      replaceContent(tab, data);
       return true;
     },
 

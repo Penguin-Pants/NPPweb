@@ -1,6 +1,7 @@
 // Editor app entry: wires the modules together.
 import { api } from './api.js';
 import { createAutosave } from './autosave.js';
+import { setupConflictHandling } from './conflict.js';
 import { formDialog } from './dialogs.js';
 import { createDocList } from './doclist.js';
 import { createEditor } from './editor.js';
@@ -158,6 +159,9 @@ languageSelect.addEventListener('change', async () => {
     renderLanguage();
   }
 });
+// CON-1 and EDGE-1: a 412 or 404 save opens a dialog with the choices.
+setupConflictHandling({ api, autosave, tabs, showMessage });
+
 // A rename can change the language when no override is set.
 on('doc-renamed', ({ id, name }) => tabs.rename(id, name));
 
