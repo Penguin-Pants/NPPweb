@@ -4,6 +4,7 @@
 
 import { choose } from './dialogs.js';
 import { languageSupport, resolveLanguage } from './languages.js';
+import { modName } from './shortcuts.js';
 
 const STORAGE_KEY = 'pn.openTabs.v1';
 
@@ -144,7 +145,7 @@ export function createTabs({ editor, autosave, api, getStorage, elements, onActi
         close.className = 'tab-close';
         close.textContent = '×';
         close.setAttribute('aria-label', `Close ${tab.name}`);
-        close.title = 'Close (Alt+W)';
+        close.title = `Close (${modName()}+W in the installed app, Alt+W)`;
         close.addEventListener('click', (event) => {
           event.stopPropagation();
           controller.close(tab.id);

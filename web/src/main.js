@@ -6,7 +6,8 @@ import { createDocList } from './doclist.js';
 import { createEditor } from './editor.js';
 import { emit, on } from './events.js';
 import { LANGUAGES } from './languages.js';
-import { openFind } from './search-panel.js';
+import { openFind, openReplace } from './search-panel.js';
+import { modName, setupShortcuts } from './shortcuts.js';
 import { setupSessionRecovery } from './session.js';
 import { createTabs } from './tabs.js';
 import { createTheme } from './theme.js';
@@ -186,6 +187,24 @@ $('new-doc').addEventListener('click', () => tabs.newDocument());
 $('empty-new').addEventListener('click', () => tabs.newDocument());
 $('empty-list').addEventListener('click', () => doclist.show());
 $('find').addEventListener('click', () => tabs.shownId() && openFind(editor.view));
+
+// Shortcuts (EDT-7, EDT-9). Ctrl+N and Ctrl+W reach the page only in the
+// installed app window. Alt+N and Alt+W work everywhere.
+setupShortcuts({
+  new: () => tabs.newDocument(),
+  close: () => {
+    const tab = tabs.active();
+    if (tab) tabs.close(tab.id);
+  },
+  save: () => {
+    const id = tabs.shownId();
+    if (id) autosave.flush(id);
+  },
+  find: () => tabs.shownId() && openFind(editor.view),
+  replace: () => tabs.shownId() && openReplace(editor.view),
+});
+$('new-doc').title = `New document (${modName()}+N in the installed app, Alt+N)`;
+$('find').title = `Find (${modName()}+F) and replace (${modName()}+H)`;
 // TD-15: clean tabs and the open document list refresh on window focus.
 window.addEventListener('focus', () => {
   tabs.refresh();
