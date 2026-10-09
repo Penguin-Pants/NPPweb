@@ -336,6 +336,7 @@ export function createTabs({ editor, autosave, api, getStorage, elements, onActi
       tab.name = name;
       syncLanguage(tab);
       render();
+      onActiveChange();
     },
 
     /**

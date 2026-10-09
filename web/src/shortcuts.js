@@ -27,9 +27,9 @@ export function shortcutFor(event, mac) {
 
 /**
  * @param {Record<'new' | 'close' | 'save' | 'find' | 'replace', () => void>} actions
+ * @param {boolean} [mac]
  */
-export function setupShortcuts(actions) {
-  const mac = isMac();
+export function setupShortcuts(actions, mac = isMac()) {
   document.addEventListener(
     'keydown',
     (event) => {
@@ -39,8 +39,9 @@ export function setupShortcuts(actions) {
       // browser close the app window (R8).
       event.preventDefault();
       event.stopPropagation();
-      // While a modal dialog is open, the key only stays away from the browser.
-      if (document.querySelector('dialog[open]')) return;
+      // A held key acts once. While a modal dialog is open, the key only
+      // stays away from the browser.
+      if (event.repeat || document.querySelector('dialog[open]')) return;
       actions[action]();
     },
     { capture: true },

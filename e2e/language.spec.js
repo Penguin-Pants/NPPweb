@@ -83,3 +83,35 @@ test('an override wins over the extension and shows in a second browser context'
   await expect(content(page)).toHaveAttribute('data-language', 'python');
   await expect.poll(async () => (await (await api.get(`/api/documents/${doc.id}`)).json()).language).toBe(null);
 });
+
+test('a tab that is not shown picks up a rename when it is shown again', async ({ page, api }) => {
+  const a = await createDoc(api, 'a.py', 'x = 1');
+  const b = await createDoc(api, 'b.py', 'y = 2');
+  await login(page);
+  await openTabs(page, [a.id, b.id]);
+  await page.getByRole('tab', { name: 'b.py', exact: true }).click();
+  await expect(content(page)).toHaveAttribute('data-language', 'python');
+  await page.getByRole('tab', { name: 'a.py', exact: true }).click();
+  await page.getByRole('button', { name: 'Documents' }).click();
+  await page.getByRole('button', { name: 'Rename b.py' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Rename document' });
+  await dialog.getByLabel('Name').fill('b.sql');
+  await dialog.getByRole('button', { name: 'Rename' }).click();
+  await expect(content(page)).toHaveAttribute('data-language', 'python');
+  await page.getByRole('tab', { name: 'b.sql', exact: true }).click();
+  await expect(content(page)).toHaveAttribute('data-language', 'sql');
+  await expect(languageSelect(page)).toHaveAttribute('title', 'Language: SQL');
+});
+
+test('renaming the active tab updates the selector tooltip', async ({ page, api }) => {
+  const doc = await createDoc(api, 'a.py', 'x = 1');
+  await login(page);
+  await openTabs(page, [doc.id]);
+  await expect(languageSelect(page)).toHaveAttribute('title', 'Language: Python');
+  await page.getByRole('button', { name: 'Documents' }).click();
+  await page.getByRole('button', { name: 'Rename a.py' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Rename document' });
+  await dialog.getByLabel('Name').fill('a.sql');
+  await dialog.getByRole('button', { name: 'Rename' }).click();
+  await expect(languageSelect(page)).toHaveAttribute('title', 'Language: SQL');
+});

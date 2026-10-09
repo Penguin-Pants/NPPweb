@@ -88,3 +88,38 @@ test('the panel has no regex, whole-word or case controls', async ({ page }) => 
   await expect(panel(page).getByRole('button')).toHaveText(['Previous', 'Next', 'Replace', 'Replace all', 'Close']);
   await expect(page.locator('.cm-search')).toHaveCount(0);
 });
+
+test('Enter on a focused panel button runs that button', async ({ page }) => {
+  await login(page);
+  await documentWith(page, 'x and x');
+  await openFind(page);
+  await page.keyboard.type('x');
+  await panel(page).getByLabel('Replace with').fill('y');
+  await panel(page).getByRole('button', { name: 'Replace all' }).focus();
+  await page.keyboard.press('Enter');
+  await expect(editor(page)).toHaveText('y and y');
+});
+
+test('the replace text stays when the panel opens again with a selection', async ({ page }) => {
+  await login(page);
+  await documentWith(page, 'cat dog');
+  await openFind(page);
+  await page.keyboard.type('cat');
+  await panel(page).getByLabel('Replace with').fill('bird');
+  await page.locator('.cm-line').dblclick({ position: { x: 45, y: 5 } });
+  await page.getByRole('button', { name: 'Find', exact: true }).click();
+  await expect(panel(page).getByLabel('Find')).toHaveValue('dog');
+  await expect(panel(page).getByLabel('Replace with')).toHaveValue('bird');
+});
+
+test('each tab keeps its own search panel', async ({ page }) => {
+  await login(page);
+  await documentWith(page, 'first');
+  await documentWith(page, 'second');
+  await openFind(page);
+  await page.keyboard.type('sec');
+  await page.getByRole('tab', { name: 'Untitled 1' }).click();
+  await expect(panel(page)).toHaveCount(0);
+  await page.getByRole('tab', { name: 'Untitled 2' }).click();
+  await expect(panel(page).getByLabel('Find')).toHaveValue('sec');
+});

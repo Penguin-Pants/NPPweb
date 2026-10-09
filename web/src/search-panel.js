@@ -65,7 +65,8 @@ function createPanel(view) {
   find.addEventListener('input', commit);
   replace.addEventListener('input', commit);
   dom.addEventListener('keydown', (event) => {
-    if (event.key === 'Enter') {
+    // Enter belongs to the fields. On a focused button it clicks that button.
+    if (event.key === 'Enter' && (event.target === find || event.target === replace) && !event.isComposing) {
       event.preventDefault();
       run(event.shiftKey ? findPrevious : findNext)();
     } else if (event.key === 'Escape') {
@@ -111,7 +112,14 @@ export const searchExtension = () =>
 
 /** @param {import('@codemirror/view').EditorView} view @param {string} selector */
 function openAndFocus(view, selector) {
+  // With a selection, openSearchPanel builds a query from it with no replace
+  // text, which would clear the replace field. Keep what the user typed.
+  const { replace } = getSearchQuery(view.state);
   openSearchPanel(view);
+  const query = getSearchQuery(view.state);
+  if (replace && !query.replace) {
+    view.dispatch({ effects: setSearchQuery.of(literalQuery(query.search, replace)) });
+  }
   const input = /** @type {HTMLInputElement | null} */ (view.dom.querySelector(`.search-panel ${selector}`));
   input?.focus();
   input?.select();
