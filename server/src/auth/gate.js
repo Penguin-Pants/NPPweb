@@ -3,12 +3,18 @@
 import { isValidSession, SESSION_COOKIE } from './sessions.js';
 
 // "METHOD path" pairs that answer without a session (BUILD_PLAN.md section 2.9).
+// Browsers fetch the manifest without cookies, so it and its icons are public
+// (TD-19). They hold no data.
 const PUBLIC = new Set([
   'GET /login',
   'GET /login.js',
   'GET /theme-init.js',
   'GET /styles.css',
   'GET /healthz',
+  'GET /manifest.webmanifest',
+  'GET /icons/icon-192.png',
+  'GET /icons/icon-512.png',
+  'GET /icons/icon-maskable-512.png',
   'POST /api/login',
 ]);
 const STATE_CHANGING = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);

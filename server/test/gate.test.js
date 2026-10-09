@@ -18,6 +18,10 @@ const PUBLIC = [
   ['GET', '/theme-init.js'],
   ['GET', '/styles.css'],
   ['GET', '/healthz'],
+  ['GET', '/manifest.webmanifest'],
+  ['GET', '/icons/icon-192.png'],
+  ['GET', '/icons/icon-512.png'],
+  ['GET', '/icons/icon-maskable-512.png'],
   ['POST', '/api/login'],
 ];
 const isPublic = (method, url) =>
@@ -171,4 +175,16 @@ test('the public allowlist matches exact paths only', async () => {
     assert.equal(res.statusCode, 401, url);
   }
   assert.equal((await ctx.app.inject({ method: 'GET', url: '/login?next=1' })).statusCode, 200);
+});
+
+test('the manifest and icons are public with the right content types (TD-19)', async () => {
+  const manifest = await ctx.app.inject({ method: 'GET', url: '/manifest.webmanifest' });
+  assert.equal(manifest.statusCode, 200);
+  assert.match(manifest.headers['content-type'], /^application\/manifest\+json/);
+  for (const name of ['icon-192.png', 'icon-512.png', 'icon-maskable-512.png']) {
+    const res = await ctx.app.inject({ method: 'GET', url: `/icons/${name}` });
+    assert.equal(res.statusCode, 200, name);
+    assert.equal(res.headers['content-type'], 'image/png', name);
+  }
+  assert.equal((await ctx.app.inject({ method: 'GET', url: '/icons/other.png' })).statusCode, 401);
 });

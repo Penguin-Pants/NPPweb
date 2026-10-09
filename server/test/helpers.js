@@ -10,7 +10,18 @@ import { openDatabase } from '../src/db.js';
 export const PASSWORD = 'test-owner-password';
 // Fastify inject sends "Host: localhost:80" by default.
 export const ORIGIN = 'http://localhost';
-export const WEB_FILES = ['index.html', 'login.html', 'login.js', 'main.js', 'theme-init.js', 'styles.css'];
+export const WEB_FILES = [
+  'index.html',
+  'login.html',
+  'login.js',
+  'main.js',
+  'theme-init.js',
+  'styles.css',
+  'manifest.webmanifest',
+  'icons/icon-192.png',
+  'icons/icon-512.png',
+  'icons/icon-maskable-512.png',
+];
 
 /**
  * @param {object} [options]
@@ -20,7 +31,7 @@ export const WEB_FILES = ['index.html', 'login.html', 'login.js', 'main.js', 'th
 export async function createTestApp({ env = {}, clock } = {}) {
   const dir = await mkdtemp(join(tmpdir(), 'pn-app-'));
   const webRoot = join(dir, 'web');
-  await mkdir(webRoot);
+  await mkdir(join(webRoot, 'icons'), { recursive: true });
   for (const name of WEB_FILES) await writeFile(join(webRoot, name), `/* ${name} */`);
   const config = loadConfig({ DATA_DIR: join(dir, 'data'), OWNER_PASSWORD: PASSWORD, ...env });
   const db = openDatabase(config.dataDir);
