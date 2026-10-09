@@ -13,6 +13,7 @@ import {
   keymap,
   lineNumbers,
 } from '@codemirror/view';
+import { searchExtension } from './search-panel.js';
 
 const baseTheme = EditorView.theme({
   '&': { height: '100%', fontSize: '13px' },
@@ -50,6 +51,7 @@ export function createEditor(parent, { theme, onChange }) {
     highlightActiveLine(),
     EditorState.allowMultipleSelections.of(false),
     keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
+    searchExtension(),
     baseTheme,
     themeSlot.of(themeExtension(currentTheme)),
     languageSlot.of(language),

@@ -6,6 +6,7 @@ import { createDocList } from './doclist.js';
 import { createEditor } from './editor.js';
 import { emit, on } from './events.js';
 import { LANGUAGES } from './languages.js';
+import { openFind } from './search-panel.js';
 import { setupSessionRecovery } from './session.js';
 import { createTabs } from './tabs.js';
 import { createTheme } from './theme.js';
@@ -184,6 +185,7 @@ const doclist = createDocList({
 $('new-doc').addEventListener('click', () => tabs.newDocument());
 $('empty-new').addEventListener('click', () => tabs.newDocument());
 $('empty-list').addEventListener('click', () => doclist.show());
+$('find').addEventListener('click', () => tabs.shownId() && openFind(editor.view));
 // TD-15: clean tabs and the open document list refresh on window focus.
 window.addEventListener('focus', () => {
   tabs.refresh();

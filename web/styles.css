@@ -411,3 +411,28 @@ button.danger {
   padding: 4px 6px;
   color: var(--muted);
 }
+
+/* Find and replace panel (inside the editor) */
+.search-panel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  background: var(--surface);
+  color: var(--fg);
+  border-bottom: 1px solid var(--border);
+  font: 13px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+.search-panel input {
+  width: 180px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 3px 6px;
+}
+
+.search-panel button {
+  padding: 3px 10px;
+}
