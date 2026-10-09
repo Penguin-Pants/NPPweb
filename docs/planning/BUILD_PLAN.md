@@ -668,9 +668,9 @@ Update **Status** to `In progress` or `Done`. Add the PR or commit and short not
 | ID | Title | Phase | Size | Depends on | Status | PR/commit | Notes |
 |----|-------|-------|------|------------|--------|-----------|-------|
 | T01 | Scaffold repository and tooling | P0 | S | none | Done | 719a632 | Node 24.21.0, npm 11.19.0. fastify 5.12.5, @fastify/cookie 11.1.3, @fastify/static 10.1.6, esbuild 0.28.2, @playwright/test 1.64.0. Build behavior test replaces the trivial test (`PLAN_REVIEW.md` section 9). `REQUIREMENTS.md` was already in place. |
-| T02 | Config, app factory, health, entry | P0 | S | T01 | Todo | | |
-| T03 | Database module and migrations | P0 | M | T02 | Todo | | |
-| T04 | Railway deployment skeleton | P0 | M | T03 | Todo | | Owner-assisted |
+| T02 | Config, app factory, health, entry | P0 | S | T01 | Done | f8543a4 | `start()` is exported from `index.js` with an injected `exit`, so SIGTERM and SIGINT are tested in-process. Extra tests: `app.test.js` (log redaction), `index.test.js`. |
+| T03 | Database module and migrations | P0 | M | T02 | Done | b430bdb | `db.js` also exports `transaction()` (BEGIN IMMEDIATE). `node:sqlite` prints an ExperimentalWarning on start (R3). |
+| T04 | Railway deployment skeleton | P0 | M | T03 | Blocked (owner) | 97e7a91 | `railway.json` and the owner checklist (README) are done. Deploy, `/healthz` check, DB path log and redeploy check are open: Railway CLI is not logged in on the build machine. `railway volume files list /` needs Railway CLI 5 or later. Only T26 depends on T04. |
 | T05 | Password hashing | P1 | S | T01 | Todo | | |
 | T06 | Startup password bootstrap | P1 | M | T03, T05 | Todo | | |
 | T07 | Sessions, gate, auth API, headers | P1 | M | T06 | Todo | | |

@@ -180,3 +180,22 @@ Coding agents record deviations from the plan here.
 | Date | Task | Deviation | Reason | Approved by |
 |------|------|-----------|--------|-------------|
 | 2026-10-09 | T01 | `web/test/build-web.test.js` replaces "one trivial test". It builds into a temp folder and checks the 3 bundles, their sourcemaps and the copied HTML and CSS. `scripts/build-web.js` takes an optional output folder argument for this test. | `AGENTS.md` Testing rule 3: no assertion may pass when the requirement is inverted. A trivial test always passes. | User (chat, 2026-10-09) |
+| 2026-10-09 | All | Phase reviews use the two-pass method in section 1 (Confirmed, Risk or Rejected). Results go to section 10. | The execution prompt names a "TWO-PASS REVIEW" with a finding classification in `AGENTS.md`. Neither `AGENTS.md` nor the installed skills define one. | Agent, not yet approved |
+| 2026-10-09 | T20, T22, T25, T27 | When all automated acceptance checks pass, the task is marked Done for dependency purposes. Its manual checks (visual check, installed-app shortcuts, deployed install check, scroll feel) are listed as owner-pending in section 9 of `BUILD_PLAN.md` and in T26. | These manual checks need a deployed URL or a human. Without this rule, T22 and T26 stall behind T04. | Agent, not yet approved |
+| 2026-10-09 | T02 | `index.js` exports `start({ env, exit, logger })` and runs it only when it is the main module (`import.meta.main`). | Windows cannot deliver SIGTERM to a child process handler, so the shutdown test emits the signal in-process. | Agent, not yet approved |
+| 2026-10-09 | T04 | The owner deploy checklist lives in `README.md` ("Deploy on Railway"). T26 extends that section. | One place for operations notes. | Agent, not yet approved |
+
+## 10. Phase review log
+
+Two-pass review of each phase diff. Pass 1 lists findings. Pass 2 classifies each one.
+
+| Phase | # | Finding | Verdict | Action |
+|-------|---|---------|---------|--------|
+| P0 | 1 | `npm start` as the Railway start command puts npm between the signal and Node. | Risk | npm forwards SIGTERM to the child. Check the shutdown log line in T04. |
+| P0 | 2 | A failed `listen` (port in use) leaves the database open. | Rejected | The top-level await rejects and the process exits 1, which closes the file. |
+| P0 | 3 | `migrate` ignores a database newer than the code (`user_version` above the migration count). | Rejected | v1 has one migration and no rollback across migrations (section 7). |
+| P0 | 4 | `node:sqlite` prints an ExperimentalWarning. | Rejected | Known (R3). No behavior impact. |
+| P0 | 5 | `./data` resolves from the working folder. | Rejected | `npm start` and `npm run dev` run from the repo root. Production requires a volume path. |
+| P0 | 6 | `buildApp` takes `config` but does not read it yet. | Rejected | T07 uses it for cookies and headers. |
+| P0 | 7 | Shutdown does not force an exit if `app.close()` hangs. | Rejected | Railway sends SIGKILL after its drain period. |
+| P0 | 8 | `railway.json` sets no `healthcheckTimeout`. | Rejected | The Railway default applies. The app starts in under a second. |
