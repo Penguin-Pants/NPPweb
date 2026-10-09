@@ -667,7 +667,7 @@ Update **Status** to `In progress` or `Done`. Add the PR or commit and short not
 
 | ID | Title | Phase | Size | Depends on | Status | PR/commit | Notes |
 |----|-------|-------|------|------------|--------|-----------|-------|
-| T01 | Scaffold repository and tooling | P0 | S | none | Done | | Node 24.21.0, npm 11.19.0. fastify 5.12.5, @fastify/cookie 11.1.3, @fastify/static 10.1.6, esbuild 0.28.2, @playwright/test 1.64.0. Build behavior test replaces the trivial test (`PLAN_REVIEW.md` section 9). `REQUIREMENTS.md` was already in place. |
+| T01 | Scaffold repository and tooling | P0 | S | none | Done | 719a632 | Node 24.21.0, npm 11.19.0. fastify 5.12.5, @fastify/cookie 11.1.3, @fastify/static 10.1.6, esbuild 0.28.2, @playwright/test 1.64.0. Build behavior test replaces the trivial test (`PLAN_REVIEW.md` section 9). `REQUIREMENTS.md` was already in place. |
 | T02 | Config, app factory, health, entry | P0 | S | T01 | Todo | | |
 | T03 | Database module and migrations | P0 | M | T02 | Todo | | |
 | T04 | Railway deployment skeleton | P0 | M | T03 | Todo | | Owner-assisted |
