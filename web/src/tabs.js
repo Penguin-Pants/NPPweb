@@ -294,14 +294,13 @@ export function createTabs({ editor, autosave, api, getStorage, elements, onActi
     /**
      * Replaces a tab's text with the server version, whatever its state
      * (conflict choice "Load the other version").
-     * @returns {Promise<boolean>} false when the load failed.
+     * @returns {Promise<number>} The HTTP status, 200 on success, 0 on a network failure.
      */
     async reloadFromServer(id) {
       const { status, data } = await api.getDocument(id);
       const tab = find(id);
-      if (status !== 200 || !tab) return false;
-      replaceContent(tab, data);
-      return true;
+      if (status === 200 && tab) replaceContent(tab, data);
+      return status;
     },
 
     /**

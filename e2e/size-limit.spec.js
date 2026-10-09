@@ -28,6 +28,13 @@ test('an edit that would pass 1 MB is rejected with a message and the content st
   expect(Buffer.byteLength(stored)).toBe(LIMIT);
   expect(stored.endsWith('b12345')).toBe(true);
 
+  await page.evaluate(() => (document.getElementById('status-message').textContent = ''));
+  let puts = 0;
+  page.on('request', (req) => req.method() === 'PUT' && (puts += 1));
   await page.keyboard.type('x');
   await expect(page.getByRole('status')).toHaveText(MESSAGE);
+  await page.waitForTimeout(1500);
+  expect(puts).toBe(0);
+  await expect(page.locator('#save-status')).toHaveText('Saved');
+  expect(Buffer.byteLength((await (await api.get(`/api/documents/${id}`)).json()).content)).toBe(LIMIT);
 });

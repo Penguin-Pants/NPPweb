@@ -162,7 +162,7 @@ languageSelect.addEventListener('change', async () => {
   }
 });
 // CON-1 and EDGE-1: a 412 or 404 save opens a dialog with the choices.
-setupConflictHandling({ api, autosave, tabs, showMessage });
+setupConflictHandling({ api, autosave, tabs });
 
 // A rename can change the language when no override is set.
 on('doc-renamed', ({ id, name }) => tabs.rename(id, name));

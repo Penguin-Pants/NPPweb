@@ -59,12 +59,16 @@ function guardClose(dialog, cancellable, onCancel) {
  * @param {{ value: string, label: string, kind?: 'primary' | 'danger' }[]} options.choices
  * @param {string} options.defaultValue The choice that gets focus.
  * @param {string} [options.cancelValue] Result for Escape. Without it, the user must choose.
+ * @param {(value: string) => Promise<string | null>} [options.onChoose] Runs the choice while the
+ *   dialog stays open (buttons disabled, so nothing can be typed meanwhile). An error text keeps the
+ *   dialog open with the text shown. null closes it.
  * @returns {Promise<string>}
  */
-export function choose({ title, message, choices, defaultValue, cancelValue }) {
+export function choose({ title, message, choices, defaultValue, cancelValue, onChoose }) {
   const { dialog } = createDialog(title, message);
+  const error = el('p', { class: 'form-error', role: 'alert' });
   const row = el('div', { class: 'dialog-buttons' });
-  dialog.append(row);
+  dialog.append(...(onChoose ? [error] : []), row);
   return new Promise((resolve) => {
     const finish = (value) => {
       markDone();
@@ -73,12 +77,28 @@ export function choose({ title, message, choices, defaultValue, cancelValue }) {
       resolve(value);
     };
     const markDone = guardClose(dialog, cancelValue !== undefined, () => finish(cancelValue));
-    for (const choice of choices) {
+    const buttons = choices.map((choice) => {
       const button = el('button', { type: 'button', 'data-value': choice.value }, choice.label);
       if (choice.kind) button.classList.add(choice.kind);
-      button.addEventListener('click', () => finish(choice.value));
-      row.append(button);
-    }
+      button.addEventListener('click', async () => {
+        if (!onChoose) {
+          finish(choice.value);
+          return;
+        }
+        for (const other of buttons) other.disabled = true;
+        error.textContent = '';
+        const problem = await onChoose(choice.value);
+        if (problem === null) {
+          finish(choice.value);
+          return;
+        }
+        for (const other of buttons) other.disabled = false;
+        error.textContent = problem;
+        button.focus();
+      });
+      return button;
+    });
+    row.append(...buttons);
     dialog.showModal();
     /** @type {HTMLButtonElement} */ (row.querySelector(`[data-value="${defaultValue}"]`)).focus();
   });
