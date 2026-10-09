@@ -53,12 +53,14 @@ test('the API has no sign-up, user or account routes', () => {
     .map((route) => `${route.method} ${route.url}`)
     .sort();
   assert.deepEqual([...new Set(apiRoutes)], [
+    'DELETE /api/documents/:id',
     'GET /api/documents',
     'GET /api/documents/:id',
     'GET /api/session',
     'HEAD /api/documents',
     'HEAD /api/documents/:id',
     'HEAD /api/session',
+    'PATCH /api/documents/:id',
     'POST /api/documents',
     'POST /api/login',
     'POST /api/logout',

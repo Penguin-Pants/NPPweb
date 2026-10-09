@@ -2,6 +2,20 @@
 import { randomUUID } from 'node:crypto';
 import { transaction } from '../db.js';
 
+export const LANGUAGES = [
+  'plain',
+  'markdown',
+  'json',
+  'html',
+  'css',
+  'javascript',
+  'typescript',
+  'python',
+  'sql',
+  'yaml',
+  'shell',
+];
+
 const UNTITLED = /^Untitled (\d+)$/;
 const CONTROL_CHARS = /[\u0000-\u001f\u007f-\u009f]/;
 
@@ -102,4 +116,31 @@ export function saveContent(db, { id, content, expectedVersion, now }) {
   if (changes === 1) return { ok: true, version: expectedVersion + 1, updatedAt: now };
   const row = db.prepare('SELECT version FROM documents WHERE id = ?').get(id);
   return { ok: false, currentVersion: row?.version ?? null };
+}
+
+/**
+ * Applies a rename and/or a language override. Only a rename changes
+ * updated_at (section 2.6). Neither changes version (TD-6).
+ * @param {import('node:sqlite').DatabaseSync} db
+ * @param {string} id
+ * @param {{ name?: string, language?: string | null }} changes Already validated.
+ * @param {number} now
+ * @returns {DocumentMeta | undefined} undefined when the document does not exist.
+ */
+export function updateMeta(db, id, { name, language }, now) {
+  return transaction(db, () => {
+    if (name !== undefined) db.prepare('UPDATE documents SET name = ?, updated_at = ? WHERE id = ?').run(name, now, id);
+    if (language !== undefined) db.prepare('UPDATE documents SET language = ? WHERE id = ?').run(language, id);
+    const row = db.prepare('SELECT id, name, version, language, updated_at FROM documents WHERE id = ?').get(id);
+    return row && toMeta(row);
+  });
+}
+
+/**
+ * @param {import('node:sqlite').DatabaseSync} db
+ * @param {string} id
+ * @returns {boolean} false when the document does not exist.
+ */
+export function deleteDocument(db, id) {
+  return db.prepare('DELETE FROM documents WHERE id = ?').run(id).changes === 1;
 }

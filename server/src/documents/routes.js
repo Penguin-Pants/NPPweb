@@ -1,6 +1,15 @@
 // Document API (BUILD_PLAN.md section 2.7). Content travels as text/plain
 // with an exact byte limit (TD-7).
-import { createDocument, getDocument, listDocuments, normalizeName, saveContent } from './repo.js';
+import {
+  createDocument,
+  deleteDocument,
+  getDocument,
+  LANGUAGES,
+  listDocuments,
+  normalizeName,
+  saveContent,
+  updateMeta,
+} from './repo.js';
 
 export const CONTENT_LIMIT_BYTES = 1_048_576;
 
@@ -57,6 +66,31 @@ export async function documentRoutes(app, { db, clock }) {
     return reply.code(412).send({ error: 'version_conflict', currentVersion: result.currentVersion });
   });
 
+  app.patch('/api/documents/:id', async (request, reply) => {
+    const { body } = request;
+    if (typeof body !== 'object' || body === null || Array.isArray(body)) {
+      return reply.code(400).send({ error: 'invalid_request' });
+    }
+    const changes = {};
+    if (Object.hasOwn(body, 'name')) {
+      changes.name = normalizeName(body.name);
+      if (changes.name === null) return reply.code(400).send({ error: 'invalid_name' });
+    }
+    if (Object.hasOwn(body, 'language')) {
+      if (body.language !== null && !LANGUAGES.includes(body.language)) {
+        return reply.code(400).send({ error: 'invalid_language' });
+      }
+      changes.language = body.language;
+    }
+    const meta = updateMeta(db, request.params.id, changes, clock());
+    if (!meta) return reply.code(404).send({ error: 'not_found' });
+    return meta;
+  });
+
+  app.delete('/api/documents/:id', async (request, reply) => {
+    if (!deleteDocument(db, request.params.id)) return reply.code(404).send({ error: 'not_found' });
+    return reply.code(204).send();
+  });
 }
 
 /** The text/plain body, '' when there is no body, or null for any other type. */
