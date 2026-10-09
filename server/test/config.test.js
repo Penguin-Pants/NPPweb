@@ -50,3 +50,12 @@ test('RAILWAY_VOLUME_MOUNT_PATH is used when DATA_DIR is not set', () => {
   assert.equal(loadConfig({ RAILWAY_VOLUME_MOUNT_PATH: '/data' }).dataDir, resolve('/data'));
   assert.equal(loadConfig({ DATA_DIR: '', RAILWAY_VOLUME_MOUNT_PATH: '/data' }).dataDir, resolve('/data'));
 });
+
+test('production without a volume path is a config error', () => {
+  assert.throws(
+    () => loadConfig({ NODE_ENV: 'production' }),
+    { message: 'No persistent volume configured. Attach a Railway volume.' },
+  );
+  assert.equal(loadConfig({ NODE_ENV: 'production', RAILWAY_VOLUME_MOUNT_PATH: '/data' }).dataDir, resolve('/data'));
+  assert.equal(loadConfig({ NODE_ENV: 'production', DATA_DIR: '/srv' }).dataDir, resolve('/srv'));
+});

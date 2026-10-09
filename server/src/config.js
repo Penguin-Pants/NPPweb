@@ -17,14 +17,23 @@ import { resolve } from 'node:path';
  */
 export function loadConfig(env) {
   const nodeEnv = env.NODE_ENV || 'development';
+  const isProduction = nodeEnv === 'production';
   return {
     port: parsePort(env.PORT),
     nodeEnv,
-    isProduction: nodeEnv === 'production',
-    dataDir: resolve(env.DATA_DIR || env.RAILWAY_VOLUME_MOUNT_PATH || 'data'),
+    isProduction,
+    dataDir: resolveDataDir(env, isProduction),
     ownerPassword: env.OWNER_PASSWORD || null,
     resetPassword: /^(true|1)$/i.test(env.RESET_PASSWORD ?? ''),
   };
+}
+
+// DATA_DIR, else RAILWAY_VOLUME_MOUNT_PATH, else ./data outside production (TD-13).
+function resolveDataDir(env, isProduction) {
+  const dir = env.DATA_DIR || env.RAILWAY_VOLUME_MOUNT_PATH;
+  if (dir) return resolve(dir);
+  if (isProduction) throw new Error('No persistent volume configured. Attach a Railway volume.');
+  return resolve('data');
 }
 
 /** @param {string | undefined} value */

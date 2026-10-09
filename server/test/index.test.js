@@ -1,12 +1,25 @@
 import assert from 'node:assert/strict';
-import { test } from 'node:test';
+import { existsSync } from 'node:fs';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterEach, beforeEach, test } from 'node:test';
 import { start } from '../src/index.js';
 
+let dataDir;
+
+beforeEach(async () => {
+  dataDir = await mkdtemp(join(tmpdir(), 'pn-index-'));
+});
+
+afterEach(() => rm(dataDir, { recursive: true, force: true, maxRetries: 5 }));
+
 for (const signal of ['SIGTERM', 'SIGINT']) {
-  test(`start serves /healthz and exits 0 on ${signal}`, async () => {
+  test(`start opens the database, serves /healthz and exits 0 on ${signal}`, async () => {
     let exited;
     const exitCode = new Promise((resolve) => (exited = resolve));
-    const app = await start({ env: { PORT: '0' }, exit: exited, logger: false });
+    const app = await start({ env: { PORT: '0', DATA_DIR: dataDir }, exit: exited, logger: false });
+    assert.ok(existsSync(join(dataDir, 'notepad.db')));
     const { port } = app.server.address();
     const res = await fetch(`http://127.0.0.1:${port}/healthz`);
     assert.equal(res.status, 200);
@@ -16,9 +29,19 @@ for (const signal of ['SIGTERM', 'SIGINT']) {
   });
 }
 
-test('start exits 1 on a config error', async () => {
+test('start exits 1 on a config error', async (t) => {
+  t.mock.method(console, 'error', () => {});
   const codes = [];
-  const app = await start({ env: { PORT: 'abc' }, exit: (code) => codes.push(code), logger: false });
+  const app = await start({ env: { PORT: 'abc', DATA_DIR: dataDir }, exit: (code) => codes.push(code), logger: false });
   assert.equal(app, undefined);
   assert.deepEqual(codes, [1]);
+});
+
+test('start in production without a volume path exits 1 with the message', async (t) => {
+  const errors = t.mock.method(console, 'error', () => {});
+  const codes = [];
+  const app = await start({ env: { NODE_ENV: 'production' }, exit: (code) => codes.push(code), logger: false });
+  assert.equal(app, undefined);
+  assert.deepEqual(codes, [1]);
+  assert.equal(errors.mock.calls[0].arguments[0], 'No persistent volume configured. Attach a Railway volume.');
 });
