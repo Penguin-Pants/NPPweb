@@ -98,6 +98,8 @@ const editor = createEditor($('editor'), {
     const id = tabs.shownId();
     if (id) autosave.edited(id);
   },
+  // DOC-8, EDGE-3: the edit is not applied, so the content stays unchanged.
+  onTooLarge: () => showMessage('Document limit is 1 MB. The change was not applied.'),
 });
 const autosave = createAutosave({
   save: (id, content, version) => api.saveContent(id, content, version),

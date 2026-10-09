@@ -14,6 +14,7 @@ import {
   lineNumbers,
 } from '@codemirror/view';
 import { searchExtension } from './search-panel.js';
+import { sizeLimit } from './size-limit.js';
 
 const baseTheme = EditorView.theme({
   '&': { height: '100%', fontSize: '13px' },
@@ -37,8 +38,9 @@ const themeExtension = (theme) => (theme === 'dark' ? oneDark : lightTheme);
  * @param {object} options
  * @param {'dark' | 'light'} options.theme
  * @param {(update: import('@codemirror/view').ViewUpdate) => void} options.onChange Runs on every document change.
+ * @param {() => void} options.onTooLarge Runs when a change is rejected by the 1 MB limit.
  */
-export function createEditor(parent, { theme, onChange }) {
+export function createEditor(parent, { theme, onChange, onTooLarge }) {
   const themeSlot = new Compartment();
   const languageSlot = new Compartment();
   let currentTheme = theme;
@@ -50,6 +52,7 @@ export function createEditor(parent, { theme, onChange }) {
     drawSelection(),
     highlightActiveLine(),
     EditorState.allowMultipleSelections.of(false),
+    sizeLimit(onTooLarge),
     keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
     searchExtension(),
     baseTheme,
