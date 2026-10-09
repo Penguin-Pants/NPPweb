@@ -1,5 +1,7 @@
-// Login page (T10). Error texts are generic: they never say more than
-// "wrong password" or "wait".
+// Login page (T10).
+import { api } from './api.js';
+import { loginErrorText } from './login-errors.js';
+
 const form = /** @type {HTMLFormElement} */ (document.getElementById('login-form'));
 const input = /** @type {HTMLInputElement} */ (document.getElementById('password'));
 const error = /** @type {HTMLElement} */ (document.getElementById('login-error'));
@@ -9,32 +11,12 @@ form.addEventListener('submit', async (event) => {
   event.preventDefault();
   error.textContent = '';
   button.disabled = true;
-  try {
-    const res = await fetch('/api/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: input.value }),
-    });
-    if (res.status === 204) {
-      location.replace('/');
-      return;
-    }
-    error.textContent = await errorText(res);
-  } catch {
-    error.textContent = 'Cannot connect to the server. Try again.';
-  } finally {
-    button.disabled = false;
+  const { status, data } = await api.login(input.value);
+  if (status === 204) {
+    location.replace('/');
+    return;
   }
+  button.disabled = false;
+  error.textContent = loginErrorText(status, data);
   input.select();
 });
-
-/** @param {Response} res */
-async function errorText(res) {
-  if (res.status === 401) return 'Wrong password.';
-  if (res.status === 429) {
-    const body = await res.json().catch(() => ({}));
-    const minutes = Math.max(1, Math.ceil((body.retryAfterSeconds ?? 900) / 60));
-    return `Too many failed attempts. Wait ${minutes} ${minutes === 1 ? 'minute' : 'minutes'}, then try again.`;
-  }
-  return 'Sign-in failed. Try again.';
-}

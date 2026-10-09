@@ -3,7 +3,8 @@ import { api } from './api.js';
 import { createAutosave } from './autosave.js';
 import { formDialog } from './dialogs.js';
 import { createEditor } from './editor.js';
-import { on } from './events.js';
+import { emit } from './events.js';
+import { setupSessionRecovery } from './session.js';
 import { createTheme } from './theme.js';
 
 const $ = (id) => /** @type {HTMLElement} */ (document.getElementById(id));
@@ -82,9 +83,6 @@ $('change-password').addEventListener('click', async () => {
   if (changed) showMessage('Password changed. Other devices are signed out.');
 });
 
-// Until the re-login dialog exists (T16), an expired session goes to the login page.
-on('session-expired', () => location.replace('/login'));
-
 // Editor and autosave.
 /** @type {{ id: string } | null} */
 let current = null;
@@ -92,7 +90,36 @@ const editor = createEditor($('editor'), {
   theme: theme.get(),
   onChange: () => current && autosave.edited(current.id),
 });
-const autosave = createAutosave({ save: (id, content, version) => api.saveContent(id, content, version) });
+const autosave = createAutosave({
+  save: (id, content, version) => api.saveContent(id, content, version),
+  onStatus: (id) => id === current?.id && renderSaveStatus(),
+  onEvent: emit,
+});
+
+// Save status label (DOC-3). Until T23, a conflict or a remote delete only
+// shows an error and keeps the text.
+const ERROR_TEXT = {
+  network: 'Save failed. Retrying.',
+  conflict: 'Not saved: changed on another device.',
+  deleted: 'Not saved: deleted on another device.',
+  'too-large': 'Not saved: larger than 1 MB.',
+};
+const STATUS_TEXT = { saved: 'Saved', unsaved: 'Unsaved changes', saving: 'Saving...' };
+function renderSaveStatus() {
+  const label = $('save-status');
+  const status = current ? autosave.status(current.id) : undefined;
+  label.dataset.status = status ?? '';
+  label.textContent = status === 'error' ? ERROR_TEXT[autosave.reason(current.id)] : (STATUS_TEXT[status] ?? '');
+}
+
+setupSessionRecovery({ onSignedIn: () => autosave.resumeAll() });
+
+// EDGE-2: warn before the page closes with text that is not saved.
+window.addEventListener('beforeunload', (event) => {
+  if (!autosave.hasUnsaved()) return;
+  event.preventDefault();
+  event.returnValue = '';
+});
 
 // Temporary single-document flow until tabs (T17): open the newest
 // document, or create one when none exist.
@@ -105,6 +132,7 @@ async function openNewestDocument() {
   current = doc;
   editor.show(editor.createState(doc.content));
   autosave.track(doc.id, { version: doc.version, getContent: editor.content });
+  renderSaveStatus();
   editor.focus();
 }
 openNewestDocument();
