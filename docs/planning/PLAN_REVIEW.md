@@ -179,4 +179,4 @@ Coding agents record deviations from the plan here.
 
 | Date | Task | Deviation | Reason | Approved by |
 |------|------|-----------|--------|-------------|
-| | | | | |
+| 2026-10-09 | T01 | `web/test/build-web.test.js` replaces "one trivial test". It builds into a temp folder and checks the 3 bundles, their sourcemaps and the copied HTML and CSS. `scripts/build-web.js` takes an optional output folder argument for this test. | `AGENTS.md` Testing rule 3: no assertion may pass when the requirement is inverted. A trivial test always passes. | User (chat, 2026-10-09) |
