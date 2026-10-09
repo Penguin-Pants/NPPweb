@@ -247,3 +247,7 @@ Not built. Each one needs a user decision.
 | P3 | 7 | No test covered `resumeAll` with a held document. | Confirmed | Unit test added in 3db544a. |
 | P3 | 8 | The restore test waited for the active tab only, so it did not prove that the other tabs persisted. | Confirmed | Fixed in 3db544a: waits for no unsaved tab, then checks every tab. |
 | P3 | 9 | The 2.5 s bound in the autosave timing test may be tight under load. | Rejected | No flake seen. "About 1 second" allows the margin. |
+| P4 | 1 | Two document list refreshes can overlap, and an older response can render last. | Risk | Low impact: the next open or focus corrects the list. No change. |
+| P4 | 2 | A document deleted elsewhere keeps its list row until the next refresh. Opening it closes its new tab on the 404. | Rejected | Refresh on open and on focus is the specified behavior. |
+| P4 | 3 | Deleting from the list discards unsaved text in the open tab without a second prompt. | Rejected | T18 specifies one confirm dialog that says the delete is permanent. |
+| P4 | 4 | Window focus sends two list requests (tabs and document list). | Rejected | One owner, small JSON. Not worth shared state. |

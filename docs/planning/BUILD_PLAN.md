@@ -684,8 +684,8 @@ Update **Status** to `In progress` or `Done`. Add the PR or commit and short not
 | T15 | Editor with basic autosave | P3 | M | T12, T14 | Done | 6416f40 | The one-cursor test fails when multiple selections are turned on (checked). |
 | T16 | Save reliability | P3 | M | T15 | Done | d12919d, 3db544a | `api.js` emits `session-expired` for every 401. Autosave only pauses. Shared sign-in error texts in `login-errors.js`. |
 | T17 | Tabs, new document, tab restore | P3 | M | T16 | Done | 2958c6d, 3db544a | Read-only blank editor while no tab owns the view, and load retry (3db544a). |
-| T18 | Document list sidebar | P4 | M | T17, T13 | Todo | | |
-| T19 | Close prompt and empty untitled rule | P4 | S | T18 | Todo | | |
+| T18 | Document list sidebar | P4 | M | T17, T13 | Done | fe5abd2 | Delete closes the tab before it sends DELETE, so no pending save reaches the deleted document. |
+| T19 | Close prompt and empty untitled rule | P4 | S | T18 | Done | 5b2a189 | An unloaded tab is fetched first, so the empty-untitled rule uses real content. |
 | T20 | Highlighting and language selection | P5 | M | T18 | Todo | | |
 | T21 | Find and replace panel | P5 | M | T17 | Todo | | |
 | T22 | Keyboard shortcuts | P5 | S | T19, T21, T27 | Todo | | Includes Alt+N and Alt+W (D13) |

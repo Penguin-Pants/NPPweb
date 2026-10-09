@@ -60,9 +60,9 @@ No requirement is unmapped.
 | DOC-1 | REQ 3.3, D1 | Server storage, same documents on every device | T11, T12, T15, T17 | A change saved in context A shows in context B after focus. | `documents.test.js`, `e2e/tabs.spec.js` two-context test | Implemented |
 | DOC-2 | REQ 3.3 | Documents survive restarts and redeploys | T03, T04, T26 | DB file persists on the volume across redeploys. | `db.test.js`, T04 checklist, T26 item 3 | Planned |
 | DOC-3 | REQ 3.3 | Autosave about 1 s after typing stops; saved, unsaved or error label | T12, T15, T16 | Pause saves within about 1 s. Label matches real state. | `autosave.test.js`, `e2e/editor.spec.js`, `e2e/save-reliability.spec.js` | Implemented |
-| DOC-4 | REQ 3.3 | List with name and last modified; open, rename, delete; "Untitled N" | T11, T13, T18 | Actions work. New names are unique "Untitled N". | `documents.test.js`, `documents-meta.test.js`, `e2e/doclist.spec.js` | Planned |
-| DOC-5 | REQ 3.3, D9 | Close asks keep or delete; delete is permanent | T19 | Keep stays in list. Delete removes it. Cancel keeps the tab. | `e2e/close.spec.js` | Planned |
-| DOC-6 | REQ 3.3 | Empty untitled tab closes without prompt | T19 | No dialog. No document remains. | `e2e/close.spec.js` | Planned |
+| DOC-4 | REQ 3.3 | List with name and last modified; open, rename, delete; "Untitled N" | T11, T13, T18 | Actions work. New names are unique "Untitled N". | `documents.test.js`, `documents-meta.test.js`, `e2e/doclist.spec.js` | Implemented |
+| DOC-5 | REQ 3.3, D9 | Close asks keep or delete; delete is permanent | T19 | Keep stays in list. Delete removes it. Cancel keeps the tab. | `e2e/close.spec.js` | Implemented |
+| DOC-6 | REQ 3.3 | Empty untitled tab closes without prompt | T19 | No dialog. No document remains. | `e2e/close.spec.js` | Implemented |
 | DOC-7 | REQ 3.3 | Open tabs remembered per browser | T17 | Reload restores open tabs and the active tab. | `e2e/tabs.spec.js` | Implemented |
 | DOC-8 | REQ 3.3 | 1 MB maximum with a clear error | T11, T12, T24 | Server returns 413 above 1,048,576 bytes. Client rejects the edit and shows the message. | `documents.test.js`, `documents-save.test.js`, `size-limit.test.js`, `e2e/size-limit.spec.js` | Planned |
 
@@ -112,7 +112,7 @@ These items are not new product scope. They make an existing requirement precise
 | INT-7 | CON-1 | "Save mine as new" names the copy "<name> (conflict copy)" | T23 | `e2e/conflict.spec.js` | Planned |
 | INT-8 | EDT-5 | Literal search is case-insensitive with no toggle | T21 | `e2e/find-replace.spec.js` | Planned |
 | INT-9 | ACC-4 | New passwords need 12 to 256 characters; a shorter seed only logs a warning | T05, T06, T09 | `password.test.js`, `bootstrap.test.js` | Implemented |
-| INT-10 | DOC-5 | Keep flushes the save first; a failed save keeps the tab open | T19 | `e2e/close.spec.js` with a failed PUT | Planned |
+| INT-10 | DOC-5 | Keep flushes the save first; a failed save keeps the tab open | T19 | `e2e/close.spec.js` with a failed PUT | Implemented |
 | INT-11 | EDT-8 | Manifest, icons and service worker script are public routes | T27 | `gate.test.js` | Planned |
 
 ## 9. Non-goal guards
