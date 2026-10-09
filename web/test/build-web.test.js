@@ -36,3 +36,14 @@ test('build copies the HTML pages and stylesheet unchanged', async () => {
     assert.deepEqual(await readFile(join(outDir, name)), await readFile(join(rootDir, 'web', name)), name);
   }
 });
+
+test('the theme-init bundle runs as a classic script, sets the theme and adds no globals', async () => {
+  const { runInNewContext } = await import('node:vm');
+  const code = await readFile(join(outDir, 'theme-init.js'), 'utf8');
+  for (const stored of [null, 'light']) {
+    const sandbox = { document: { documentElement: { dataset: {} } }, localStorage: { getItem: () => stored } };
+    runInNewContext(code, sandbox);
+    assert.deepEqual(Object.keys(sandbox).sort(), ['document', 'localStorage']);
+    assert.equal(sandbox.document.documentElement.dataset.theme, stored ?? 'dark');
+  }
+});

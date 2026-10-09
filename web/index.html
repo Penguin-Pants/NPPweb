@@ -8,6 +8,39 @@
   <link rel="stylesheet" href="/styles.css">
   <script type="module" src="/main.js"></script>
 </head>
-<body>
+<body class="app">
+  <header class="topbar">
+    <button type="button" id="new-doc">New</button>
+    <button type="button" id="toggle-doclist" aria-expanded="false" aria-controls="doclist">Documents</button>
+    <span class="spacer"></span>
+    <button type="button" id="theme-toggle"></button>
+    <div class="menu">
+      <button type="button" id="account-button" aria-haspopup="true" aria-expanded="false" aria-controls="account-menu">Account</button>
+      <div id="account-menu" class="menu-list" hidden>
+        <button type="button" id="change-password">Change password</button>
+        <button type="button" id="logout">Sign out</button>
+      </div>
+    </div>
+  </header>
+  <div class="workspace">
+    <aside id="doclist" class="doclist" aria-label="Documents" hidden></aside>
+    <main class="editor-pane">
+      <div id="tabstrip" class="tabstrip" role="tablist" aria-label="Open documents"></div>
+      <div id="editor" class="editor"></div>
+      <div id="empty-state" class="empty-state" hidden>
+        <p>No document is open.</p>
+        <div class="empty-actions">
+          <button type="button" id="empty-new" class="primary">New document</button>
+          <button type="button" id="empty-list">Open document list</button>
+        </div>
+      </div>
+    </main>
+  </div>
+  <footer class="statusbar">
+    <span id="save-status" aria-live="polite"></span>
+    <span id="status-message" role="status"></span>
+    <span class="spacer"></span>
+    <span id="language-slot"></span>
+  </footer>
 </body>
 </html>
