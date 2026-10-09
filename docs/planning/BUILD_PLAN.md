@@ -707,7 +707,7 @@ These checks need the deployed app or a person. Status values: Pending, Passed, 
 | 1 | T04 | Deploy succeeds. `https://<domain>/healthz` returns 200. | Pending |
 | 2 | T04 | The deploy log shows `Database: /data/notepad.db`. | Pending |
 | 3 | T04 | After a redeploy, `railway volume files list /` still shows `notepad.db`. | Pending |
-| 4 | T26 item 1 | The domain shows the login page. `/` without a session redirects. | Pending |
+| 4 | T26 item 1 | The domain shows the login page. `/` without a session redirects. Then sign in. If sign-in returns 403 `bad_origin`, the Railway edge sends an `X-Forwarded-Host` that does not match the domain (unverified assumption, medium confidence): `server/src/auth/gate.js` then must compare the Origin with the raw `Host` header. | Pending |
 | 5 | T26 item 2 | The session cookie has `Secure`, `HttpOnly` and `SameSite=Lax`. | Pending |
 | 6 | T26 item 3 | Create a document and redeploy. Sign in again if needed. The document is still there. | Pending |
 | 7 | T26 item 4 | Change the password in the app. The old one fails. | Pending |
