@@ -144,3 +144,23 @@ test('login also needs a matching Origin', async () => {
   const res = await ctx.app.inject({ method: 'POST', url: '/api/login', payload: { password: 'x' } });
   assert.equal(res.statusCode, 403);
 });
+
+test('PUT, PATCH and DELETE also need a matching Origin', async () => {
+  const cookie = await login(ctx.app);
+  for (const method of ['PUT', 'PATCH', 'DELETE']) {
+    for (const origin of [undefined, 'http://evil.example']) {
+      const headers = origin === undefined ? { cookie } : { cookie, origin };
+      const res = await ctx.app.inject({ method, url: '/api/session', headers });
+      assert.equal(res.statusCode, 403, `${method} ${origin}`);
+    }
+  }
+});
+
+test('the public allowlist matches exact paths only', async () => {
+  const near = ['/login/', '/login.js/', '/%6cogin.js', '//login', '/LOGIN', '/healthz/', '/styles.css.map', '/login.html'];
+  for (const url of near) {
+    const res = await ctx.app.inject({ method: 'GET', url });
+    assert.equal(res.statusCode, 401, url);
+  }
+  assert.equal((await ctx.app.inject({ method: 'GET', url: '/login?next=1' })).statusCode, 200);
+});

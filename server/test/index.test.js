@@ -3,6 +3,7 @@ import { existsSync } from 'node:fs';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { Writable } from 'node:stream';
 import { afterEach, beforeEach, test } from 'node:test';
 import { start } from '../src/index.js';
 
@@ -50,11 +51,20 @@ test('start in production without a volume path exits 1 with the message', async
   assert.equal(errors.mock.calls[0].arguments[0], 'No persistent volume configured. Attach a Railway volume.');
 });
 
-test('start exits 1 when no password is configured', async () => {
+test('start exits 1 with a clear log line when no password is configured', async () => {
   const codes = [];
-  const app = await start({ env: { PORT: '0', DATA_DIR: dataDir }, exit: (code) => codes.push(code), logger: false });
+  const lines = [];
+  const stream = new Writable({
+    write(chunk, _encoding, done) {
+      lines.push(JSON.parse(chunk));
+      done();
+    },
+  });
+  const env = { PORT: '0', DATA_DIR: dataDir };
+  const app = await start({ env, exit: (code) => codes.push(code), logger: { stream } });
   assert.equal(app, undefined);
   assert.deepEqual(codes, [1]);
+  assert.ok(lines.some((line) => line.level === 50 && line.msg === 'No password configured. Set OWNER_PASSWORD.'));
 });
 
 test('start deletes expired sessions before it listens', async () => {

@@ -28,17 +28,20 @@ export const test = base.extend({
     child.stderr.on('data', (chunk) => (output += chunk));
     const exited = new Promise((resolve) => child.once('exit', resolve));
     const url = `http://127.0.0.1:${port}`;
+    const stop = async () => {
+      child.kill();
+      await exited;
+      await rm(dataDir, { recursive: true, force: true, maxRetries: 5 });
+    };
     try {
       await waitForHealth(url, () => child.exitCode !== null);
     } catch (err) {
+      await stop();
       throw new Error(`${err.message}\nServer output:\n${output}`);
     }
 
     await use({ url, dataDir });
-
-    child.kill();
-    await exited;
-    await rm(dataDir, { recursive: true, force: true, maxRetries: 5 });
+    await stop();
   },
 
   baseURL: async ({ server }, use) => {

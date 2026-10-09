@@ -19,6 +19,8 @@ async function sampleResponses(app) {
     badOrigin: await app.inject({ method: 'POST', url: '/api/logout', headers: { cookie } }),
     staticFile: await app.inject({ method: 'GET', url: '/main.js', headers: { cookie } }),
     notFound: await app.inject({ method: 'GET', url: '/api/no-such-route', headers: { cookie } }),
+    encodedApi: await app.inject({ method: 'GET', url: '/%61pi/session', headers: { cookie } }),
+    badUrl: await app.inject({ method: 'GET', url: '/%E0%A4%A' }),
     session: await app.inject({ method: 'GET', url: '/api/session', headers: { cookie } }),
   };
 }
@@ -37,7 +39,9 @@ test('every /api/ response has Cache-Control no-store', async () => {
   ctx = await createTestApp();
   const responses = await sampleResponses(ctx.app);
   assert.equal(responses.notFound.statusCode, 404);
-  for (const name of ['unauthorized', 'badOrigin', 'notFound', 'session']) {
+  assert.equal(responses.encodedApi.statusCode, 200);
+  assert.equal(responses.badUrl.statusCode, 400);
+  for (const name of ['unauthorized', 'badOrigin', 'notFound', 'session', 'encodedApi']) {
     assert.equal(responses[name].headers['cache-control'], 'no-store', name);
   }
   assert.notEqual(responses.staticFile.headers['cache-control'], 'no-store');
