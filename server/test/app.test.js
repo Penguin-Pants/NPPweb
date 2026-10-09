@@ -12,7 +12,7 @@ test('logs redact cookie and authorization headers', async (t) => {
       done();
     },
   });
-  const app = buildApp({ config: loadConfig({}), logger: { stream } });
+  const app = await buildApp({ config: loadConfig({}), logger: { stream } });
   t.after(() => app.close());
   const headers = { cookie: 'pn_session=cookie-secret', authorization: 'Basic auth-secret', accept: 'text/plain' };
   app.log.info({ headers });

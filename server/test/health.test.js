@@ -1,12 +1,11 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { buildApp } from '../src/app.js';
-import { loadConfig } from '../src/config.js';
+import { createTestApp } from './helpers.js';
 
-test('GET /healthz returns 200 with ok true', async (t) => {
-  const app = buildApp({ config: loadConfig({}), logger: false });
-  t.after(() => app.close());
-  const res = await app.inject({ method: 'GET', url: '/healthz' });
+test('GET /healthz returns 200 with ok true and needs no session', async (t) => {
+  const ctx = await createTestApp();
+  t.after(() => ctx.close());
+  const res = await ctx.app.inject({ method: 'GET', url: '/healthz' });
   assert.equal(res.statusCode, 200);
   assert.deepEqual(res.json(), { ok: true });
 });

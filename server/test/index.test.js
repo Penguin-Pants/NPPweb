@@ -56,3 +56,21 @@ test('start exits 1 when no password is configured', async () => {
   assert.equal(app, undefined);
   assert.deepEqual(codes, [1]);
 });
+
+test('start deletes expired sessions before it listens', async () => {
+  const { openDatabase } = await import('../src/db.js');
+  const db = openDatabase(dataDir);
+  const insert = db.prepare('INSERT INTO sessions (token_hash, created_at, expires_at) VALUES (?, 0, ?)');
+  insert.run('expired', 1);
+  insert.run('current', Date.now() + 60_000);
+  db.close();
+  let exited;
+  const exitCode = new Promise((resolve) => (exited = resolve));
+  await start({ env: { PORT: '0', DATA_DIR: dataDir, OWNER_PASSWORD }, exit: exited, logger: false });
+  process.emit('SIGTERM');
+  await exitCode;
+  const after = openDatabase(dataDir);
+  const left = after.prepare('SELECT token_hash FROM sessions').all().map((row) => row.token_hash);
+  after.close();
+  assert.deepEqual(left, ['current']);
+});
