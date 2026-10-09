@@ -193,6 +193,9 @@ Coding agents record deviations from the plan here.
 | 2026-10-09 | T11, T12 | Content is bound as UTF-8 bytes (a BLOB in the TEXT column `content`) and decoded on read. | R3 happened: `node:sqlite` in Node 24.13 cuts a bound TEXT value at its first NUL character. The schema is unchanged. | Agent, not yet approved |
 | 2026-10-09 | T13 | A language-only PATCH does not change `updated_at`. A rename does. | Section 2.6 says `updated_at` changes on content save and rename. The T13 line says PATCH changes it. Sort order is left to the builder (REQUIREMENTS section 6), and a language change should not move a document to the top of the list. | Agent, not yet approved |
 | 2026-10-09 | T12 | `PUT /api/documents/:id/content` needs a `text/plain` body. A request with no body returns 415. `POST` still accepts no body. | A bodyless PUT would otherwise replace the content with an empty string. | Agent, not yet approved |
+| 2026-10-09 | T14 | `scripts/build-web.js` builds `theme-init.js` as an IIFE and the two module entries as ESM. | `theme-init.js` is a classic script. An ESM bundle that imports `theme.js` leaks minified globals. | Agent, not yet approved |
+| 2026-10-09 | T16 | `api.js` emits `session-expired` for every 401 except from `/api/login`. Autosave pauses on 401 and does not emit the event itself. | One place for the event, so a list refresh or a load that gets 401 also opens the re-login dialog. | Agent, not yet approved |
+| 2026-10-09 | T17 | The editor shows a read-only blank state whenever no tab owns the view: while a tab loads, after a failed load, and with no tab open. | P3 review: otherwise typing went into the previous tab or nowhere. | Agent, not yet approved |
 
 ## 10. Phase review log
 
@@ -235,3 +238,12 @@ Not built. Each one needs a user decision.
 | P2 | 6 | T13 and section 2.6 disagree on `updated_at` for a language-only PATCH. | Rejected | Not a defect. Section 2.6 followed. Logged as a deviation. |
 | P2 | 7 | A PUT with no body saved empty content. | Confirmed | Fixed in 9bcd481: 415. |
 | P2 | 8 | (Pass 2) `node:sqlite` cut content at the first NUL character. | Confirmed | Found while checking the review note on NUL. Fixed in 9bcd481. Test added. |
+| P3 | 1 | Clicking the active tab showed a stale copy of its state, and the next save could overwrite typed text. | Confirmed | Fixed in 3db544a. E2E test added. |
+| P3 | 2 | The editor stayed editable while no tab owned it (during a load, after a failed load, after a close). | Confirmed | Fixed in 3db544a: read-only blank state, load error message and retry. E2E test added. |
+| P3 | 3 | A browser can close the non-cancellable re-login dialog on a second Escape, which would leave saves paused for good. | Confirmed | Fixed in 3db544a: the dialog opens again. E2E test added. |
+| P3 | 4 | A PUT that commits but loses its response is retried with the old version and gets 412 against the user's own save. | Risk | Follows section 2.8. The T23 conflict dialog resolves it (Overwrite with mine). |
+| P3 | 5 | `createTabs` and the active-tab and load-race paths had no tests. | Confirmed | E2E tests added in 3db544a. |
+| P3 | 6 | The error texts for conflict, deleted and too-large were untested. | Confirmed | Covered in the T23 and T24 specs. |
+| P3 | 7 | No test covered `resumeAll` with a held document. | Confirmed | Unit test added in 3db544a. |
+| P3 | 8 | The restore test waited for the active tab only, so it did not prove that the other tabs persisted. | Confirmed | Fixed in 3db544a: waits for no unsaved tab, then checks every tab. |
+| P3 | 9 | The 2.5 s bound in the autosave timing test may be tight under load. | Rejected | No flake seen. "About 1 second" allows the margin. |

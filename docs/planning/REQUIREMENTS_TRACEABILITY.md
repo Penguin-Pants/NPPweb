@@ -33,9 +33,9 @@ No requirement is unmapped.
 | ACC-1 | REQ 3.1 | One owner, one password, no other accounts | T05, T07, T10 | Login accepts the one password. No sign-up or account route exists. | `auth.test.js`, `gate.test.js` route sweep, `e2e/login.spec.js` | Implemented |
 | ACC-2 | REQ 3.1 | Every page and data route needs a session | T07, T10 | Without a session, HTML navigation gets 302 to `/login`, other requests get 401 with no data. Only the documented public routes are open. | `gate.test.js` sweeps every registered route, `e2e/login.spec.js` | Implemented |
 | ACC-3 | REQ 3.1 | First password from a Railway variable | T06, T26 | A fresh deploy accepts `OWNER_PASSWORD`. | `bootstrap.test.js` seed branch, T26 checklist item 1 | Implemented |
-| ACC-4 | REQ 3.1, D4 | Change-password screen; needs current password; in-app password wins; variable only seeds | T05, T06, T09, T14 | Old password fails and new one works, also after restart with `OWNER_PASSWORD` still set. | `password-route.test.js` restart case, `bootstrap.test.js` ignored-variable branch, `e2e/shell.spec.js`, T26 item 4 | Planned |
+| ACC-4 | REQ 3.1, D4 | Change-password screen; needs current password; in-app password wins; variable only seeds | T05, T06, T09, T14 | Old password fails and new one works, also after restart with `OWNER_PASSWORD` still set. | `password-route.test.js` restart case, `bootstrap.test.js` ignored-variable branch, `e2e/shell.spec.js`, T26 item 4 | Implemented |
 | ACC-5 | REQ 3.1, D4 | Reset variable restores the Railway password on start | T06, T26 | With `RESET_PASSWORD` set, a restart makes `OWNER_PASSWORD` work and the in-app password fail. | `bootstrap.test.js` reset branch, T26 item 5 | Implemented |
-| ACC-6 | REQ 3.1 | 30-day sessions per device; logout button | T07, T14 | Valid at 30 days minus 1 ms, invalid at 30 days plus 1 ms. Logout ends the session. | `auth.test.js` with injected clock, `e2e/shell.spec.js` | Planned |
+| ACC-6 | REQ 3.1 | 30-day sessions per device; logout button | T07, T14 | Valid at 30 days minus 1 ms, invalid at 30 days plus 1 ms. Logout ends the session. | `auth.test.js` with injected clock, `e2e/shell.spec.js` | Implemented |
 | ACC-7 | REQ 3.1 | Failed logins are rate limited | T08, T10, T26 | 6th failure from one IP in 15 minutes gets 429. Global cap 30. | `rate-limit.test.js`, `e2e/login.spec.js`, T26 item 6 | Implemented |
 | ACC-8 | REQ 3.1 | Refuse to start with no variable and no stored password | T06 | Exit 1 with "No password configured. Set OWNER_PASSWORD." | `bootstrap.test.js` refuse branch | Implemented |
 
@@ -43,12 +43,12 @@ No requirement is unmapped.
 
 | ID | Source | Summary | Tasks | Acceptance criteria | Validation | Status |
 |----|--------|---------|-------|---------------------|------------|--------|
-| EDT-1 | REQ 3.2 | Tabs for open documents | T17 | Open, switch and close tabs. Each tab keeps its own content and undo history. | `e2e/tabs.spec.js` | Planned |
-| EDT-2 | REQ 3.2 | Plain text editing, line numbers always on | T15 | Line numbers show for every document. | `e2e/editor.spec.js` | Planned |
+| EDT-1 | REQ 3.2 | Tabs for open documents | T17 | Open, switch and close tabs. Each tab keeps its own content and undo history. | `e2e/tabs.spec.js` | Implemented |
+| EDT-2 | REQ 3.2 | Plain text editing, line numbers always on | T15 | Line numbers show for every document. | `e2e/editor.spec.js` | Implemented |
 | EDT-3 | REQ 3.2, D5 | Highlighting for 11 languages | T20 | Each language selects its parser and shows highlight classes. | `languages.test.js`, `e2e/language.spec.js`, manual visual check | Planned |
 | EDT-4 | REQ 3.2, D7 | Language from extension; unknown = plain; manual override | T13, T20 | Rename switches language. Override wins and syncs across devices. | `languages.test.js`, `documents-meta.test.js`, `e2e/language.spec.js` | Planned |
 | EDT-5 | REQ 3.2, D6 | Literal find and replace, current tab only, replace and replace all | T21 | `a.c` matches only literal `a.c`. Replace all touches only the current tab. No regex or whole-word controls. | `e2e/find-replace.spec.js` | Planned |
-| EDT-6 | REQ 3.2, D10 | Dark default, light toggle, remembered per browser | T10, T14 | First visit is dark. Toggle survives reload. | `theme.test.js`, `e2e/shell.spec.js`, `e2e/login.spec.js` | Planned |
+| EDT-6 | REQ 3.2, D10 | Dark default, light toggle, remembered per browser | T10, T14 | First visit is dark. Toggle survives reload. | `theme.test.js`, `e2e/shell.spec.js`, `e2e/login.spec.js` | Implemented |
 | EDT-7 | REQ 3.2, D12 | Shortcuts Ctrl+N, Ctrl+W, Ctrl+S, Ctrl+F, Ctrl+H | T22, T27 | All five work in the installed Chrome and Edge window. Ctrl+S, Ctrl+F and Ctrl+H also work in normal tabs. | `e2e/shortcuts.spec.js`, manual check in installed app, T26 item 8 | Planned |
 | EDT-8 | REQ 3.2, D12 | Installable as a desktop app in Chrome and Edge | T27, T26 | No installability errors. Installed app opens in its own window. | `gate.test.js`, `e2e/install.spec.js`, manual install, T26 item 8 | Planned |
 | EDT-9 | REQ 3.2, D13 | Alt+N new and Alt+W close everywhere | T22 | Both work in normal tabs, Firefox and the installed app. | `e2e/shortcuts.spec.js` (`@smoke`), T26 item 9 | Planned |
@@ -57,13 +57,13 @@ No requirement is unmapped.
 
 | ID | Source | Summary | Tasks | Acceptance criteria | Validation | Status |
 |----|--------|---------|-------|---------------------|------------|--------|
-| DOC-1 | REQ 3.3, D1 | Server storage, same documents on every device | T11, T12, T15, T17 | A change saved in context A shows in context B after focus. | `documents.test.js`, `e2e/tabs.spec.js` two-context test | Planned |
+| DOC-1 | REQ 3.3, D1 | Server storage, same documents on every device | T11, T12, T15, T17 | A change saved in context A shows in context B after focus. | `documents.test.js`, `e2e/tabs.spec.js` two-context test | Implemented |
 | DOC-2 | REQ 3.3 | Documents survive restarts and redeploys | T03, T04, T26 | DB file persists on the volume across redeploys. | `db.test.js`, T04 checklist, T26 item 3 | Planned |
-| DOC-3 | REQ 3.3 | Autosave about 1 s after typing stops; saved, unsaved or error label | T12, T15, T16 | Pause saves within about 1 s. Label matches real state. | `autosave.test.js`, `e2e/editor.spec.js`, `e2e/save-reliability.spec.js` | Planned |
+| DOC-3 | REQ 3.3 | Autosave about 1 s after typing stops; saved, unsaved or error label | T12, T15, T16 | Pause saves within about 1 s. Label matches real state. | `autosave.test.js`, `e2e/editor.spec.js`, `e2e/save-reliability.spec.js` | Implemented |
 | DOC-4 | REQ 3.3 | List with name and last modified; open, rename, delete; "Untitled N" | T11, T13, T18 | Actions work. New names are unique "Untitled N". | `documents.test.js`, `documents-meta.test.js`, `e2e/doclist.spec.js` | Planned |
 | DOC-5 | REQ 3.3, D9 | Close asks keep or delete; delete is permanent | T19 | Keep stays in list. Delete removes it. Cancel keeps the tab. | `e2e/close.spec.js` | Planned |
 | DOC-6 | REQ 3.3 | Empty untitled tab closes without prompt | T19 | No dialog. No document remains. | `e2e/close.spec.js` | Planned |
-| DOC-7 | REQ 3.3 | Open tabs remembered per browser | T17 | Reload restores open tabs and the active tab. | `e2e/tabs.spec.js` | Planned |
+| DOC-7 | REQ 3.3 | Open tabs remembered per browser | T17 | Reload restores open tabs and the active tab. | `e2e/tabs.spec.js` | Implemented |
 | DOC-8 | REQ 3.3 | 1 MB maximum with a clear error | T11, T12, T24 | Server returns 413 above 1,048,576 bytes. Client rejects the edit and shows the message. | `documents.test.js`, `documents-save.test.js`, `size-limit.test.js`, `e2e/size-limit.spec.js` | Planned |
 
 ## 5. Multi-device conflict
@@ -88,9 +88,9 @@ No requirement is unmapped.
 | ID | Source | Summary | Tasks | Acceptance criteria | Validation | Status |
 |----|--------|---------|-------|---------------------|------------|--------|
 | EDGE-1 | REQ 4 | Document deleted on another device | T12, T16, T23 | Save gets 404. Dialog offers save as new and discard. | `documents-save.test.js`, `e2e/conflict.spec.js` | Planned |
-| EDGE-2 | REQ 4 | Save failure | T16 | Error label, text kept, retries, unload warning. | `autosave.test.js`, `e2e/save-reliability.spec.js` | Planned |
+| EDGE-2 | REQ 4 | Save failure | T16 | Error label, text kept, retries, unload warning. | `autosave.test.js`, `e2e/save-reliability.spec.js` | Implemented |
 | EDGE-3 | REQ 4 | Content over 1 MB | T12, T24 | Rejected with a clear error. Existing content unchanged. | `documents-save.test.js`, `e2e/size-limit.spec.js` | Planned |
-| EDGE-4 | REQ 4 | Session expires while editing | T16 | Re-login dialog. Unsaved text kept and saved after login. | `e2e/save-reliability.spec.js` | Planned |
+| EDGE-4 | REQ 4 | Session expires while editing | T16 | Re-login dialog. Unsaved text kept and saved after login. | `e2e/save-reliability.spec.js` | Implemented |
 | EDGE-5 | REQ 4 | Wrong password | T07, T08, T10 | Generic error. Rate limit after repeated failures. | `auth.test.js`, `rate-limit.test.js`, `e2e/login.spec.js` | Implemented |
 | EDGE-6 | REQ 4 | Password change | T09 | Needs current password. Other sessions signed out. | `password-route.test.js` | Implemented |
 | EDGE-7 | REQ 4 | Reset variable left set | T06, T26 | Every start resets and logs a warning. README explains it. | `bootstrap.test.js`, README review | Planned |
@@ -107,7 +107,7 @@ These items are not new product scope. They make an existing requirement precise
 | INT-2 | ACC-6 | Session lifetime is fixed at 30 days from sign-in, not sliding | T07 | `auth.test.js` clock tests | Implemented |
 | INT-3 | ACC-2 | Public: login page and its assets, `/healthz`, `POST /api/login` | T07 | `gate.test.js` sweep | Implemented |
 | INT-4 | CON-1 | `version` counts content changes only; rename and language do not conflict | T12, T13 | `documents-meta.test.js` | Implemented |
-| INT-5 | DOC-1 | Clean open tabs refresh on focus and activation | T17 | Two-context test in `e2e/tabs.spec.js` | Planned |
+| INT-5 | DOC-1 | Clean open tabs refresh on focus and activation | T17 | Two-context test in `e2e/tabs.spec.js` | Implemented |
 | INT-6 | DOC-2, DEP-2 | Production refuses to start without a volume path | T03 | `config.test.js` | Implemented |
 | INT-7 | CON-1 | "Save mine as new" names the copy "<name> (conflict copy)" | T23 | `e2e/conflict.spec.js` | Planned |
 | INT-8 | EDT-5 | Literal search is case-insensitive with no toggle | T21 | `e2e/find-replace.spec.js` | Planned |
@@ -121,9 +121,9 @@ Tests that prove excluded features stay out.
 
 | ID | Source | Guard | Tasks | Validation | Status |
 |----|--------|-------|-------|------------|--------|
-| NG-1 | REQ 8 | No multi-cursor | T15 | `e2e/editor.spec.js` cursor count | Planned |
+| NG-1 | REQ 8 | No multi-cursor | T15 | `e2e/editor.spec.js` cursor count | Implemented |
 | NG-2 | REQ 8 | No regex, whole-word or cross-document search | T21 | `e2e/find-replace.spec.js` | Planned |
 | NG-3 | REQ 8 | No multi-user or sign-up routes | T07 | `gate.test.js` route sweep | Implemented |
-| NG-4 | REQ 8 | No live sync (no WebSocket or polling while idle) | T17 | Code review: refresh runs only on focus and activation | Planned |
+| NG-4 | REQ 8 | No live sync (no WebSocket or polling while idle) | T17 | Code review: refresh runs only on focus and activation | Implemented |
 | NG-5 | REQ 8 | No hidden-URL or IP-based protection | T07 | `gate.test.js` (all protection is the session) | Implemented |
 | NG-6 | REQ 8 | No offline use: any service worker is network-only and caches nothing | T27 | Code review of `sw.js`, `e2e/install.spec.js` checks Cache Storage is empty | Planned |

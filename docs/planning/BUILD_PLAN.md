@@ -680,10 +680,10 @@ Update **Status** to `In progress` or `Done`. Add the PR or commit and short not
 | T11 | Documents list, create, get | P2 | M | T07 | Done | 5d83a19, 9bcd481 | Non-text bodies return 415. Content is stored as UTF-8 bytes (9bcd481). |
 | T12 | Content save with version check | P2 | M | T11 | Done | 665ab0e, 9bcd481 | A malformed If-Match also returns 428. A PUT needs a text/plain body. |
 | T13 | Rename, language, delete routes | P2 | S | T11 | Done | 5036274 | A language-only PATCH keeps `updatedAt` (section 2.6). A non-object body returns 400 `invalid_request`. |
-| T14 | App shell, theme, account menu | P3 | M | T09, T10 | Todo | | |
-| T15 | Editor with basic autosave | P3 | M | T12, T14 | Todo | | |
-| T16 | Save reliability | P3 | M | T15 | Todo | | |
-| T17 | Tabs, new document, tab restore | P3 | M | T16 | Todo | | |
+| T14 | App shell, theme, account menu | P3 | M | T09, T10 | Done | e349ee9, 3db544a | `theme-init.js` reuses `theme.js` and is built as an IIFE. Dialog close guard in 3db544a. |
+| T15 | Editor with basic autosave | P3 | M | T12, T14 | Done | 6416f40 | The one-cursor test fails when multiple selections are turned on (checked). |
+| T16 | Save reliability | P3 | M | T15 | Done | d12919d, 3db544a | `api.js` emits `session-expired` for every 401. Autosave only pauses. Shared sign-in error texts in `login-errors.js`. |
+| T17 | Tabs, new document, tab restore | P3 | M | T16 | Done | 2958c6d, 3db544a | Read-only blank editor while no tab owns the view, and load retry (3db544a). |
 | T18 | Document list sidebar | P4 | M | T17, T13 | Todo | | |
 | T19 | Close prompt and empty untitled rule | P4 | S | T18 | Todo | | |
 | T20 | Highlighting and language selection | P5 | M | T18 | Todo | | |
