@@ -2,6 +2,8 @@
 // (pn.openTabs.v1). Content loads on first activation. Clean tabs refresh
 // from the server on window focus and on tab activation (TD-15).
 
+import { choose } from './dialogs.js';
+
 const STORAGE_KEY = 'pn.openTabs.v1';
 
 /**
@@ -170,6 +172,12 @@ export function createTabs({ editor, autosave, api, getStorage, elements, langua
     render();
   }
 
+  // The tab is already closed, so no pending save can reach the document.
+  async function deleteOnServer(id) {
+    const { status } = await api.deleteDocument(id);
+    if (status !== 204 && status !== 404) showMessage('Delete failed. The document is still in the document list.');
+  }
+
   // Replaces a clean tab's text with the server version. Skips the reload
   // when the user typed while the request was in flight.
   async function reload(tab) {
@@ -251,10 +259,54 @@ export function createTabs({ editor, autosave, api, getStorage, elements, langua
       return true;
     },
 
-    /** Saves the tab, then closes it. A failed save keeps the tab open. */
+    /**
+     * The close flow (section 2.8, DOC-5, DOC-6). An empty "Untitled N"
+     * closes and is deleted with no prompt. Otherwise the user chooses Keep
+     * (saves first; a failed save keeps the tab open), Delete permanently or
+     * Cancel. Returns true when the tab closed.
+     */
     async close(id) {
-      if (!(await autosave.flush(id))) return false;
+      const tab = find(id);
+      if (!tab) return false;
+      let content = controller.content(id);
+      if (content === null) {
+        const { status, data } = await api.getDocument(id);
+        if (status === 404) {
+          removeTab(id);
+          return true;
+        }
+        if (status !== 200) {
+          showMessage('Could not close the document. Try again.');
+          return false;
+        }
+        content = data.content;
+      }
+
+      if (content === '' && /^Untitled \d+$/.test(tab.name)) {
+        removeTab(id);
+        await deleteOnServer(id);
+        return true;
+      }
+
+      const answer = await choose({
+        title: 'Close document',
+        message: `Keep "${tab.name}" in the document list, or delete it permanently? A delete cannot be undone.`,
+        choices: [
+          { value: 'keep', label: 'Keep', kind: 'primary' },
+          { value: 'delete', label: 'Delete permanently', kind: 'danger' },
+          { value: 'cancel', label: 'Cancel' },
+        ],
+        defaultValue: 'keep',
+        cancelValue: 'cancel',
+      });
+      if (answer === 'cancel' || !find(id)) return false;
+      if (answer === 'keep') {
+        if (!(await autosave.flush(id))) return false;
+        removeTab(id);
+        return true;
+      }
       removeTab(id);
+      await deleteOnServer(id);
       return true;
     },
 

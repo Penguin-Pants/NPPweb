@@ -113,6 +113,7 @@ test('closing a tab saves it first and keeps the document', async ({ page, api }
   await editor(page).click();
   await page.keyboard.type('keep me');
   await page.getByRole('button', { name: 'Close Untitled 1' }).click();
+  await page.getByRole('dialog', { name: 'Close document' }).getByRole('button', { name: 'Keep' }).click();
   await expect(page.getByRole('tab')).toHaveCount(0);
   await expect(page.getByText('No document is open.')).toBeVisible();
   const [doc] = await (await api.get('/api/documents')).json();
