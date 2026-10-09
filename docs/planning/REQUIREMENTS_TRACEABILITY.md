@@ -45,13 +45,13 @@ No requirement is unmapped.
 |----|--------|---------|-------|---------------------|------------|--------|
 | EDT-1 | REQ 3.2 | Tabs for open documents | T17 | Open, switch and close tabs. Each tab keeps its own content and undo history. | `e2e/tabs.spec.js` | Implemented |
 | EDT-2 | REQ 3.2 | Plain text editing, line numbers always on | T15 | Line numbers show for every document. | `e2e/editor.spec.js` | Implemented |
-| EDT-3 | REQ 3.2, D5 | Highlighting for 11 languages | T20 | Each language selects its parser and shows highlight classes. | `languages.test.js`, `e2e/language.spec.js`, manual visual check | Planned |
-| EDT-4 | REQ 3.2, D7 | Language from extension; unknown = plain; manual override | T13, T20 | Rename switches language. Override wins and syncs across devices. | `languages.test.js`, `documents-meta.test.js`, `e2e/language.spec.js` | Planned |
-| EDT-5 | REQ 3.2, D6 | Literal find and replace, current tab only, replace and replace all | T21 | `a.c` matches only literal `a.c`. Replace all touches only the current tab. No regex or whole-word controls. | `e2e/find-replace.spec.js` | Planned |
+| EDT-3 | REQ 3.2, D5 | Highlighting for 11 languages | T20 | Each language selects its parser and shows highlight classes. | `languages.test.js`, `e2e/language.spec.js`, manual visual check | Implemented |
+| EDT-4 | REQ 3.2, D7 | Language from extension; unknown = plain; manual override | T13, T20 | Rename switches language. Override wins and syncs across devices. | `languages.test.js`, `documents-meta.test.js`, `e2e/language.spec.js` | Implemented |
+| EDT-5 | REQ 3.2, D6 | Literal find and replace, current tab only, replace and replace all | T21 | `a.c` matches only literal `a.c`. Replace all touches only the current tab. No regex or whole-word controls. | `e2e/find-replace.spec.js` | Implemented |
 | EDT-6 | REQ 3.2, D10 | Dark default, light toggle, remembered per browser | T10, T14 | First visit is dark. Toggle survives reload. | `theme.test.js`, `e2e/shell.spec.js`, `e2e/login.spec.js` | Implemented |
-| EDT-7 | REQ 3.2, D12 | Shortcuts Ctrl+N, Ctrl+W, Ctrl+S, Ctrl+F, Ctrl+H | T22, T27 | All five work in the installed Chrome and Edge window. Ctrl+S, Ctrl+F and Ctrl+H also work in normal tabs. | `e2e/shortcuts.spec.js`, manual check in installed app, T26 item 8 | Planned |
-| EDT-8 | REQ 3.2, D12 | Installable as a desktop app in Chrome and Edge | T27, T26 | No installability errors. Installed app opens in its own window. | `gate.test.js`, `e2e/install.spec.js`, manual install, T26 item 8 | Planned |
-| EDT-9 | REQ 3.2, D13 | Alt+N new and Alt+W close everywhere | T22 | Both work in normal tabs, Firefox and the installed app. | `e2e/shortcuts.spec.js` (`@smoke`), T26 item 9 | Planned |
+| EDT-7 | REQ 3.2, D12 | Shortcuts Ctrl+N, Ctrl+W, Ctrl+S, Ctrl+F, Ctrl+H | T22, T27 | All five work in the installed Chrome and Edge window. Ctrl+S, Ctrl+F and Ctrl+H also work in normal tabs. | `e2e/shortcuts.spec.js`, manual check in installed app, T26 item 8 | Implemented |
+| EDT-8 | REQ 3.2, D12 | Installable as a desktop app in Chrome and Edge | T27, T26 | No installability errors. Installed app opens in its own window. | `gate.test.js`, `e2e/install.spec.js`, manual install, T26 item 8 | Implemented |
+| EDT-9 | REQ 3.2, D13 | Alt+N new and Alt+W close everywhere | T22 | Both work in normal tabs, Firefox and the installed app. | `e2e/shortcuts.spec.js` (`@smoke`), T26 item 9 | Implemented |
 
 ## 4. Documents and storage
 
@@ -95,7 +95,7 @@ No requirement is unmapped.
 | EDGE-6 | REQ 4 | Password change | T09 | Needs current password. Other sessions signed out. | `password-route.test.js` | Implemented |
 | EDGE-7 | REQ 4 | Reset variable left set | T06, T26 | Every start resets and logs a warning. README explains it. | `bootstrap.test.js`, README review | Planned |
 | EDGE-8 | REQ 4 | No variable and no stored password | T06 | Refuse to start with a clear log message. | `bootstrap.test.js` | Implemented |
-| EDGE-9 | REQ 4 | Unknown file extension | T20 | Plain text. | `languages.test.js` | Planned |
+| EDGE-9 | REQ 4 | Unknown file extension | T20 | Plain text. | `languages.test.js` | Implemented |
 
 ## 8. Plan interpretations
 
@@ -110,10 +110,10 @@ These items are not new product scope. They make an existing requirement precise
 | INT-5 | DOC-1 | Clean open tabs refresh on focus and activation | T17 | Two-context test in `e2e/tabs.spec.js` | Implemented |
 | INT-6 | DOC-2, DEP-2 | Production refuses to start without a volume path | T03 | `config.test.js` | Implemented |
 | INT-7 | CON-1 | "Save mine as new" names the copy "<name> (conflict copy)" | T23 | `e2e/conflict.spec.js` | Planned |
-| INT-8 | EDT-5 | Literal search is case-insensitive with no toggle | T21 | `e2e/find-replace.spec.js` | Planned |
+| INT-8 | EDT-5 | Literal search is case-insensitive with no toggle | T21 | `e2e/find-replace.spec.js` | Implemented |
 | INT-9 | ACC-4 | New passwords need 12 to 256 characters; a shorter seed only logs a warning | T05, T06, T09 | `password.test.js`, `bootstrap.test.js` | Implemented |
 | INT-10 | DOC-5 | Keep flushes the save first; a failed save keeps the tab open | T19 | `e2e/close.spec.js` with a failed PUT | Implemented |
-| INT-11 | EDT-8 | Manifest, icons and service worker script are public routes | T27 | `gate.test.js` | Planned |
+| INT-11 | EDT-8 | Manifest, icons and service worker script are public routes | T27 | `gate.test.js` | Implemented |
 
 ## 9. Non-goal guards
 
@@ -122,8 +122,8 @@ Tests that prove excluded features stay out.
 | ID | Source | Guard | Tasks | Validation | Status |
 |----|--------|-------|-------|------------|--------|
 | NG-1 | REQ 8 | No multi-cursor | T15 | `e2e/editor.spec.js` cursor count | Implemented |
-| NG-2 | REQ 8 | No regex, whole-word or cross-document search | T21 | `e2e/find-replace.spec.js` | Planned |
+| NG-2 | REQ 8 | No regex, whole-word or cross-document search | T21 | `e2e/find-replace.spec.js` | Implemented |
 | NG-3 | REQ 8 | No multi-user or sign-up routes | T07 | `gate.test.js` route sweep | Implemented |
 | NG-4 | REQ 8 | No live sync (no WebSocket or polling while idle) | T17 | Code review: refresh runs only on focus and activation | Implemented |
 | NG-5 | REQ 8 | No hidden-URL or IP-based protection | T07 | `gate.test.js` (all protection is the session) | Implemented |
-| NG-6 | REQ 8 | No offline use: any service worker is network-only and caches nothing | T27 | Code review of `sw.js`, `e2e/install.spec.js` checks Cache Storage is empty | Planned |
+| NG-6 | REQ 8 | No offline use: any service worker is network-only and caches nothing | T27 | Code review of `sw.js`, `e2e/install.spec.js` checks Cache Storage is empty | Implemented |

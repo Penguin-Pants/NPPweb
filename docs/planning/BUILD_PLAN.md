@@ -686,10 +686,10 @@ Update **Status** to `In progress` or `Done`. Add the PR or commit and short not
 | T17 | Tabs, new document, tab restore | P3 | M | T16 | Done | 2958c6d, 3db544a | Read-only blank editor while no tab owns the view, and load retry (3db544a). |
 | T18 | Document list sidebar | P4 | M | T17, T13 | Done | fe5abd2 | Delete closes the tab before it sends DELETE, so no pending save reaches the deleted document. |
 | T19 | Close prompt and empty untitled rule | P4 | S | T18 | Done | 5b2a189 | An unloaded tab is fetched first, so the empty-untitled rule uses real content. |
-| T20 | Highlighting and language selection | P5 | M | T18 | Todo | | |
-| T21 | Find and replace panel | P5 | M | T17 | Todo | | |
-| T22 | Keyboard shortcuts | P5 | S | T19, T21, T27 | Todo | | Includes Alt+N and Alt+W (D13) |
-| T27 | Install as a desktop app | P5 | S | T14 | Todo | | Record service worker result |
+| T20 | Highlighting and language selection | P5 | M | T18 | Done | 9dbffff, c705aca | Owner-pending: one manual visual check per language. Light mode uses defaultHighlightStyle, dark uses one-dark (screenshots checked). |
+| T21 | Find and replace panel | P5 | M | T17 | Done | 4a8eb3e, c705aca | A Find button in the top bar opens the panel. Search state is per tab. |
+| T22 | Keyboard shortcuts | P5 | S | T19, T21, T27 | Done | 5df4f3b, c705aca | Includes Alt+N and Alt+W (D13). Held keys act once. Owner-pending: all five shortcuts in the installed app in Chrome and Edge. |
+| T27 | Install as a desktop app | P5 | S | T14 | Done | 2c759af | Service worker result: a persistent full Chromium 156.0.8078.4 profile reports no installability errors without a service worker, so no `sw.js` (TD-18). Owner-pending: DevTools Manifest check and install on the deployed URL in Chrome and Edge. |
 | T23 | Conflict and deleted-elsewhere dialogs | P6 | M | T17 | Todo | | |
 | T24 | Client size limit | P6 | S | T15 | Todo | | |
 | T25 | Performance check | P7 | S | T20, T24 | Todo | | |

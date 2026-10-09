@@ -196,6 +196,9 @@ Coding agents record deviations from the plan here.
 | 2026-10-09 | T14 | `scripts/build-web.js` builds `theme-init.js` as an IIFE and the two module entries as ESM. | `theme-init.js` is a classic script. An ESM bundle that imports `theme.js` leaks minified globals. | Agent, not yet approved |
 | 2026-10-09 | T16 | `api.js` emits `session-expired` for every 401 except from `/api/login`. Autosave pauses on 401 and does not emit the event itself. | One place for the event, so a list refresh or a load that gets 401 also opens the re-login dialog. | Agent, not yet approved |
 | 2026-10-09 | T17 | The editor shows a read-only blank state whenever no tab owns the view: while a tab loads, after a failed load, and with no tab open. | P3 review: otherwise typing went into the previous tab or nowhere. | Agent, not yet approved |
+| 2026-10-09 | T21 | A Find button in the top bar opens the search panel. | T21 comes before T22, so the panel needed a way to open. It also makes find and replace visible to the owner. | Agent, not yet approved |
+| 2026-10-09 | T27 | The installability test runs in a persistent full Chromium profile (`channel: chromium`), not the headless shell. | The headless shell returns no installability errors even for a page with no manifest, and an incognito-like context always reports `in-incognito`. The test also proves it reports a missing manifest. | Agent, not yet approved |
+| 2026-10-09 | T22 | A held shortcut key is blocked from the browser but acts only once. | P5 review: holding Alt+N created many documents. | Agent, not yet approved |
 
 ## 10. Phase review log
 
@@ -230,6 +233,7 @@ Not built. Each one needs a user decision.
 | # | From | Proposal | Reason |
 |---|------|----------|--------|
 | 1 | P1 review 11 | Count wrong current passwords on `POST /api/password` in the login limiter. | A stolen session cookie would otherwise allow unlimited password guessing. |
+| 2 | P5 review 2 | Match the Mod shortcuts (N, W, S, F, H) by `event.key` and keep `event.code` for Alt+N and Alt+W. | On AZERTY and other layouts, `event.code` maps Ctrl+Z to KeyW, so undo opens the close dialog, and Ctrl+W can reach the browser and close the installed window. T22 specifies `event.code`. |
 | P2 | 1 | The over-limit tests used Content-Length only, so the chunked byte counter was untested. | Confirmed | Chunked test added in 9bcd481. |
 | P2 | 2 | The list-order test could not tell `updated_at` from `created_at`. | Confirmed | Test added in 9bcd481: a save and a rename move a document to the top. A language change does not. |
 | P2 | 3 | A `charset` other than UTF-8 was decoded as UTF-8. | Confirmed | Fixed in 9bcd481: 415. |
@@ -251,3 +255,10 @@ Not built. Each one needs a user decision.
 | P4 | 2 | A document deleted elsewhere keeps its list row until the next refresh. Opening it closes its new tab on the 404. | Rejected | Refresh on open and on focus is the specified behavior. |
 | P4 | 3 | Deleting from the list discards unsaved text in the open tab without a second prompt. | Rejected | T18 specifies one confirm dialog that says the delete is permanent. |
 | P4 | 4 | Window focus sends two list requests (tabs and document list). | Rejected | One owner, small JSON. Not worth shared state. |
+| P5 | 1 | Enter in the search panel ran Next even on a focused button, so keyboard users could not press Replace all. | Confirmed | Fixed in c705aca. E2E test added. |
+| P5 | 2 | On non-QWERTY layouts, Mod shortcuts matched by `event.code` fire on the wrong letters (AZERTY Ctrl+Z opens the close dialog). | Risk | T22 specifies `event.code`. Proposed out-of-scope fix 2 in section 11. |
+| P5 | 3 | A rename did not refresh the language tooltip of the active tab. | Confirmed | Fixed in c705aca. E2E test added. |
+| P5 | 4 | Opening the panel again with a selection cleared the replace field. | Confirmed | Fixed in c705aca. E2E test added. |
+| P5 | 5 | A held shortcut key repeated its action. | Confirmed | Fixed in c705aca. Unit test added. |
+| P5 | 6 | No test proved that `preventDefault` runs before an action that throws, or the dialog guard for N, S, F and H. | Confirmed | Unit tests added in c705aca. |
+| P5 | 7 | No test covered a hidden tab catching up on a rename, per-tab search state or Cmd+W, Cmd+F and Cmd+H. | Confirmed | Tests added in c705aca. |
