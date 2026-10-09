@@ -11,7 +11,7 @@
   "scripts": {
     "build": "node scripts/build-web.js",
     "start": "node server/src/index.js",
-    "dev": "npm run build && node --watch server/src/index.js",
+    "dev": "npm run build && node --env-file-if-exists=.env --watch server/src/index.js",
     "test": "node --test \"server/test/**/*.test.js\" \"web/test/**/*.test.js\"",
     "test:e2e": "playwright test"
   },
