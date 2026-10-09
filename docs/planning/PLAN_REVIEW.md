@@ -190,6 +190,9 @@ Coding agents record deviations from the plan here.
 | 2026-10-09 | T08 | The limiter counts each attempt before the password check. A correct password clears the IP bucket and refunds one global count. | scrypt takes about 50 ms, so parallel requests could all pass a check-then-count limiter. | Agent, not yet approved |
 | 2026-10-09 | T10 | Playwright global setup runs `node scripts/build-web.js`, not `npm run build`. | Spawning npm from Node fails on Windows (npm is a `.cmd` file). Same script, same output. | Agent, not yet approved |
 | 2026-10-09 | P1 review | `engines.node` is `>=24.2 <25`. | `import.meta.main` needs Node 24.2. On 24.0 and 24.1, `npm start` would exit without listening. | Agent, not yet approved |
+| 2026-10-09 | T11, T12 | Content is bound as UTF-8 bytes (a BLOB in the TEXT column `content`) and decoded on read. | R3 happened: `node:sqlite` in Node 24.13 cuts a bound TEXT value at its first NUL character. The schema is unchanged. | Agent, not yet approved |
+| 2026-10-09 | T13 | A language-only PATCH does not change `updated_at`. A rename does. | Section 2.6 says `updated_at` changes on content save and rename. The T13 line says PATCH changes it. Sort order is left to the builder (REQUIREMENTS section 6), and a language change should not move a document to the top of the list. | Agent, not yet approved |
+| 2026-10-09 | T12 | `PUT /api/documents/:id/content` needs a `text/plain` body. A request with no body returns 415. `POST` still accepts no body. | A bodyless PUT would otherwise replace the content with an empty string. | Agent, not yet approved |
 
 ## 10. Phase review log
 
@@ -224,3 +227,11 @@ Not built. Each one needs a user decision.
 | # | From | Proposal | Reason |
 |---|------|----------|--------|
 | 1 | P1 review 11 | Count wrong current passwords on `POST /api/password` in the login limiter. | A stolen session cookie would otherwise allow unlimited password guessing. |
+| P2 | 1 | The over-limit tests used Content-Length only, so the chunked byte counter was untested. | Confirmed | Chunked test added in 9bcd481. |
+| P2 | 2 | The list-order test could not tell `updated_at` from `created_at`. | Confirmed | Test added in 9bcd481: a save and a rename move a document to the top. A language change does not. |
+| P2 | 3 | A `charset` other than UTF-8 was decoded as UTF-8. | Confirmed | Fixed in 9bcd481: 415. |
+| P2 | 4 | A JSON string body was accepted as content. | Confirmed | Fixed in 9bcd481: only `text/plain` is accepted. |
+| P2 | 5 | Fastify parse errors did not use the `{ error: "<code>" }` shape. | Confirmed | Fixed in 9bcd481 with one root error handler. |
+| P2 | 6 | T13 and section 2.6 disagree on `updated_at` for a language-only PATCH. | Rejected | Not a defect. Section 2.6 followed. Logged as a deviation. |
+| P2 | 7 | A PUT with no body saved empty content. | Confirmed | Fixed in 9bcd481: 415. |
+| P2 | 8 | (Pass 2) `node:sqlite` cut content at the first NUL character. | Confirmed | Found while checking the review note on NUL. Fixed in 9bcd481. Test added. |

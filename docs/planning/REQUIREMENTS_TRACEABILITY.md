@@ -106,7 +106,7 @@ These items are not new product scope. They make an existing requirement precise
 | INT-1 | DOC-8 | 1 MB = 1,048,576 bytes of UTF-8 | T11, T12, T24 | Boundary tests at 1,048,576 and 1,048,577 bytes | Planned |
 | INT-2 | ACC-6 | Session lifetime is fixed at 30 days from sign-in, not sliding | T07 | `auth.test.js` clock tests | Implemented |
 | INT-3 | ACC-2 | Public: login page and its assets, `/healthz`, `POST /api/login` | T07 | `gate.test.js` sweep | Implemented |
-| INT-4 | CON-1 | `version` counts content changes only; rename and language do not conflict | T12, T13 | `documents-meta.test.js` | Planned |
+| INT-4 | CON-1 | `version` counts content changes only; rename and language do not conflict | T12, T13 | `documents-meta.test.js` | Implemented |
 | INT-5 | DOC-1 | Clean open tabs refresh on focus and activation | T17 | Two-context test in `e2e/tabs.spec.js` | Planned |
 | INT-6 | DOC-2, DEP-2 | Production refuses to start without a volume path | T03 | `config.test.js` | Implemented |
 | INT-7 | CON-1 | "Save mine as new" names the copy "<name> (conflict copy)" | T23 | `e2e/conflict.spec.js` | Planned |

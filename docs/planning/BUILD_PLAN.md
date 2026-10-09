@@ -677,9 +677,9 @@ Update **Status** to `In progress` or `Done`. Add the PR or commit and short not
 | T08 | Login rate limiting | P1 | S | T07 | Done | 5f20151 | Each attempt counts before the password check, so parallel guesses cannot pass the limit. A success refunds its global count. |
 | T09 | Change password API | P1 | S | T07 | Done | d39c437 | Hash store and other-session delete run in one transaction. |
 | T10 | Login page and E2E harness | P1 | M | T08 | Done | cbc74f7, eb099f0 | Global setup runs `scripts/build-web.js` with the current Node binary. 15 E2E tests pass in Chromium, Firefox and WebKit. |
-| T11 | Documents list, create, get | P2 | M | T07 | Todo | | |
-| T12 | Content save with version check | P2 | M | T11 | Todo | | |
-| T13 | Rename, language, delete routes | P2 | S | T11 | Todo | | |
+| T11 | Documents list, create, get | P2 | M | T07 | Done | 5d83a19, 9bcd481 | Non-text bodies return 415. Content is stored as UTF-8 bytes (9bcd481). |
+| T12 | Content save with version check | P2 | M | T11 | Done | 665ab0e, 9bcd481 | A malformed If-Match also returns 428. A PUT needs a text/plain body. |
+| T13 | Rename, language, delete routes | P2 | S | T11 | Done | 5036274 | A language-only PATCH keeps `updatedAt` (section 2.6). A non-object body returns 400 `invalid_request`. |
 | T14 | App shell, theme, account menu | P3 | M | T09, T10 | Todo | | |
 | T15 | Editor with basic autosave | P3 | M | T12, T14 | Todo | | |
 | T16 | Save reliability | P3 | M | T15 | Todo | | |
