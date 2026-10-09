@@ -1,13 +1,21 @@
-// Sign-in, sign-out and session check (section 2.7).
-import { readPasswordHash, verifyPassword } from '../auth/password.js';
+// Sign-in, sign-out, session check and password change (section 2.7).
+import {
+  hashPassword,
+  readPasswordHash,
+  storePasswordHash,
+  validateNewPassword,
+  verifyPassword,
+} from '../auth/password.js';
 import { createLoginLimiter } from '../auth/rate-limit.js';
 import {
   createSession,
+  deleteOtherSessions,
   deleteSession,
   SESSION_COOKIE,
   SESSION_TTL_MS,
   sessionCookieOptions,
 } from '../auth/sessions.js';
+import { transaction } from '../db.js';
 
 /**
  * @param {import('fastify').FastifyInstance} app
@@ -42,4 +50,22 @@ export async function authRoutes(app, { db, config, clock }) {
   });
 
   app.get('/api/session', async () => ({ authenticated: true }));
+
+  // A wrong current password is 400, never 401: the client treats 401 as an
+  // expired session (section 2.7 notes).
+  app.post('/api/password', async (request, reply) => {
+    const { currentPassword, newPassword } = request.body ?? {};
+    if (!(await verifyPassword(currentPassword, readPasswordHash(db)))) {
+      return reply.code(400).send({ error: 'wrong_current_password' });
+    }
+    if (!validateNewPassword(newPassword)) {
+      return reply.code(400).send({ error: 'weak_password' });
+    }
+    const hash = await hashPassword(newPassword);
+    transaction(db, () => {
+      storePasswordHash(db, hash);
+      deleteOtherSessions(db, request.sessionToken);
+    });
+    return reply.code(204).send();
+  });
 }

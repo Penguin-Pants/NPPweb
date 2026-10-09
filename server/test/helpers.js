@@ -25,17 +25,23 @@ export async function createTestApp({ env = {}, clock } = {}) {
   const config = loadConfig({ DATA_DIR: join(dir, 'data'), OWNER_PASSWORD: PASSWORD, ...env });
   const db = openDatabase(config.dataDir);
   await ensurePassword({ db, config, logger: { warn() {} } });
-  const app = await buildApp({ config, db, clock, logger: false, webRoot });
-  return {
-    app,
+  const ctx = {
+    app: await buildApp({ config, db, clock, logger: false, webRoot }),
     db,
     config,
+    /** Simulates a restart on the same database: bootstrap again, then a new app. */
+    async restart() {
+      await ctx.app.close();
+      await ensurePassword({ db, config, logger: { warn() {} } });
+      ctx.app = await buildApp({ config, db, clock, logger: false, webRoot });
+    },
     async close() {
-      await app.close();
+      await ctx.app.close();
       db.close();
       await rm(dir, { recursive: true, force: true, maxRetries: 5 });
     },
   };
+  return ctx;
 }
 
 /** Signs in and returns the Cookie header value for later requests. */
