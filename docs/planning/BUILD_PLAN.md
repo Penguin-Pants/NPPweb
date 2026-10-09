@@ -690,8 +690,8 @@ Update **Status** to `In progress` or `Done`. Add the PR or commit and short not
 | T21 | Find and replace panel | P5 | M | T17 | Done | 4a8eb3e, c705aca | A Find button in the top bar opens the panel. Search state is per tab. |
 | T22 | Keyboard shortcuts | P5 | S | T19, T21, T27 | Done | 5df4f3b, c705aca | Includes Alt+N and Alt+W (D13). Held keys act once. Owner-pending: all five shortcuts in the installed app in Chrome and Edge. |
 | T27 | Install as a desktop app | P5 | S | T14 | Done | 2c759af | Service worker result: a persistent full Chromium 156.0.8078.4 profile reports no installability errors without a service worker, so no `sw.js` (TD-18). Owner-pending: DevTools Manifest check and install on the deployed URL in Chrome and Edge. |
-| T23 | Conflict and deleted-elsewhere dialogs | P6 | M | T17 | Todo | | |
-| T24 | Client size limit | P6 | S | T15 | Todo | | |
+| T23 | Conflict and deleted-elsewhere dialogs | P6 | M | T17 | Done | 78c36ee, ec94dfb | Choices run while the dialog stays open. Default focus is Save mine as a new document. The dialogs cannot be dismissed with Escape. |
+| T24 | Client size limit | P6 | S | T15 | Done | 6ca12d8, ec94dfb | A change that makes an oversized document smaller is allowed. Typing in a 1 MB document stays fast (T25). |
 | T25 | Performance check | P7 | S | T20, T24 | Todo | | |
 | T26 | README and production verification | P7 | M | all | Todo |  | Owner-assisted. Extra owner check (P1 review 4): send 6 wrong logins to the deployed URL, each with a different X-Real-IP header. The 6th must get 429. |
 

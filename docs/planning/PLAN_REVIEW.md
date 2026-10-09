@@ -199,6 +199,8 @@ Coding agents record deviations from the plan here.
 | 2026-10-09 | T21 | A Find button in the top bar opens the search panel. | T21 comes before T22, so the panel needed a way to open. It also makes find and replace visible to the owner. | Agent, not yet approved |
 | 2026-10-09 | T27 | The installability test runs in a persistent full Chromium profile (`channel: chromium`), not the headless shell. | The headless shell returns no installability errors even for a page with no manifest, and an incognito-like context always reports `in-incognito`. The test also proves it reports a missing manifest. | Agent, not yet approved |
 | 2026-10-09 | T22 | A held shortcut key is blocked from the browser but acts only once. | P5 review: holding Alt+N created many documents. | Agent, not yet approved |
+| 2026-10-09 | T23 | The conflict dialog focuses Save mine as a new document and styles Overwrite with mine as dangerous. The deleted dialog focuses Save mine as a new document. | The plan names no default. P6 review: Enter or Space while typing would otherwise overwrite the other device's text with no history. | Agent, not yet approved |
+| 2026-10-09 | T23 | Each choice runs while its dialog stays open (buttons disabled). A failed step shows its error in the dialog. After a 401, the sign-in dialog opens on top and the user chooses again. | P6 review: text typed during the request was lost, and a failed step looped over the sign-in dialog. | Agent, not yet approved |
 
 ## 10. Phase review log
 
@@ -253,6 +255,12 @@ Two-pass review of each phase diff. Pass 1 lists findings. Pass 2 classifies eac
 | P5 | 5 | A held shortcut key repeated its action. | Confirmed | Fixed in c705aca. Unit test added. |
 | P5 | 6 | No test proved that `preventDefault` runs before an action that throws, or the dialog guard for N, S, F and H. | Confirmed | Unit tests added in c705aca. |
 | P5 | 7 | No test covered a hidden tab catching up on a rename, per-tab search state or Cmd+W, Cmd+F and Cmd+H. | Confirmed | Tests added in c705aca. |
+| P6 | 1 | Text typed while a choice's request was in flight could be lost, because the dialog had already closed. | Confirmed | Fixed in ec94dfb: the choice runs with the dialog open. E2E test checks that no PUT happens while it is open. |
+| P6 | 2 | A failed step inside a choice re-queued the dialog over the sign-in dialog and looped. | Confirmed | Fixed in ec94dfb: error in the dialog, sign-in on top. E2E tests for a network failure and a 401. |
+| P6 | 3 | When the copy saved but the reload of the original failed, the tab stayed held with no way out. | Confirmed | Fixed in ec94dfb: a retry only reloads. A 404 closes the original because the copy has the text. |
+| P6 | 4 | The conflict dialog focused Overwrite with mine, so Enter while typing could overwrite the other version. | Confirmed | Fixed in ec94dfb: focus on Save mine as a new document. E2E test added. |
+| P6 | 5 | The last size-limit E2E assertion could not fail (the earlier message was still visible). | Confirmed | Fixed in ec94dfb: the message is cleared first, and the test checks that no PUT happens and the stored size is still 1 MB. |
+| P6 | 6 | No test covered failed choices, two queued conflicts or typing during a choice. | Confirmed | E2E tests added in ec94dfb. |
 
 ## 11. Proposed out-of-scope fixes
 

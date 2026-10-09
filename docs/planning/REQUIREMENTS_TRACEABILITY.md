@@ -64,13 +64,13 @@ No requirement is unmapped.
 | DOC-5 | REQ 3.3, D9 | Close asks keep or delete; delete is permanent | T19 | Keep stays in list. Delete removes it. Cancel keeps the tab. | `e2e/close.spec.js` | Implemented |
 | DOC-6 | REQ 3.3 | Empty untitled tab closes without prompt | T19 | No dialog. No document remains. | `e2e/close.spec.js` | Implemented |
 | DOC-7 | REQ 3.3 | Open tabs remembered per browser | T17 | Reload restores open tabs and the active tab. | `e2e/tabs.spec.js` | Implemented |
-| DOC-8 | REQ 3.3 | 1 MB maximum with a clear error | T11, T12, T24 | Server returns 413 above 1,048,576 bytes. Client rejects the edit and shows the message. | `documents.test.js`, `documents-save.test.js`, `size-limit.test.js`, `e2e/size-limit.spec.js` | Planned |
+| DOC-8 | REQ 3.3 | 1 MB maximum with a clear error | T11, T12, T24 | Server returns 413 above 1,048,576 bytes. Client rejects the edit and shows the message. | `documents.test.js`, `documents-save.test.js`, `size-limit.test.js`, `e2e/size-limit.spec.js` | Implemented |
 
 ## 5. Multi-device conflict
 
 | ID | Source | Summary | Tasks | Acceptance criteria | Validation | Status |
 |----|--------|---------|-------|---------------------|------------|--------|
-| CON-1 | REQ 3.4, D8 | Warn before overwriting a version changed elsewhere; three choices | T12, T16, T23 | Stale save gets 412. Dialog offers overwrite, load other, save as new. Each gives the stated server result. | `documents-save.test.js`, `e2e/conflict.spec.js` | Planned |
+| CON-1 | REQ 3.4, D8 | Warn before overwriting a version changed elsewhere; three choices | T12, T16, T23 | Stale save gets 412. Dialog offers overwrite, load other, save as new. Each gives the stated server result. | `documents-save.test.js`, `e2e/conflict.spec.js` | Implemented |
 
 ## 6. Deployment and quality
 
@@ -87,9 +87,9 @@ No requirement is unmapped.
 
 | ID | Source | Summary | Tasks | Acceptance criteria | Validation | Status |
 |----|--------|---------|-------|---------------------|------------|--------|
-| EDGE-1 | REQ 4 | Document deleted on another device | T12, T16, T23 | Save gets 404. Dialog offers save as new and discard. | `documents-save.test.js`, `e2e/conflict.spec.js` | Planned |
+| EDGE-1 | REQ 4 | Document deleted on another device | T12, T16, T23 | Save gets 404. Dialog offers save as new and discard. | `documents-save.test.js`, `e2e/conflict.spec.js` | Implemented |
 | EDGE-2 | REQ 4 | Save failure | T16 | Error label, text kept, retries, unload warning. | `autosave.test.js`, `e2e/save-reliability.spec.js` | Implemented |
-| EDGE-3 | REQ 4 | Content over 1 MB | T12, T24 | Rejected with a clear error. Existing content unchanged. | `documents-save.test.js`, `e2e/size-limit.spec.js` | Planned |
+| EDGE-3 | REQ 4 | Content over 1 MB | T12, T24 | Rejected with a clear error. Existing content unchanged. | `documents-save.test.js`, `e2e/size-limit.spec.js` | Implemented |
 | EDGE-4 | REQ 4 | Session expires while editing | T16 | Re-login dialog. Unsaved text kept and saved after login. | `e2e/save-reliability.spec.js` | Implemented |
 | EDGE-5 | REQ 4 | Wrong password | T07, T08, T10 | Generic error. Rate limit after repeated failures. | `auth.test.js`, `rate-limit.test.js`, `e2e/login.spec.js` | Implemented |
 | EDGE-6 | REQ 4 | Password change | T09 | Needs current password. Other sessions signed out. | `password-route.test.js` | Implemented |
@@ -103,13 +103,13 @@ These items are not new product scope. They make an existing requirement precise
 
 | ID | Parent | Interpretation | Tasks | Validation | Status |
 |----|--------|----------------|-------|------------|--------|
-| INT-1 | DOC-8 | 1 MB = 1,048,576 bytes of UTF-8 | T11, T12, T24 | Boundary tests at 1,048,576 and 1,048,577 bytes | Planned |
+| INT-1 | DOC-8 | 1 MB = 1,048,576 bytes of UTF-8 | T11, T12, T24 | Boundary tests at 1,048,576 and 1,048,577 bytes | Implemented |
 | INT-2 | ACC-6 | Session lifetime is fixed at 30 days from sign-in, not sliding | T07 | `auth.test.js` clock tests | Implemented |
 | INT-3 | ACC-2 | Public: login page and its assets, `/healthz`, `POST /api/login` | T07 | `gate.test.js` sweep | Implemented |
 | INT-4 | CON-1 | `version` counts content changes only; rename and language do not conflict | T12, T13 | `documents-meta.test.js` | Implemented |
 | INT-5 | DOC-1 | Clean open tabs refresh on focus and activation | T17 | Two-context test in `e2e/tabs.spec.js` | Implemented |
 | INT-6 | DOC-2, DEP-2 | Production refuses to start without a volume path | T03 | `config.test.js` | Implemented |
-| INT-7 | CON-1 | "Save mine as new" names the copy "<name> (conflict copy)" | T23 | `e2e/conflict.spec.js` | Planned |
+| INT-7 | CON-1 | "Save mine as new" names the copy "<name> (conflict copy)" | T23 | `e2e/conflict.spec.js` | Implemented |
 | INT-8 | EDT-5 | Literal search is case-insensitive with no toggle | T21 | `e2e/find-replace.spec.js` | Implemented |
 | INT-9 | ACC-4 | New passwords need 12 to 256 characters; a shorter seed only logs a warning | T05, T06, T09 | `password.test.js`, `bootstrap.test.js` | Implemented |
 | INT-10 | DOC-5 | Keep flushes the save first; a failed save keeps the tab open | T19 | `e2e/close.spec.js` with a failed PUT | Implemented |
