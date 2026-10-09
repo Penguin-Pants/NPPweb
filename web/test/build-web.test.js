@@ -19,12 +19,14 @@ after(() => rm(outDir, { recursive: true, force: true }));
 
 test('build writes each entry bundle with a sourcemap and copies the static files', async () => {
   assert.deepEqual((await readdir(outDir)).sort(), [
+    'icons',
     'index.html',
     'login.html',
     'login.js',
     'login.js.map',
     'main.js',
     'main.js.map',
+    'manifest.webmanifest',
     'styles.css',
     'theme-init.js',
     'theme-init.js.map',
@@ -32,7 +34,18 @@ test('build writes each entry bundle with a sourcemap and copies the static file
 });
 
 test('build copies the HTML pages and stylesheet unchanged', async () => {
-  for (const name of ['index.html', 'login.html', 'styles.css']) {
+  for (const name of ['index.html', 'login.html', 'styles.css', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png']) {
     assert.deepEqual(await readFile(join(outDir, name)), await readFile(join(rootDir, 'web', name)), name);
+  }
+});
+
+test('the theme-init bundle runs as a classic script, sets the theme and adds no globals', async () => {
+  const { runInNewContext } = await import('node:vm');
+  const code = await readFile(join(outDir, 'theme-init.js'), 'utf8');
+  for (const stored of [null, 'light']) {
+    const sandbox = { document: { documentElement: { dataset: {} } }, localStorage: { getItem: () => stored } };
+    runInNewContext(code, sandbox);
+    assert.deepEqual(Object.keys(sandbox).sort(), ['document', 'localStorage']);
+    assert.equal(sandbox.document.documentElement.dataset.theme, stored ?? 'dark');
   }
 });

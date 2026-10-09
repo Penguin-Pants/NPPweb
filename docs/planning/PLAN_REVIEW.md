@@ -180,3 +180,96 @@ Coding agents record deviations from the plan here.
 | Date | Task | Deviation | Reason | Approved by |
 |------|------|-----------|--------|-------------|
 | 2026-10-09 | T01 | `web/test/build-web.test.js` replaces "one trivial test". It builds into a temp folder and checks the 3 bundles, their sourcemaps and the copied HTML and CSS. `scripts/build-web.js` takes an optional output folder argument for this test. | `AGENTS.md` Testing rule 3: no assertion may pass when the requirement is inverted. A trivial test always passes. | User (chat, 2026-10-09) |
+| 2026-10-09 | All | Phase reviews use the two-pass method in section 1 (Confirmed, Risk or Rejected). Results go to section 10. | The execution prompt names a "TWO-PASS REVIEW" with a finding classification in `AGENTS.md`. Neither `AGENTS.md` nor the installed skills define one. | Agent, not yet approved |
+| 2026-10-09 | T20, T22, T25, T27 | When all automated acceptance checks pass, the task is marked Done for dependency purposes. Its manual checks (visual check, installed-app shortcuts, deployed install check, scroll feel) are listed as owner-pending in section 9 of `BUILD_PLAN.md` and in T26. | These manual checks need a deployed URL or a human. Without this rule, T22 and T26 stall behind T04. | Agent, not yet approved |
+| 2026-10-09 | T02 | `index.js` exports `start({ env, exit, logger })` and runs it only when it is the main module (`import.meta.main`). | Windows cannot deliver SIGTERM to a child process handler, so the shutdown test emits the signal in-process. | Agent, not yet approved |
+| 2026-10-09 | T04 | The owner deploy checklist lives in `README.md` ("Deploy on Railway"). T26 extends that section. | One place for operations notes. | Agent, not yet approved |
+| 2026-10-09 | T07 | `buildApp` is async. It awaits `@fastify/cookie` so the cookie parser runs before the gate hook. | Fastify loads registered plugins after hooks that are added directly, so the gate would see no cookies. | Agent, not yet approved |
+| 2026-10-09 | T07 | `index.js` builds the app before the password bootstrap, so the bootstrap logs through `app.log`. Listen still runs after the bootstrap and the session purge. | One logger for all startup lines. No request is served before step 5. | Agent, not yet approved |
+| 2026-10-09 | T07, T11, T13 | Error codes the plan does not name: 401 `unauthorized` (no session), 415 `unsupported_media_type` (non-text content body), 400 `invalid_request` (PATCH body is not a JSON object), 400 `bad_request` (malformed URL). | Section 2.7 requires `{ "error": "<code>" }` for every error. | Agent, not yet approved |
+| 2026-10-09 | T08 | The limiter counts each attempt before the password check. A correct password clears the IP bucket and refunds one global count. | scrypt takes about 50 ms, so parallel requests could all pass a check-then-count limiter. | Agent, not yet approved |
+| 2026-10-09 | T10 | Playwright global setup runs `node scripts/build-web.js`, not `npm run build`. | Spawning npm from Node fails on Windows (npm is a `.cmd` file). Same script, same output. | Agent, not yet approved |
+| 2026-10-09 | P1 review | `engines.node` is `>=24.2 <25`. | `import.meta.main` needs Node 24.2. On 24.0 and 24.1, `npm start` would exit without listening. | Agent, not yet approved |
+| 2026-10-09 | T11, T12 | Content is bound as UTF-8 bytes (a BLOB in the TEXT column `content`) and decoded on read. | R3 happened: `node:sqlite` in Node 24.13 cuts a bound TEXT value at its first NUL character. The schema is unchanged. | Agent, not yet approved |
+| 2026-10-09 | T13 | A language-only PATCH does not change `updated_at`. A rename does. | Section 2.6 says `updated_at` changes on content save and rename. The T13 line says PATCH changes it. Sort order is left to the builder (REQUIREMENTS section 6), and a language change should not move a document to the top of the list. | Agent, not yet approved |
+| 2026-10-09 | T12 | `PUT /api/documents/:id/content` needs a `text/plain` body. A request with no body returns 415. `POST` still accepts no body. | A bodyless PUT would otherwise replace the content with an empty string. | Agent, not yet approved |
+| 2026-10-09 | T14 | `scripts/build-web.js` builds `theme-init.js` as an IIFE and the two module entries as ESM. | `theme-init.js` is a classic script. An ESM bundle that imports `theme.js` leaks minified globals. | Agent, not yet approved |
+| 2026-10-09 | T16 | `api.js` emits `session-expired` for every 401 except from `/api/login`. Autosave pauses on 401 and does not emit the event itself. | One place for the event, so a list refresh or a load that gets 401 also opens the re-login dialog. | Agent, not yet approved |
+| 2026-10-09 | T17 | The editor shows a read-only blank state whenever no tab owns the view: while a tab loads, after a failed load, and with no tab open. | P3 review: otherwise typing went into the previous tab or nowhere. | Agent, not yet approved |
+| 2026-10-09 | T21 | A Find button in the top bar opens the search panel. | T21 comes before T22, so the panel needed a way to open. It also makes find and replace visible to the owner. | Agent, not yet approved |
+| 2026-10-09 | T27 | The installability test runs in a persistent full Chromium profile (`channel: chromium`), not the headless shell. | The headless shell returns no installability errors even for a page with no manifest, and an incognito-like context always reports `in-incognito`. The test also proves it reports a missing manifest. | Agent, not yet approved |
+| 2026-10-09 | T22 | A held shortcut key is blocked from the browser but acts only once. | P5 review: holding Alt+N created many documents. | Agent, not yet approved |
+| 2026-10-09 | T23 | The conflict dialog focuses Save mine as a new document and styles Overwrite with mine as dangerous. The deleted dialog focuses Save mine as a new document. | The plan names no default. P6 review: Enter or Space while typing would otherwise overwrite the other device's text with no history. | Agent, not yet approved |
+| 2026-10-09 | T23 | Each choice runs while its dialog stays open (buttons disabled). A failed step shows its error in the dialog. After a 401, the sign-in dialog opens on top and the user chooses again. | P6 review: text typed during the request was lost, and a failed step looped over the sign-in dialog. | Agent, not yet approved |
+
+## 10. Phase review log
+
+Two-pass review of each phase diff. Pass 1 lists findings. Pass 2 classifies each one.
+
+| Phase | # | Finding | Verdict | Action |
+|-------|---|---------|---------|--------|
+| P0 | 1 | `npm start` as the Railway start command puts npm between the signal and Node. | Risk | npm forwards SIGTERM to the child. Check the shutdown log line in T04. |
+| P0 | 2 | A failed `listen` (port in use) leaves the database open. | Rejected | The top-level await rejects and the process exits 1, which closes the file. |
+| P0 | 3 | `migrate` ignores a database newer than the code (`user_version` above the migration count). | Rejected | v1 has one migration and no rollback across migrations (section 7). |
+| P0 | 4 | `node:sqlite` prints an ExperimentalWarning. | Rejected | Known (R3). No behavior impact. |
+| P0 | 5 | `./data` resolves from the working folder. | Rejected | `npm start` and `npm run dev` run from the repo root. Production requires a volume path. |
+| P0 | 6 | `buildApp` takes `config` but does not read it yet. | Rejected | T07 uses it for cookies and headers. |
+| P0 | 7 | Shutdown does not force an exit if `app.close()` hangs. | Rejected | Railway sends SIGKILL after its drain period. |
+| P0 | 8 | `railway.json` sets no `healthcheckTimeout`. | Rejected | The Railway default applies. The app starts in under a second. |
+| P1 | 1 | `Cache-Control: no-store` was missing when the router decoded a percent-encoded `/api/` path. | Confirmed | Fixed in a492bb2. The check also reads the route pattern. Test added. |
+| P1 | 2 | Malformed URLs returned 400 from Fastify without the security headers. | Confirmed | Fixed in a492bb2 with `frameworkErrors`. Test added. |
+| P1 | 3 | With `trustProxy: true`, the Origin check uses `X-Forwarded-Host` when present. | Rejected | T02 requires `trustProxy`. The Origin check is a CSRF defense, and a browser cannot send that header cross-site without a preflight. A non-browser client can send any Origin anyway. |
+| P1 | 4 | TD-11 assumes the Railway edge overwrites `X-Real-IP`. If it passes client values through, rotating the header defeats the per-IP bucket. | Risk | R2. Owner check added to the T26 notes: 6 wrong logins with 6 different `X-Real-IP` values must get 429 on the 6th. |
+| P1 | 5 | No test proved the Origin check for PUT, PATCH and DELETE. | Confirmed | Test added in a492bb2. |
+| P1 | 6 | No test asserted the startup log line when no password is configured (EDGE-8). | Confirmed | Test added in a492bb2. |
+| P1 | 7 | No test covered paths next to the public allowlist (`/login/`, `/%6cogin.js`, `//login`). | Confirmed | Test added in a492bb2. The gate already failed closed. |
+| P1 | 8 | The E2E fixture left the server running when startup failed. | Confirmed | Fixed in a492bb2. |
+| P1 | 9 | `import.meta.main` needs Node 24.2, but engines allowed 24.0. | Confirmed | Fixed in a492bb2 (`>=24.2 <25`). |
+| P1 | 10 | The app is built before the bootstrap and not closed when the bootstrap fails. | Rejected | The process exits 1 right after. Logged as a deviation. |
+| P1 | 11 | `POST /api/password` has no limit on wrong current-password attempts. A stolen session cookie allows unlimited online guessing. | Risk | The plan limits failed logins only. Proposed out-of-scope fix in section 11. |
+| P2 | 1 | The over-limit tests used Content-Length only, so the chunked byte counter was untested. | Confirmed | Chunked test added in fdb1d8f. |
+| P2 | 2 | The list-order test could not tell `updated_at` from `created_at`. | Confirmed | Test added in fdb1d8f: a save and a rename move a document to the top. A language change does not. |
+| P2 | 3 | A `charset` other than UTF-8 was decoded as UTF-8. | Confirmed | Fixed in fdb1d8f: 415. |
+| P2 | 4 | A JSON string body was accepted as content. | Confirmed | Fixed in fdb1d8f: only `text/plain` is accepted. |
+| P2 | 5 | Fastify parse errors did not use the `{ error: "<code>" }` shape. | Confirmed | Fixed in fdb1d8f with one root error handler. |
+| P2 | 6 | T13 and section 2.6 disagree on `updated_at` for a language-only PATCH. | Rejected | Not a defect. Section 2.6 followed. Logged as a deviation. |
+| P2 | 7 | A PUT with no body saved empty content. | Confirmed | Fixed in fdb1d8f: 415. |
+| P2 | 8 | (Pass 2) `node:sqlite` cut content at the first NUL character. | Confirmed | Found while checking the review note on NUL. Fixed in fdb1d8f. Test added. |
+| P3 | 1 | Clicking the active tab showed a stale copy of its state, and the next save could overwrite typed text. | Confirmed | Fixed in 5f30925. E2E test added. |
+| P3 | 2 | The editor stayed editable while no tab owned it (during a load, after a failed load, after a close). | Confirmed | Fixed in 5f30925: read-only blank state, load error message and retry. E2E test added. |
+| P3 | 3 | A browser can close the non-cancellable re-login dialog on a second Escape, which would leave saves paused for good. | Confirmed | Fixed in 5f30925: the dialog opens again. E2E test added. |
+| P3 | 4 | A PUT that commits but loses its response is retried with the old version and gets 412 against the user's own save. | Risk | Follows section 2.8. The T23 conflict dialog resolves it (Overwrite with mine). |
+| P3 | 5 | `createTabs` and the active-tab and load-race paths had no tests. | Confirmed | E2E tests added in 5f30925. |
+| P3 | 6 | The error texts for conflict, deleted and too-large were untested. | Confirmed | Covered in the T23 and T24 specs. |
+| P3 | 7 | No test covered `resumeAll` with a held document. | Confirmed | Unit test added in 5f30925. |
+| P3 | 8 | The restore test waited for the active tab only, so it did not prove that the other tabs persisted. | Confirmed | Fixed in 5f30925: waits for no unsaved tab, then checks every tab. |
+| P3 | 9 | The 2.5 s bound in the autosave timing test may be tight under load. | Rejected | No flake seen. "About 1 second" allows the margin. |
+| P4 | 1 | Two document list refreshes can overlap, and an older response can render last. | Risk | Low impact: the next open or focus corrects the list. No change. |
+| P4 | 2 | A document deleted elsewhere keeps its list row until the next refresh. Opening it closes its new tab on the 404. | Rejected | Refresh on open and on focus is the specified behavior. |
+| P4 | 3 | Deleting from the list discards unsaved text in the open tab without a second prompt. | Rejected | T18 specifies one confirm dialog that says the delete is permanent. |
+| P4 | 4 | Window focus sends two list requests (tabs and document list). | Rejected | One owner, small JSON. Not worth shared state. |
+| P5 | 1 | Enter in the search panel ran Next even on a focused button, so keyboard users could not press Replace all. | Confirmed | Fixed in 35de628. E2E test added. |
+| P5 | 2 | On non-QWERTY layouts, Mod shortcuts matched by `event.code` fire on the wrong letters (AZERTY Ctrl+Z opens the close dialog). | Risk | T22 specifies `event.code`. Proposed out-of-scope fix 2 in section 11. |
+| P5 | 3 | A rename did not refresh the language tooltip of the active tab. | Confirmed | Fixed in 35de628. E2E test added. |
+| P5 | 4 | Opening the panel again with a selection cleared the replace field. | Confirmed | Fixed in 35de628. E2E test added. |
+| P5 | 5 | A held shortcut key repeated its action. | Confirmed | Fixed in 35de628. Unit test added. |
+| P5 | 6 | No test proved that `preventDefault` runs before an action that throws, or the dialog guard for N, S, F and H. | Confirmed | Unit tests added in 35de628. |
+| P5 | 7 | No test covered a hidden tab catching up on a rename, per-tab search state or Cmd+W, Cmd+F and Cmd+H. | Confirmed | Tests added in 35de628. |
+| P6 | 1 | Text typed while a choice's request was in flight could be lost, because the dialog had already closed. | Confirmed | Fixed in 7e9895e: the choice runs with the dialog open. E2E test checks that no PUT happens while it is open. |
+| P6 | 2 | A failed step inside a choice re-queued the dialog over the sign-in dialog and looped. | Confirmed | Fixed in 7e9895e: error in the dialog, sign-in on top. E2E tests for a network failure and a 401. |
+| P6 | 3 | When the copy saved but the reload of the original failed, the tab stayed held with no way out. | Confirmed | Fixed in 7e9895e: a retry only reloads. A 404 closes the original because the copy has the text. |
+| P6 | 4 | The conflict dialog focused Overwrite with mine, so Enter while typing could overwrite the other version. | Confirmed | Fixed in 7e9895e: focus on Save mine as a new document. E2E test added. |
+| P6 | 5 | The last size-limit E2E assertion could not fail (the earlier message was still visible). | Confirmed | Fixed in 7e9895e: the message is cleared first, and the test checks that no PUT happens and the stored size is still 1 MB. |
+| P6 | 6 | No test covered failed choices, two queued conflicts or typing during a choice. | Confirmed | E2E tests added in 7e9895e. |
+| P7 | 1 | The perf "open" time includes the page reload and the 1 MB GET, so it is an end-to-end number, not render time alone. | Rejected | That matches the target ("open and render under 2 seconds"). |
+| P7 | 2 | The README menu paths for installing in Chrome and Edge were from memory. | Confirmed | Replaced with the address bar install icon and a generic menu entry before 716fb31. |
+| P7 | 3 | The README said `npm run dev` reads `.env`, but the script did not. | Confirmed | Fixed in 716fb31 with `--env-file-if-exists=.env`. Checked with a temporary `.env`. |
+
+## 11. Proposed out-of-scope fixes
+
+Not built. Each one needs a user decision.
+
+| # | From | Proposal | Reason |
+|---|------|----------|--------|
+| 1 | P1 review 11 | Count wrong current passwords on `POST /api/password` in the login limiter. | A stolen session cookie would otherwise allow unlimited password guessing. |
+| 2 | P5 review 2 | Match the Mod shortcuts (N, W, S, F, H) by `event.key` and keep `event.code` for Alt+N and Alt+W. | On AZERTY and other layouts, `event.code` maps Ctrl+Z to KeyW, so undo opens the close dialog, and Ctrl+W can reach the browser and close the installed window. T22 specifies `event.code`. |

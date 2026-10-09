@@ -1,10 +1,102 @@
 # NPPweb
-Notepad++ like application, but web based and simplified, runs on railway
+
+A private, single-owner text editor in the browser, inspired by Notepad++. Documents live on the server, so they are the same on every device. One password protects the app. It runs as one service on Railway with a persistent volume.
+
+Features: tabs, autosave, plain text editing with line numbers, syntax highlighting for 11 languages, literal find and replace in the current tab, a document list, a keep-or-delete prompt when you close a tab, a warning when another device changed the same document, dark and light themes, and install as a desktop app in Chrome or Edge.
 
 ## Local setup
 
-Needs Node.js 24.
+Needs Node.js 24.2 or later (24.x).
 
 1. `npm ci`
-2. `npm run build`
-3. `npm test`
+2. Create a `.env` file (it is gitignored) with at least `OWNER_PASSWORD=<a password of 12 or more characters>`.
+3. `npm run dev` builds the frontend and starts the server on http://localhost:3000. It reads `.env` and restarts when server files change. Run `npm run build` again after frontend changes.
+
+Data goes to `./data/notepad.db` unless `DATA_DIR` is set.
+
+## Tests
+
+1. `npm test` runs the unit and API tests.
+2. `npx playwright install chromium firefox webkit` installs the test browsers (once per Playwright version).
+3. `npm run test:e2e` builds the frontend and runs the browser tests. Chromium runs every spec. Firefox and WebKit run the specs tagged `@smoke`. Each test starts its own server with a fresh data folder.
+
+## Configuration
+
+| Variable | Required | Meaning |
+|----------|----------|---------|
+| `OWNER_PASSWORD` | Yes for the first start and for a reset | Seeds the first password. Ignored after you change the password in the app, unless `RESET_PASSWORD` is set. |
+| `RESET_PASSWORD` | No | `true` or `1` (any case). While it is set, every start replaces the stored password with `OWNER_PASSWORD` and signs out all devices. |
+| `NODE_ENV` | Yes on Railway | `production` turns on Secure cookies, HSTS and the volume check. |
+| `DATA_DIR` | No | Data folder. Default: `RAILWAY_VOLUME_MOUNT_PATH`, else `./data`. |
+| `RAILWAY_VOLUME_MOUNT_PATH` | Set by Railway | Used as the data folder when `DATA_DIR` is not set. |
+| `PORT` | Set by Railway | Listen port. Default 3000. |
+
+In production the app refuses to start without `DATA_DIR` or `RAILWAY_VOLUME_MOUNT_PATH`, so documents never land on the temporary container disk.
+
+## Deploy on Railway
+
+`railway.json` sets the build command, start command, health check (`/healthz`) and restart policy.
+
+Owner checklist for the first deploy:
+
+1. Create a Railway project from this GitHub repo.
+2. Add a volume to the service with mount path `/data`.
+3. Keep the service at 1 replica. Railway does not allow replicas with a volume.
+4. Set the variables `NODE_ENV=production` and a strong `OWNER_PASSWORD`.
+5. Generate a Railway domain.
+6. Open `https://<domain>/healthz`. It must return `{"ok":true}`.
+7. In the deploy logs, find the line `Database: /data/notepad.db`.
+8. Redeploy. Then run `railway volume files list /` and confirm that `notepad.db` is still there. This command needs Railway CLI 5 or later (`npm i -g @railway/cli`).
+
+Railway deploys `main` automatically. A redeploy has a short downtime because the service has a volume. Unsaved text stays in the browser and saves when the server is back.
+
+## Password
+
+- **First start:** the app stores a hash of `OWNER_PASSWORD`. A password shorter than 12 characters works but logs a warning.
+- **Change:** Account > Change password. It needs the current password. The new one needs 12 to 256 characters. All other devices are signed out.
+- **After a change:** the in-app password wins. Changing `OWNER_PASSWORD` in Railway then does nothing, and the log says so at every start.
+- **Reset (forgotten password):**
+  1. Set `OWNER_PASSWORD` to the new password and set `RESET_PASSWORD=true`.
+  2. Redeploy. Sign in with `OWNER_PASSWORD`.
+  3. Delete `RESET_PASSWORD` and redeploy.
+
+Remove `RESET_PASSWORD` after recovery. While it is set, every start resets the password and signs out all devices.
+
+- **No password at all:** with no `OWNER_PASSWORD` and no stored password, the app refuses to start and logs `No password configured. Set OWNER_PASSWORD.`
+- **Sessions** last 30 days per device. Sign out is in the Account menu.
+- **Wrong passwords:** after 5 failures from one address, or 30 in total, sign-in is blocked for up to 15 minutes.
+
+## Install as a desktop app
+
+In Chrome or Edge, open the app URL and sign in. Then click the install icon at the right end of the address bar, or use the install entry in the browser menu.
+
+The installed app opens in its own window. Firefox and Safari use the app in a normal tab.
+
+## Keyboard shortcuts
+
+| Action | Windows and Linux | macOS |
+|--------|-------------------|-------|
+| New document | Ctrl+N or Alt+N | Cmd+N or Option+N |
+| Close tab | Ctrl+W or Alt+W | Cmd+W or Option+W |
+| Save now | Ctrl+S | Cmd+S |
+| Find | Ctrl+F | Cmd+F |
+| Replace | Ctrl+H | Cmd+H |
+| Undo, redo | Ctrl+Z, Ctrl+Y | Cmd+Z, Cmd+Shift+Z |
+
+Ctrl+N and Ctrl+W (Cmd+N and Cmd+W) work only in the installed app window. In a normal browser tab the browser keeps them for itself. Alt+N and Alt+W work everywhere, also in Firefox. On macOS, Cmd+H can hide the window instead (a system shortcut). If it does, use the Find button and its replace field.
+
+In the find panel, Enter goes to the next match, Shift+Enter to the previous one and Escape closes the panel. Search is literal text and ignores case.
+
+## Known limits
+
+- A document can hold at most 1 MB (1,048,576 bytes of UTF-8). A larger edit or paste is rejected with a message.
+- Line endings are stored as LF. CRLF text becomes LF.
+- Desktop browsers only. There is no phone or tablet layout.
+- No offline use. The browser must reach the server to save.
+- A redeploy causes a short downtime (the service has a volume). Text typed meanwhile saves when the server is back.
+- Two devices editing one document get a conflict warning, not live sync.
+- New documents are named "Untitled N". An empty "Untitled N" tab closes without a prompt and its document is deleted.
+
+## Backups
+
+The app has no export. Use Railway volume backups to protect `/data/notepad.db`.

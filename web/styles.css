@@ -1,1 +1,438 @@
-/* Dark and light theme styles. Placeholder until T10. */
+/* Theme tokens. data-theme on <html> is set by theme-init.js before first paint. */
+:root,
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #1e1f22;
+  --surface: #26282c;
+  --surface-2: #2f3237;
+  --border: #3b3f45;
+  --fg: #d8dbe0;
+  --muted: #9aa1aa;
+  --accent: #5ea1ff;
+  --accent-fg: #0d1117;
+  --danger: #f2777a;
+  --focus: #5ea1ff;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f5f6f8;
+  --surface: #ffffff;
+  --surface-2: #eceef1;
+  --border: #d3d7dd;
+  --fg: #1f2328;
+  --muted: #59616c;
+  --accent: #0b62d6;
+  --accent-fg: #ffffff;
+  --danger: #c22a2a;
+  --focus: #0b62d6;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+button,
+input,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 5px 12px;
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  border-color: var(--muted);
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-fg);
+}
+
+input[type="password"],
+input[type="text"],
+input[type="search"],
+select {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 5px 8px;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.form-error {
+  color: var(--danger);
+  min-height: 1.4em;
+  margin: 0;
+}
+
+/* Login page */
+.login-page {
+  display: grid;
+  place-items: center;
+}
+
+.login-card {
+  width: min(320px, 100% - 32px);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 24px;
+}
+
+.login-card h1 {
+  margin: 0 0 16px;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.login-card form {
+  display: grid;
+  gap: 10px;
+}
+
+/* App shell */
+.app {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.topbar,
+.statusbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--surface);
+  border-color: var(--border);
+  border-style: solid;
+  border-width: 0;
+}
+
+.topbar {
+  padding: 6px 8px;
+  border-bottom-width: 1px;
+}
+
+.statusbar {
+  padding: 2px 8px;
+  min-height: 26px;
+  border-top-width: 1px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.statusbar select {
+  padding: 1px 4px;
+  font-size: 12px;
+}
+
+.workspace {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+.editor-pane {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.editor {
+  flex: 1;
+  min-height: 0;
+}
+
+.editor .cm-editor {
+  height: 100%;
+}
+
+.empty-state {
+  flex: 1;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 12px;
+  color: var(--muted);
+}
+
+.empty-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* Menus */
+.menu {
+  position: relative;
+}
+
+.menu-list {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 10;
+  display: grid;
+  min-width: 180px;
+  padding: 4px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.3);
+}
+
+.menu-list[hidden] {
+  display: none;
+}
+
+.menu-list button {
+  border: 0;
+  background: none;
+  text-align: left;
+}
+
+.menu-list button:hover {
+  background: var(--surface-2);
+}
+
+/* Dialogs */
+dialog {
+  width: min(420px, 100% - 32px);
+  background: var(--surface);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 20px;
+}
+
+dialog::backdrop {
+  background: rgb(0 0 0 / 0.5);
+}
+
+dialog h2 {
+  margin: 0 0 12px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.dialog-message {
+  margin: 0 0 16px;
+}
+
+.dialog-form {
+  display: grid;
+  gap: 6px;
+}
+
+.dialog-form input {
+  margin-bottom: 6px;
+}
+
+.dialog-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+button.danger {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+/* Tab strip */
+.tabstrip {
+  display: flex;
+  overflow-x: auto;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  min-height: 32px;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 220px;
+  padding: 0 4px 0 12px;
+  border-right: 1px solid var(--border);
+  color: var(--muted);
+  cursor: pointer;
+  user-select: none;
+}
+
+.tab[aria-selected="true"] {
+  background: var(--bg);
+  color: var(--fg);
+  box-shadow: inset 0 2px 0 var(--accent);
+}
+
+.tab-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tab-dirty {
+  display: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex: none;
+}
+
+.tab.dirty .tab-dirty {
+  display: inline-block;
+}
+
+.tab-close {
+  border: 0;
+  background: none;
+  padding: 0 6px;
+  line-height: 1;
+  font-size: 16px;
+  color: inherit;
+}
+
+.tab-close:hover {
+  background: var(--surface-2);
+}
+
+.empty-state[hidden],
+.editor[hidden] {
+  display: none;
+}
+
+/* Document list sidebar */
+.doclist {
+  width: 300px;
+  flex: none;
+  overflow-y: auto;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  padding: 8px;
+}
+
+.doclist[hidden] {
+  display: none;
+}
+
+.doclist h2 {
+  margin: 4px 4px 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.doc-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.doc-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.doc-row button:not(.doc-open) {
+  padding: 2px 6px;
+  font-size: 12px;
+}
+
+.doc-open {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  text-align: left;
+  border: 0;
+  background: none;
+  padding: 4px 6px;
+}
+
+.doc-open:hover {
+  background: var(--surface-2);
+}
+
+.doc-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.doc-date {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.doc-empty {
+  padding: 4px 6px;
+  color: var(--muted);
+}
+
+/* Find and replace panel (inside the editor) */
+.search-panel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  background: var(--surface);
+  color: var(--fg);
+  border-bottom: 1px solid var(--border);
+  font: 13px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+.search-panel input {
+  width: 180px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 3px 6px;
+}
+
+.search-panel button {
+  padding: 3px 10px;
+}

@@ -1,6 +1,6 @@
 # Build Plan: Private Web Notepad
 
-**Status:** Ready for execution. No open decisions. U1 and U2 are resolved (D12 and D13).
+**Status:** Built through P7 on branch `build/v1` (2026-10-09). 25 of 27 tasks are Done. T04 and T26 are blocked on the owner: they need the Railway deploy and the checks in section 9.1. No open plan decisions. U1 and U2 are resolved (D12 and D13). Proposed out-of-scope fixes are in `PLAN_REVIEW.md` section 11.
 **Date:** 2026-10-09
 **Inputs:** `REQUIREMENTS.md` (copy of `private-notepad-requirements.md`), `REQUIREMENTS_TRACEABILITY.md`, `PLAN_REVIEW.md`
 **Codebase:** None yet. This is a new project.
@@ -668,34 +668,58 @@ Update **Status** to `In progress` or `Done`. Add the PR or commit and short not
 | ID | Title | Phase | Size | Depends on | Status | PR/commit | Notes |
 |----|-------|-------|------|------------|--------|-----------|-------|
 | T01 | Scaffold repository and tooling | P0 | S | none | Done | 719a632 | Node 24.21.0, npm 11.19.0. fastify 5.12.5, @fastify/cookie 11.1.3, @fastify/static 10.1.6, esbuild 0.28.2, @playwright/test 1.64.0. Build behavior test replaces the trivial test (`PLAN_REVIEW.md` section 9). `REQUIREMENTS.md` was already in place. |
-| T02 | Config, app factory, health, entry | P0 | S | T01 | Todo | | |
-| T03 | Database module and migrations | P0 | M | T02 | Todo | | |
-| T04 | Railway deployment skeleton | P0 | M | T03 | Todo | | Owner-assisted |
-| T05 | Password hashing | P1 | S | T01 | Todo | | |
-| T06 | Startup password bootstrap | P1 | M | T03, T05 | Todo | | |
-| T07 | Sessions, gate, auth API, headers | P1 | M | T06 | Todo | | |
-| T08 | Login rate limiting | P1 | S | T07 | Todo | | |
-| T09 | Change password API | P1 | S | T07 | Todo | | |
-| T10 | Login page and E2E harness | P1 | M | T08 | Todo | | |
-| T11 | Documents list, create, get | P2 | M | T07 | Todo | | |
-| T12 | Content save with version check | P2 | M | T11 | Todo | | |
-| T13 | Rename, language, delete routes | P2 | S | T11 | Todo | | |
-| T14 | App shell, theme, account menu | P3 | M | T09, T10 | Todo | | |
-| T15 | Editor with basic autosave | P3 | M | T12, T14 | Todo | | |
-| T16 | Save reliability | P3 | M | T15 | Todo | | |
-| T17 | Tabs, new document, tab restore | P3 | M | T16 | Todo | | |
-| T18 | Document list sidebar | P4 | M | T17, T13 | Todo | | |
-| T19 | Close prompt and empty untitled rule | P4 | S | T18 | Todo | | |
-| T20 | Highlighting and language selection | P5 | M | T18 | Todo | | |
-| T21 | Find and replace panel | P5 | M | T17 | Todo | | |
-| T22 | Keyboard shortcuts | P5 | S | T19, T21, T27 | Todo | | Includes Alt+N and Alt+W (D13) |
-| T27 | Install as a desktop app | P5 | S | T14 | Todo | | Record service worker result |
-| T23 | Conflict and deleted-elsewhere dialogs | P6 | M | T17 | Todo | | |
-| T24 | Client size limit | P6 | S | T15 | Todo | | |
-| T25 | Performance check | P7 | S | T20, T24 | Todo | | |
-| T26 | README and production verification | P7 | M | all | Todo | | Owner-assisted |
+| T02 | Config, app factory, health, entry | P0 | S | T01 | Done | 3381414 | `start()` is exported from `index.js` with an injected `exit`, so SIGTERM and SIGINT are tested in-process. Extra tests: `app.test.js` (log redaction), `index.test.js`. |
+| T03 | Database module and migrations | P0 | M | T02 | Done | efc3926 | `db.js` also exports `transaction()` (BEGIN IMMEDIATE). `node:sqlite` prints an ExperimentalWarning on start (R3). |
+| T04 | Railway deployment skeleton | P0 | M | T03 | Blocked (owner) | e4b50bc | `railway.json` and the owner checklist (README) are done. Deploy, `/healthz` check, DB path log and redeploy check are open: Railway CLI is not logged in on the build machine. `railway volume files list /` needs Railway CLI 5 or later. Only T26 depends on T04. |
+| T05 | Password hashing | P1 | S | T01 | Done | 9690ded | Salt and hash are base64url. Length counts code points. |
+| T06 | Startup password bootstrap | P1 | M | T03, T05 | Done | e84b598 | Warnings for the ignored variable and the short seed use warn level. A reset seed shorter than 12 characters also warns. |
+| T07 | Sessions, gate, auth API, headers | P1 | M | T06 | Done | 47347fc, a492bb2 | `buildApp` is async. Missing session returns 401 `unauthorized`. Review fixes in a492bb2. |
+| T08 | Login rate limiting | P1 | S | T07 | Done | 481f4ef | Each attempt counts before the password check, so parallel guesses cannot pass the limit. A success refunds its global count. |
+| T09 | Change password API | P1 | S | T07 | Done | 4de9c65 | Hash store and other-session delete run in one transaction. |
+| T10 | Login page and E2E harness | P1 | M | T08 | Done | 6194f76, a492bb2 | Global setup runs `scripts/build-web.js` with the current Node binary. 15 E2E tests pass in Chromium, Firefox and WebKit. |
+| T11 | Documents list, create, get | P2 | M | T07 | Done | 9cf3456, fdb1d8f | Non-text bodies return 415. Content is stored as UTF-8 bytes (fdb1d8f). |
+| T12 | Content save with version check | P2 | M | T11 | Done | 1bb0f74, fdb1d8f | A malformed If-Match also returns 428. A PUT needs a text/plain body. |
+| T13 | Rename, language, delete routes | P2 | S | T11 | Done | 5cb67e1 | A language-only PATCH keeps `updatedAt` (section 2.6). A non-object body returns 400 `invalid_request`. |
+| T14 | App shell, theme, account menu | P3 | M | T09, T10 | Done | 52b3a7e, 5f30925 | `theme-init.js` reuses `theme.js` and is built as an IIFE. Dialog close guard in 5f30925. |
+| T15 | Editor with basic autosave | P3 | M | T12, T14 | Done | baf8876 | The one-cursor test fails when multiple selections are turned on (checked). |
+| T16 | Save reliability | P3 | M | T15 | Done | 06c67a4, 5f30925 | `api.js` emits `session-expired` for every 401. Autosave only pauses. Shared sign-in error texts in `login-errors.js`. |
+| T17 | Tabs, new document, tab restore | P3 | M | T16 | Done | 2c26945, 5f30925 | Read-only blank editor while no tab owns the view, and load retry (5f30925). |
+| T18 | Document list sidebar | P4 | M | T17, T13 | Done | cfea31b | Delete closes the tab before it sends DELETE, so no pending save reaches the deleted document. |
+| T19 | Close prompt and empty untitled rule | P4 | S | T18 | Done | 889e646 | An unloaded tab is fetched first, so the empty-untitled rule uses real content. |
+| T20 | Highlighting and language selection | P5 | M | T18 | Done | 372e32c, 35de628 | Owner-pending: one manual visual check per language. Light mode uses defaultHighlightStyle, dark uses one-dark (screenshots checked). |
+| T21 | Find and replace panel | P5 | M | T17 | Done | 2d15091, 35de628 | A Find button in the top bar opens the panel. Search state is per tab. |
+| T22 | Keyboard shortcuts | P5 | S | T19, T21, T27 | Done | 69bcaa8, 35de628 | Includes Alt+N and Alt+W (D13). Held keys act once. Owner-pending: all five shortcuts in the installed app in Chrome and Edge. |
+| T27 | Install as a desktop app | P5 | S | T14 | Done | 59ac2a1 | Service worker result: a persistent full Chromium 156.0.8078.4 profile reports no installability errors without a service worker, so no `sw.js` (TD-18). Owner-pending: DevTools Manifest check and install on the deployed URL in Chrome and Edge. |
+| T23 | Conflict and deleted-elsewhere dialogs | P6 | M | T17 | Done | 378ca42, 7e9895e | Choices run while the dialog stays open. Default focus is Save mine as a new document. The dialogs cannot be dismissed with Escape. |
+| T24 | Client size limit | P6 | S | T15 | Done | e53b378, 7e9895e | A change that makes an oversized document smaller is allowed. Typing in a 1 MB document stays fast (T25). |
+| T25 | Performance check | P7 | S | T20, T24 | Done | d286e22 | Chromium, 3 runs: open 75 to 81 ms, 200 typed characters 694 to 747 ms, Ctrl+End 11 to 14 ms, no console errors. Owner-pending: manual scroll check (section 9.1). |
+| T26 | README and production verification | P7 | M | all | Blocked (owner) | 716fb31 | README done. The production checklist (section 9.1) needs the deployed app from T04. Extra owner check (P1 review 4): 6 wrong logins with 6 different X-Real-IP headers must get 429 on the 6th. |
 
 **Resume rule:** Find the first task in table order whose status is not `Done` and whose dependencies are all `Done`. Run `npm test` and `npm run test:e2e` to confirm a green baseline before you continue.
+
+
+### 9.1 Owner checklist record
+
+These checks need the deployed app or a person. Status values: Pending, Passed, Failed. Record the date and result when you run each one.
+
+| # | From | Check | Status |
+|---|------|-------|--------|
+| 1 | T04 | Deploy succeeds. `https://<domain>/healthz` returns 200. | Pending |
+| 2 | T04 | The deploy log shows `Database: /data/notepad.db`. | Pending |
+| 3 | T04 | After a redeploy, `railway volume files list /` still shows `notepad.db`. | Pending |
+| 4 | T26 item 1 | The domain shows the login page. `/` without a session redirects. Then sign in. If sign-in returns 403 `bad_origin`, the Railway edge sends an `X-Forwarded-Host` that does not match the domain (unverified assumption, medium confidence): `server/src/auth/gate.js` then must compare the Origin with the raw `Host` header. | Pending |
+| 5 | T26 item 2 | The session cookie has `Secure`, `HttpOnly` and `SameSite=Lax`. | Pending |
+| 6 | T26 item 3 | Create a document and redeploy. Sign in again if needed. The document is still there. | Pending |
+| 7 | T26 item 4 | Change the password in the app. The old one fails. | Pending |
+| 8 | T26 item 5 | Set `RESET_PASSWORD=true` and redeploy. `OWNER_PASSWORD` works. Remove the variable and redeploy. | Pending |
+| 9 | T26 item 6 | Six wrong passwords trigger the rate limit. | Pending |
+| 10 | P1 review 4 | Six wrong passwords, each with a different `X-Real-IP` header, get 429 on the sixth. | Pending |
+| 11 | T26 item 7 | Smoke test in current Chrome, Firefox and Safari or Edge on desktop. | Pending |
+| 12 | T27 | Chrome DevTools > Application > Manifest on the deployed URL shows no installability errors in Chrome and Edge. | Pending |
+| 13 | T26 item 8, T22 | Install the app in Chrome and Edge. In the app window, Ctrl+N creates a document, Ctrl+W starts the close flow without closing the window, and Ctrl+S, Ctrl+F and Ctrl+H work. | Pending |
+| 14 | T26 item 9 | In a normal tab and in Firefox, Alt+N creates a document and Alt+W starts the close flow. | Pending |
+| 15 | T20 | One visual check per language (11 languages) in dark and light themes. | Pending |
+| 16 | T25 | Scrolling a 1 MB document feels smooth. | Pending |
 
 ---
 
