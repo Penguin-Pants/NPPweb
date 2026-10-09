@@ -1,4 +1,4 @@
-import { expect, login, OWNER_PASSWORD, test } from './fixtures.js';
+import { expect, login, newDocument, OWNER_PASSWORD, test } from './fixtures.js';
 
 const SAVE_URL = '**/api/documents/*/content';
 
@@ -9,6 +9,7 @@ async function storedContent(api) {
 
 test('a failed save shows error, keeps the text and saves when the network returns', async ({ page, api }) => {
   await login(page);
+  await newDocument(page);
   const status = page.locator('#save-status');
   await expect(status).toHaveText('Saved');
   await page.route(SAVE_URL, (route) => route.abort());
@@ -23,6 +24,7 @@ test('a failed save shows error, keeps the text and saves when the network retur
 
 test('a server error also retries until the save works', async ({ page, api }) => {
   await login(page);
+  await newDocument(page);
   let failures = 2;
   await page.route(SAVE_URL, (route) =>
     failures-- > 0 ? route.fulfill({ status: 503, body: 'down' }) : route.fallback(),
@@ -35,6 +37,7 @@ test('a server error also retries until the save works', async ({ page, api }) =
 
 test('an expired session opens the re-login dialog and saves the text after sign-in', async ({ page, context, api }) => {
   await login(page);
+  await newDocument(page);
   const status = page.locator('#save-status');
   await page.locator('.cm-content').click();
   await page.keyboard.type('before');
@@ -56,6 +59,7 @@ test('an expired session opens the re-login dialog and saves the text after sign
 
 test('closing the page with unsaved text triggers the browser warning', async ({ page }) => {
   await login(page);
+  await newDocument(page);
   await page.route(SAVE_URL, (route) => route.abort());
   await page.locator('.cm-content').click();
   await page.keyboard.type('not saved yet');
@@ -71,6 +75,7 @@ test('closing the page with unsaved text triggers the browser warning', async ({
 
 test('closing the page with everything saved shows no warning', async ({ page }) => {
   await login(page);
+  await newDocument(page);
   await page.locator('.cm-content').click();
   await page.keyboard.type('saved text');
   await expect(page.locator('#save-status')).toHaveText('Saved');

@@ -93,3 +93,15 @@ async function waitForHealth(url, hasExited) {
   }
   throw new Error('Server did not answer /healthz within 15 seconds.');
 }
+
+/**
+ * Clicks New and waits for the new tab and the editor.
+ * @param {import('@playwright/test').Page} page
+ */
+export async function newDocument(page) {
+  const tabs = page.getByRole('tab');
+  const count = await tabs.count();
+  await page.getByRole('button', { name: 'New', exact: true }).click();
+  await expect(tabs).toHaveCount(count + 1);
+  await expect(page.locator('.cm-content')).toBeVisible();
+}

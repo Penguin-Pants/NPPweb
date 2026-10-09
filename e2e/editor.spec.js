@@ -1,9 +1,10 @@
-import { expect, login, test } from './fixtures.js';
+import { expect, login, newDocument, test } from './fixtures.js';
 
 const isSave = (res) => res.request().method() === 'PUT' && res.url().includes('/content');
 
 test('line numbers show', async ({ page }) => {
   await login(page);
+  await newDocument(page);
   const editor = page.locator('.cm-content');
   await expect(editor).toBeVisible();
   await editor.click();
@@ -13,6 +14,7 @@ test('line numbers show', async ({ page }) => {
 
 test('typing then pausing saves within about 1 second and survives a reload', { tag: '@smoke' }, async ({ page, api }) => {
   await login(page);
+  await newDocument(page);
   const editor = page.locator('.cm-content');
   await editor.click();
   const saved = page.waitForResponse(isSave);
@@ -32,6 +34,7 @@ test('typing then pausing saves within about 1 second and survives a reload', { 
 
 test('Ctrl+click and Alt+click never create a second cursor', async ({ page }) => {
   await login(page);
+  await newDocument(page);
   const editor = page.locator('.cm-content');
   await editor.click();
   await page.keyboard.type('first line\nsecond line\nthird line');

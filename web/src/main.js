@@ -2,9 +2,10 @@
 import { api } from './api.js';
 import { createAutosave } from './autosave.js';
 import { formDialog } from './dialogs.js';
-import { createEditor } from './editor.js';
+import { createEditor, languageExtension } from './editor.js';
 import { emit } from './events.js';
 import { setupSessionRecovery } from './session.js';
+import { createTabs } from './tabs.js';
 import { createTheme } from './theme.js';
 
 const $ = (id) => /** @type {HTMLElement} */ (document.getElementById(id));
@@ -83,21 +84,36 @@ $('change-password').addEventListener('click', async () => {
   if (changed) showMessage('Password changed. Other devices are signed out.');
 });
 
-// Editor and autosave.
-/** @type {{ id: string } | null} */
-let current = null;
+// Editor, autosave and tabs.
+/** @type {ReturnType<typeof createTabs>} */
+let tabs;
 const editor = createEditor($('editor'), {
   theme: theme.get(),
-  onChange: () => current && autosave.edited(current.id),
+  onChange: () => {
+    const id = tabs.shownId();
+    if (id) autosave.edited(id);
+  },
 });
 const autosave = createAutosave({
   save: (id, content, version) => api.saveContent(id, content, version),
-  onStatus: (id) => id === current?.id && renderSaveStatus(),
+  onStatus: () => {
+    tabs.render();
+    renderSaveStatus();
+  },
   onEvent: emit,
 });
+tabs = createTabs({
+  editor,
+  autosave,
+  api,
+  getStorage: () => localStorage,
+  elements: { strip: $('tabstrip'), editor: $('editor'), empty: $('empty-state') },
+  languageFor: () => languageExtension('plain'),
+  onActiveChange: renderSaveStatus,
+});
 
-// Save status label (DOC-3). Until T23, a conflict or a remote delete only
-// shows an error and keeps the text.
+// Save status label (DOC-3) for the active tab. Until T23, a conflict or a
+// remote delete only shows an error and keeps the text.
 const ERROR_TEXT = {
   network: 'Save failed. Retrying.',
   conflict: 'Not saved: changed on another device.',
@@ -107,9 +123,10 @@ const ERROR_TEXT = {
 const STATUS_TEXT = { saved: 'Saved', unsaved: 'Unsaved changes', saving: 'Saving...' };
 function renderSaveStatus() {
   const label = $('save-status');
-  const status = current ? autosave.status(current.id) : undefined;
+  const id = tabs.active()?.id;
+  const status = id ? autosave.status(id) : undefined;
   label.dataset.status = status ?? '';
-  label.textContent = status === 'error' ? ERROR_TEXT[autosave.reason(current.id)] : (STATUS_TEXT[status] ?? '');
+  label.textContent = status === 'error' ? ERROR_TEXT[autosave.reason(id)] : (STATUS_TEXT[status] ?? '');
 }
 
 setupSessionRecovery({ onSignedIn: () => autosave.resumeAll() });
@@ -121,18 +138,8 @@ window.addEventListener('beforeunload', (event) => {
   event.returnValue = '';
 });
 
-// Temporary single-document flow until tabs (T17): open the newest
-// document, or create one when none exist.
-async function openNewestDocument() {
-  const list = await api.listDocuments();
-  if (list.status !== 200) return;
-  const meta = list.data[0] ?? (await api.createDocument()).data;
-  const { status, data: doc } = await api.getDocument(meta.id);
-  if (status !== 200) return;
-  current = doc;
-  editor.show(editor.createState(doc.content));
-  autosave.track(doc.id, { version: doc.version, getContent: editor.content });
-  renderSaveStatus();
-  editor.focus();
-}
-openNewestDocument();
+$('new-doc').addEventListener('click', () => tabs.newDocument());
+$('empty-new').addEventListener('click', () => tabs.newDocument());
+// TD-15: clean tabs refresh when the window gets focus.
+window.addEventListener('focus', () => tabs.refresh());
+tabs.boot();
