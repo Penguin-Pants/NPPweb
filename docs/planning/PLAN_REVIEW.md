@@ -214,6 +214,7 @@ Coding agents record deviations from the plan here.
 | 2026-10-10 | T38 | A third CSS variable, `--ws-strip-mark`, colors the unsaved dot on inactive tabs. Its default is `var(--accent)`. The Work preset and a stored color set it to the strip text color. | TD-38 gives that dot `--ws-strip-fg`, whose Personal default is `var(--muted)`. That would turn today's accent dot grey and break CLR-6 (Personal keeps today's look). REQUIREMENTS_V3 wins over the plan. | User (chat, 2026-10-10) |
 | 2026-10-10 | T34 | The `hasUnsaved()` check after the second `saveAll()` (TD-33 step 4) is gone. | It cannot be true: `saveAll` returns ok only after its own `hasUnsaved()` check, and only microtasks run from there to the tab close (PR #10 review 7). | User (chat, 2026-10-10) |
 | 2026-10-10 | Audit C2 | Rename and Delete in the Documents list name the workspace of their row, like the switch prefetch (TD-30), so they are never stale and no longer check `stale` (TD-41 lists `doclist.js`). `api.updateDocument` and `api.deleteDocument` take an optional workspace. | Their dialog can stay open while a switch ends. A stale check would drop the reply, and the active workspace would get the request and answer 404. The owner confirmed the action on that row. | Agent, not yet approved |
+| 2026-10-10 | Audit C6 | Autosave no longer emits `doc-saved` and `doc-too-large`. `BUILD_PLAN.md` section 2.8 lists both. | No module listened to them. The save status label shows both states. An event can come back with its first listener. | Agent, not yet approved |
 
 ## 10. Phase review log
 
@@ -290,6 +291,7 @@ Not built. Each one needs a user decision.
 | 4 | Audit baseline (section 15) | `e2e/export-drop.spec.js:127`: wait for the counts (`await expect(page.locator('#counts')).not.toBeEmpty()`) before the drop. | Flaky on `main` (2 of 3 runs failed): the counts show 100 ms after a tab opens (`web/src/main.js:358`). Before that, the first status-bar row has room for the message, so it does not wrap and the row check fails (579 < 598). A copy with the wait passed 6 of 6 runs. |
 | 5 | Audit task C1 (section 15) | `e2e/workspaces.spec.js:265`: read the message once after the reply (`expect(await message(page).textContent()).toBe('')`), as the C1 stale test does. | `toHaveText('')` retries for 5 seconds, and the status message clears itself after 5 seconds (`web/src/main.js:73`), so the check passes even when the message shows. With the `stale` check in `tabs.setLanguage` removed, the test still passed. |
 | 6 | Audit task C4 (section 15) | Announce the unsaved state of a tab to assistive technology, for example in its accessible name ("notes.md, unsaved") or with `aria-describedby`. | Only the dot shows it. The dot's `aria-label` was inside a tab, whose content is presentational, so it was never read. C4 removed that dead label. Tests that find tabs by exact name would change. |
+| 7 | Audit task C6 (section 15) | `e2e/layout.spec.js:143`: after Enter opens `one.txt`, wait for the editor to have the focus before the next step. | Failed once in a full run, then passed 10 of 10 alone (not reproduced). `tabs.activate` sets `aria-selected` before it loads the document, and calls `editor.focus()` after the load (`web/src/tabs.js`). Under load, that focus can come after the test has moved the focus into the Documents dropdown. Confidence: medium. |
 
 ## 12. V2 phase review log
 
@@ -608,6 +610,10 @@ Two-pass review of each fix task. Same method and verdicts as section 10.
 | C5 | 5 | The server imports `shared/` through relative paths (`../../../shared/contract.js`). | Rejected | Node subpath imports would add a `package.json` field. A relative path needs nothing more. |
 | C5 | 6 | Railway must ship `shared/` with the server. | Risk | Railway builds from the whole repo and runs `npm start` there, so the folder is in the image (not checked on a deploy). If it were missing, the server would not start, the health check would fail and Railway would keep the old deployment. |
 | C5 | 7 | A refactor with no new behavior has no failing test first. | Confirmed | The existing tests guard each value. `npm test` and the e2e suite pass unchanged, except for the import lines. |
+| C6 | 1 | `BUILD_PLAN.md` section 2.8 lists `doc-saved` and `doc-too-large`. | Confirmed | Section 9 row "Audit C6". |
+| C6 | 2 | Notion sync (M15) could want an event after each save. | Rejected | M15 is blocked (C17). An event comes back in one line together with its first listener. |
+| C6 | 3 | Something outside `web/src` could call `editor.content()`. | Rejected | No reference in `web/src`, `web/test`, `e2e` or `scripts`. |
+| C6 | 4 | The conflict and deleted dialogs still need their events. | Rejected | `doc-conflict` and `doc-deleted-remote` stay. Their unit tests and `e2e/conflict.spec.js` pass. |
 
 ### Audit validation environment
 
@@ -619,3 +625,4 @@ Two-pass review of each fix task. Same method and verdicts as section 10.
 - C4: `npm test` 425 of 425. Chromium e2e 174 passed, plus the 2 known flakes. Alone, STB-2 passed on a retry. CLR-6 failed 9 of 10 runs without C4 and 7 of 10 with C4. The new test failed first on an assertion (3 buttons in the tab list).
 - C3: `npm test` 426 of 426. Chromium e2e 175 passed, plus the CLR-6 flake. The new test failed first on an assertion (the Fastify 404 body).
 - C5: `npm test` 426 of 426. Chromium e2e 174 passed, plus the 2 known flakes. Alone, STB-2 passed on a retry and CLR-6 failed 5 of 5.
+- C6: `npm test` 426 of 426. Chromium e2e 173 passed, plus the 2 known flakes and one failure of `layout.spec.js:124` (section 11, row 7), which then passed 10 of 10 alone. The 2 changed tests failed first on an assertion (the events were still emitted).

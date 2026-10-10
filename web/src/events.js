@@ -1,6 +1,6 @@
 // Tiny event bus (BUILD_PLAN.md section 2.8). Modules subscribe instead of
-// importing each other. Events: session-expired, doc-saved, doc-conflict,
-// doc-deleted-remote, doc-renamed, doc-too-large.
+// importing each other. Events: session-expired, doc-conflict,
+// doc-deleted-remote and doc-renamed.
 
 /** @type {Map<string, Set<(detail: any) => void>>} */
 const handlers = new Map();
