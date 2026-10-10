@@ -56,7 +56,8 @@ export function setupConflictHandling({ api, autosave, tabs }) {
         }
         if (choice === 'copy' && !copied) {
           const mine = tabs.content(id);
-          const { status, data } = await api.createDocument(mine, conflictCopyName(tab.name));
+          // The suffix hides the name extension, so the copy stores the language in use.
+          const { status, data } = await api.createDocument(mine, conflictCopyName(tab.name), tabs.languageOf(id));
           if (status !== 201) return failureText(status);
           copied = true;
           await tabs.addDocument(data, mine);
@@ -92,7 +93,7 @@ export function setupConflictHandling({ api, autosave, tabs }) {
           return null;
         }
         const mine = tabs.content(id);
-        const { status, data } = await api.createDocument(mine, tab.name);
+        const { status, data } = await api.createDocument(mine, tab.name, tab.language);
         if (status !== 201) return failureText(status);
         // The old tab closes only after the new document exists.
         await tabs.addDocument(data, mine);
