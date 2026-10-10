@@ -61,7 +61,7 @@ Numbering continues from v1 (TD-1 to TD-19). Each "Left to the builder" item of 
 | TD-24 | Every repo query that reads or writes a document adds `workspace = ?`. A document of the other workspace gives the same result as a missing one: 404 `not_found` (WS-5). | One rule for list, get, save, rename, language, move and delete. `saveContent` returns `currentVersion: null` for it, which maps to 404, not 412. |
 | TD-25 | "Untitled N" counts only names in the target workspace. | WS-6: "Untitled 1" can exist in both workspaces. |
 | TD-26 | Move: `PATCH /api/documents/:id?workspace=<from>` with JSON `{ "workspace": "<to>" }`. It keeps name, content, version and `updated_at`. A move to the same workspace returns 200 and changes nothing. An unknown target returns 400 `invalid_workspace`. `updateMeta` checks that the row exists in the source workspace, applies the changes, then reads the row back by id only, because a moved row is now in the target workspace. | MOV-2. Keeping `updated_at` keeps the sort position, as a language change does (section 2.9). A read-back filtered by the source workspace would miss the moved row and return 404 after a successful move (`server/src/documents/repo.js:132-137` updates, then selects). |
-| TD-27 | `GET /api/settings` returns `{ autosaveSeconds, workspaceColors: { personal, work } }`. Each color is a stored hex string or `null` (default). `PUT /api/settings` takes an optional `workspaceColors` object with both keys. Each value is `null` or matches `^#([0-9a-fA-F]{3}\|[0-9a-fA-F]{6})$`. Else 400 `invalid_color` with `workspace`. A body without `workspaceColors` keeps the stored colors. | CLR-2 to CLR-4. Settings keys `color_personal` and `color_work`. `null` deletes the row. A stored value that breaks the rule reads as `null` (CLR-3), like `autosave_seconds` (`server/src/settings/routes.js:15-17`). |
+| TD-27 | `GET /api/settings` returns `{ autosaveSeconds, workspaceColors: { personal, work } }`. Each color is a stored hex string or `null` (default). `PUT /api/settings` takes an optional `workspaceColors` object with both keys. Each value is `null` or matches `^#([0-9a-fA-F]{3}\|[0-9a-fA-F]{6})$`. Else 400 `invalid_color` with `workspace`. A body without `workspaceColors` keeps the stored colors. The server checks every field of a PUT first. If one field fails, it saves nothing and returns that error. Else it writes all fields in one transaction. | CLR-2 to CLR-4. One Settings dialog sends the delay and both colors together, so a partial save would keep some values the dialog reported as failed. Settings keys `color_personal` and `color_work`. `null` deletes the row. A stored value that breaks the rule reads as `null` (CLR-3), like `autosave_seconds` (`server/src/settings/routes.js:15-17`). |
 
 API changes in `BUILD_PLAN.md` section 2.7 terms:
 
@@ -78,9 +78,9 @@ API changes in `BUILD_PLAN.md` section 2.7 terms:
 | ID | Decision | Reason |
 |----|----------|--------|
 | TD-28 | The active workspace is a `createStoredChoice` (`web/src/stored-choice.js`) with key `pn.workspace` and values `['personal', 'work']`. | The first value is the default for a first visit, blocked storage and unknown values (WS-4). Same module as the theme. |
-| TD-29 | `theme-init.js` sets `data-workspace` on `<html>` and `document.title` ("Personal - Notepad" or "Work - Notepad") before first paint. | WS-3. No flash of the wrong title or tab strip color. |
+| TD-29 | `theme-init.js` sets `data-workspace` on `<html>` before first paint. It also sets `document.title` ("Personal - Notepad" or "Work - Notepad"), but only on the app page: `web/index.html` marks its `<html>` with `data-page="app"`. The sign-in page also loads `theme-init.js` (`web/login.html:7`) and keeps the title "Notepad". | WS-3. No flash of the wrong title or tab strip color. The sign-in page shows no workspace. |
 | TD-30 | `api.js` holds the active workspace (`api.setWorkspace(id)`) and adds `workspace=<id>` to every `/api/documents` path. `listDocuments(workspace?)` takes an override for the switch prefetch. | Callers (`tabs.js`, `doclist.js`, `drop.js`, `conflict.js`) stay unchanged. New, drop and recovery copies go to the active workspace (WS-6). |
-| TD-41 | `api.js` keeps a workspace generation number. `setWorkspace` increases it. Each `/api/documents` call records the generation when it starts. If the generation changed when the response arrives, the call returns `{ status: 0, data: null, stale: true }` and emits no `session-expired`. The prefetch with an explicit `workspace` (TD-30) is exempt. Callers stop on `stale` and show no message. | A refresh, load or New that started before a switch must not change the new workspace (drops and moves cannot overlap a switch, TD-42). Example: a Personal list that returns after the switch makes `planRefresh` close every clean Work tab. A stale create still runs on the server, so that document is in the old workspace's list (R14). |
+| TD-41 | `api.js` keeps a workspace generation number. `setWorkspace` increases it. Each `/api/documents` call records the generation when it starts. If the generation changed when the response arrives, the call returns `{ status: 0, data: null, stale: true }` and emits no `session-expired`. The prefetch with an explicit `workspace` (TD-30) is exempt. Every caller checks `stale` before its status check, then stops and shows no message: `tabs.js`, `doclist.js`, `drop.js`, `conflict.js` and the language list handler in `main.js`. | A refresh, load or New that started before a switch must not change the new workspace (drops and moves cannot overlap a switch, TD-42). Example: a Personal list that returns after the switch makes `planRefresh` close every clean Work tab. A stale create still runs on the server, so that document is in the old workspace's list (R14). A plain status check reads `stale` as a network failure (status 0): a language change in flight during a switch makes `tabs.setLanguage` return false (`web/src/tabs.js:377`), and `main.js` then shows "Could not change the language" (`web/src/main.js:242`). |
 | TD-31 | Personal tabs keep the key `pn.openTabs.v1` (`web/src/tabs.js:9`). Work tabs use `pn.openTabs.work.v1`. `readOpenTabs` and `writeOpenTabs` take the key. | MIG-2 needs no data migration: the old key already holds the Personal tabs. |
 
 ### 2.5 Switch
@@ -185,13 +185,13 @@ API changes in `BUILD_PLAN.md` section 2.7 terms:
 - **Requirements:** WS-3, WS-4, C14.
 - **Implementation:** Rename `.workspace` to `.main-area` (TD-21). `web/src/workspace.js`: the stored choice (TD-28), `WORKSPACE_NAMES`, `titleFor(id)`. `theme-init.js` sets `data-workspace` and the title (TD-29).
 - **Dependencies:** None.
-- **Acceptance criteria:** A first visit and an unknown stored value give Personal and "Personal - Notepad". A stored `work` gives "Work - Notepad" at first paint. No `.workspace` class is left.
-- **Validation:** `web/test/workspace.test.js` (stored value, blocked storage, title). Extend `web/test/build-web.test.js` for the `theme-init.js` bundle. Grep for `.workspace` in `web/`.
+- **Acceptance criteria:** A first visit and an unknown stored value give Personal and "Personal - Notepad". A stored `work` gives "Work - Notepad" at first paint. The sign-in page keeps the title "Notepad", also with a stored `work`. No `.workspace` class is left.
+- **Validation:** `web/test/workspace.test.js` (stored value, blocked storage, title). Extend `web/test/build-web.test.js` for the `theme-init.js` bundle. `e2e/login.spec.js`: the sign-in page title with a stored `work`. Grep for `.workspace` in `web/`.
 
 #### T33 Workspace-scoped client calls and per-workspace tabs (M)
 - **Objective:** All client calls and stored tabs follow the active workspace.
 - **Requirements:** WS-6 (client), WS-7 (storage), MIG-2.
-- **Implementation:** `api.js` per TD-30 and TD-41. `tabs.js` per TD-31: the storage key comes from the active workspace. `tabs.js` and `doclist.js` stop on `stale`. `main.js` calls `api.setWorkspace` at start, before `tabs.boot`.
+- **Implementation:** `api.js` per TD-30 and TD-41. `tabs.js` per TD-31: the storage key comes from the active workspace. Every caller that TD-41 names stops on `stale`. `main.js` calls `api.setWorkspace` at start, before `tabs.boot`.
 - **Dependencies:** T31, T32.
 - **Acceptance criteria:** With `pn.workspace = work`, New, a drop and both recovery copies create Work documents. The drop name clash check uses the Work list. Tabs stored under `pn.openTabs.v1` before the upgrade restore as the Personal tabs. A response that arrives after `setWorkspace` returns `stale`.
 - **Validation:** `web/test/tabs.test.js` (key per workspace). `web/test/api.test.js` with a fake `fetch`: a response that resolves after `setWorkspace` is `stale`, and the explicit-workspace prefetch is not. `e2e/workspaces.spec.js`: drop `notes.md` in Work while Personal has `notes.md` gives `notes.md`. MIG-2 test: write `pn.openTabs.v1` with no `pn.workspace`, reload, same tabs and active tab.
@@ -201,8 +201,8 @@ API changes in `BUILD_PLAN.md` section 2.7 terms:
 - **Requirements:** WS-2, WS-7, WS-8, WS-9, EDGE-28 to EDGE-30, EDGE-34.
 - **Implementation:** The button (TD-32), the switch steps (TD-33) and `exclusive` (TD-42) in `web/src/workspace-switch.js`, with `api`, `autosave`, `tabs` and the stored choice as injected dependencies. `main.js` runs `openDropped` through `exclusive`. `tabs.js` gets `closeAllSaved()` and `boot({ list })`.
 - **Dependencies:** T33.
-- **Acceptance criteria:** Switching away and back restores the same tabs and active tab. Text typed 1 second before a switch is on the server after it. A failed save keeps the workspace and shows the message. A failed list read keeps the workspace, and all text typed before the switch is on the server. Text that keeps changing for 3 rounds keeps the workspace. A Personal refresh that returns after the switch leaves the Work tabs unchanged. A switch during a drop, or a drop during a switch, does nothing and shows the wait message. A keyboard-only run switches the workspace. A theme change in Work shows in Personal. Two browser contexts in different workspaces work independently.
-- **Validation:** `web/test/workspace-switch.test.js` with fakes: each EDGE path, the order flush then list read, the 3-round limit that stays (a fake flush that marks a document dirty again each round), the second `saveAll()` after text typed during the list read, `exclusive` (a second operation is refused while one runs, and runs after it ends). `e2e/workspaces.spec.js`: round trip, save before switch, offline save (route abort), failed list read with saved text, a delayed Personal list (route) that returns after the switch, keyboard run, shared theme, two contexts. Extend the NFR-5 keyboard test in `e2e/layout.spec.js` with the switch.
+- **Acceptance criteria:** Switching away and back restores the same tabs and active tab. The window title changes on each switch (WS-3). Text typed 1 second before a switch is on the server after it. A failed save keeps the workspace and shows the message. A failed list read keeps the workspace, and all text typed before the switch is on the server. Text that keeps changing for 3 rounds keeps the workspace. A Personal refresh that returns after the switch leaves the Work tabs unchanged. A language change whose reply arrives after the switch shows no message (TD-41). A switch during a drop, or a drop during a switch, does nothing and shows the wait message. A keyboard-only run switches the workspace. A theme change in Work shows in Personal. Two browser contexts in different workspaces work independently.
+- **Validation:** `web/test/workspace-switch.test.js` with fakes: each EDGE path, the order flush then list read, the 3-round limit that stays (a fake flush that marks a document dirty again each round), the second `saveAll()` after text typed during the list read, `exclusive` (a second operation is refused while one runs, and runs after it ends). `e2e/workspaces.spec.js`: round trip with a title check after each switch, save before switch, offline save (route abort), failed list read with saved text, a delayed Personal list (route) that returns after the switch, a language `PATCH` held by a route until after the switch (`#status-message` stays empty), keyboard run, shared theme, two contexts. Extend the NFR-5 keyboard test in `e2e/layout.spec.js` with the switch. Owner check: the title of the installed app window changes on a switch in Chrome and Edge.
 
 ### Phase M20: Move between workspaces
 
@@ -229,7 +229,7 @@ API changes in `BUILD_PLAN.md` section 2.7 terms:
 - **Requirements:** CLR-2 (server), CLR-3, CLR-4.
 - **Implementation:** TD-27 in `server/src/settings/routes.js`.
 - **Dependencies:** None.
-- **Acceptance criteria:** `#AbC` and `#0f766e` are accepted. `#12`, `red`, `#GGGGGG` and `123456` return 400 `invalid_color`. `null` returns the default. A corrupt stored value reads as `null`. A PUT without `workspaceColors` keeps the colors.
+- **Acceptance criteria:** `#AbC` and `#0f766e` are accepted. `#12`, `red`, `#GGGGGG` and `123456` return 400 `invalid_color`. `null` returns the default. A corrupt stored value reads as `null`. A PUT without `workspaceColors` keeps the colors. A PUT with a valid `autosaveSeconds` and an invalid color returns 400 `invalid_color` and changes neither value.
 - **Validation:** `server/test/settings.test.js`.
 
 #### T38 Colors in the UI (M)
@@ -243,7 +243,7 @@ API changes in `BUILD_PLAN.md` section 2.7 terms:
 #### T39 README and docs (S)
 - **Objective:** The owner can read how workspaces work.
 - **Requirements:** `REQUIREMENTS_V3.md` section 10, README row.
-- **Implementation:** README: workspaces, the switch, Move, colors and the Notion variables (marked "with Notion sync"). Set `REQUIREMENTS_V3.md` section 9 statuses.
+- **Implementation:** README: workspaces, the switch, Move, colors, the rollback note (R15) and the Notion variables (marked "with Notion sync"). Set `REQUIREMENTS_V3.md` section 9 statuses.
 - **Dependencies:** T36, T38.
 - **Acceptance criteria:** README describes each owner-visible change. No doc names `.workspace` as a layout class.
 - **Validation:** Read-through. Grep.
@@ -275,12 +275,13 @@ Numbering continues from v1 (R1 to R8).
 
 | ID | Risk or assumption | Mitigation |
 |----|--------------------|------------|
-| R9 | A custom Work color loads after first paint, so the CSS preset shows for a moment. | Accept. If the owner reports it, cache the colors per browser. Not built now (fewest parts). |
+| R9 | A custom Work color loads after first paint, so the CSS preset shows for a moment. | Accepted by the owner on 2026-10-10. If the owner reports it later, cache the colors per browser. Not built now (fewest parts). |
 | R10 | A switch waits for every save. On a slow network it can take seconds. | The button is disabled during the switch. The save status shows "Saving...". |
 | R11 | Text typed during a move request reaches a 404 and opens the EDGE-1 dialog. | Accepted: no text is lost (TD-34). The e2e test covers it. |
 | R12 | The migration runs at app start on Railway (v1 TD-17). A failure stops the start. | It runs in one transaction (`migrate` in `server/src/db.js`). Upgrade check in section 5. |
 | R13 | This container runs Node 22. Production runs Node 24. | Run the suites on Node 24 before release, as in v2 (`PLAN_REVIEW.md` section 13). PR #6 ran on Node 22: `npm test` 355 pass, Chromium e2e 138 pass. |
 | R14 | A New that is in flight during a switch still creates its document in the old workspace, but its response is dropped (TD-41). | The document shows in the old workspace's list. No text is lost. |
+| R15 | A rollback to a v2 build after migration 2: the v2 build starts, because `migrate` skips a database whose `user_version` (2) is at or above its own count (1) (`server/src/db.js:31-32`). Its inserts get `personal` from the column default. It lists Personal and Work documents together. | No data is lost. Prefer a forward fix. The README states the effect (T39). |
 
 ---
 
@@ -312,7 +313,8 @@ Numbering continues from v1 (R1 to R8).
 | NEW-1, NEW-2 | T29 | `server/test/documents.test.js`, `e2e/language.spec.js`, `e2e/conflict.spec.js` |
 | WS-1 | T30, T31 | `db.test.js`, `documents-workspace.test.js` |
 | WS-2 | T34 | `e2e/workspaces.spec.js`, `e2e/layout.spec.js` (keyboard run) |
-| WS-3, WS-4 | T32 | `web/test/workspace.test.js`, `build-web.test.js` |
+| WS-3 | T32, T34 | `web/test/workspace.test.js`, `build-web.test.js`, `e2e/login.spec.js`, `e2e/workspaces.spec.js` (title after each switch), owner check (installed app) |
+| WS-4 | T32 | `web/test/workspace.test.js`, `build-web.test.js` |
 | WS-5 | T31 | `documents-workspace.test.js` |
 | WS-6 | T31, T33 | `documents-workspace.test.js`, `e2e/workspaces.spec.js` |
 | WS-7 | T33, T34 | `tabs.test.js`, `e2e/workspaces.spec.js` |
