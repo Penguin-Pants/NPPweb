@@ -15,23 +15,27 @@ import { shell } from '@codemirror/legacy-modes/mode/shell';
 import { Facet, Prec } from '@codemirror/state';
 import { EditorView, keymap } from '@codemirror/view';
 import { GFM } from '@lezer/markdown';
+import { LANGUAGE_IDS } from '../../shared/contract.js';
 import { markdownKeymap } from './markdown-commands.js';
 
-export const LANGUAGES = [
-  { id: 'plain', label: 'Plain text' },
-  { id: 'markdown', label: 'Markdown' },
-  { id: 'json', label: 'JSON' },
-  { id: 'html', label: 'HTML' },
-  { id: 'css', label: 'CSS' },
-  { id: 'javascript', label: 'JavaScript' },
-  { id: 'typescript', label: 'TypeScript' },
-  { id: 'python', label: 'Python' },
-  { id: 'sql', label: 'SQL' },
-  { id: 'yaml', label: 'YAML' },
-  { id: 'shell', label: 'Shell' },
-];
+const LABELS = {
+  plain: 'Plain text',
+  markdown: 'Markdown',
+  json: 'JSON',
+  html: 'HTML',
+  css: 'CSS',
+  javascript: 'JavaScript',
+  typescript: 'TypeScript',
+  python: 'Python',
+  sql: 'SQL',
+  yaml: 'YAML',
+  shell: 'Shell',
+};
 
-const IDS = new Set(LANGUAGES.map((entry) => entry.id));
+/** The languages of the server's list (shared/contract.js), with their labels. */
+export const LANGUAGES = LANGUAGE_IDS.map((id) => ({ id, label: LABELS[id] }));
+
+const IDS = new Set(LANGUAGE_IDS);
 
 const BY_EXTENSION = new Map([
   ['md', 'markdown'],

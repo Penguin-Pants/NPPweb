@@ -3,6 +3,7 @@
 // setTimeout and Date.now, so tests can mock them.
 // Status per document: 'saved', 'unsaved', 'saving' or 'error'.
 // Reason for 'error': 'network', 'conflict', 'deleted' or 'too-large'.
+import { AUTOSAVE_DEFAULT_SECONDS } from '../../shared/contract.js';
 
 const RETRY_DELAYS_MS = [2000, 4000, 8000, 16000, 30000];
 
@@ -19,7 +20,7 @@ const RETRY_DELAYS_MS = [2000, 4000, 8000, 16000, 30000];
  *   doc-deleted-remote and doc-too-large.
  * @param {number} [options.delayMs] The autosave delay N (SAV-1). setDelay changes it later.
  */
-export function createAutosave({ save, onStatus = () => {}, onEvent = () => {}, delayMs = 5000 }) {
+export function createAutosave({ save, onStatus = () => {}, onEvent = () => {}, delayMs = AUTOSAVE_DEFAULT_SECONDS * 1000 }) {
   let delay = delayMs;
   /** @type {Map<string, any>} */
   const docs = new Map();

@@ -2,6 +2,7 @@
 // localStorage (v3 TD-31). Content loads on first activation. Clean tabs
 // refresh from the server on window focus and on tab activation (TD-15).
 
+import { UNTITLED_NAME } from '../../shared/contract.js';
 import { choose } from './dialogs.js';
 import { languageSupport, resolveLanguage } from './languages.js';
 import { modName } from './shortcuts.js';
@@ -380,7 +381,7 @@ export function createTabs({ editor, autosave, api, getStorage, elements, onActi
         content = data.content;
       }
 
-      if (content === '' && /^Untitled \d+$/.test(tab.name)) {
+      if (content === '' && UNTITLED_NAME.test(tab.name)) {
         removeTab(id);
         await deleteOnServer(id);
         return true;

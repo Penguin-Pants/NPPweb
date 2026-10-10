@@ -601,6 +601,13 @@ Two-pass review of each fix task. Same method and verdicts as section 10.
 | C3 | 1 | The not-found handler could answer before the gate, so a request without a session would learn which paths exist. | Rejected | Root `onRequest` hooks also run for the not-found handler. `gate.test.js` (unknown paths without a session get 401) passes. |
 | C3 | 2 | A signed-in browser that opens an unknown page gets JSON, not HTML. | Rejected | Fastify's own 404 was JSON too. The app has one page, and every link it makes is known. |
 | C3 | 3 | The handler adds routes that the route sweep (`registeredRoutes`) would have to list. | Rejected | The gate tests pass unchanged. |
+| C5 | 1 | Two more contract values are written on both sides: the 255-character name limit (`web/src/conflict.js:12`, `web/src/doclist.js:115`) and the "Untitled N" pattern (`web/src/tabs.js`, close without a prompt). | Confirmed | Both are in `shared/contract.js` with the 4 values of the audit. |
+| C5 | 2 | The languages had two pin tests, one per side. | Confirmed | `web/test/languages.test.js` pins the list (D5). The server test reads the shared list and checks that the API accepts each id. |
+| C5 | 3 | Migration 2 still writes the workspace list in its CHECK. | Rejected | A released migration never changes. The contract file says so. |
+| C5 | 4 | UI texts still name rules: "1 to 60" seconds, "12 to 256" characters, "1 MB". | Rejected | They are wording. The code that compares values uses the shared constants or the server's check. |
+| C5 | 5 | The server imports `shared/` through relative paths (`../../../shared/contract.js`). | Rejected | Node subpath imports would add a `package.json` field. A relative path needs nothing more. |
+| C5 | 6 | Railway must ship `shared/` with the server. | Risk | Railway builds from the whole repo and runs `npm start` there, so the folder is in the image (not checked on a deploy). If it were missing, the server would not start, the health check would fail and Railway would keep the old deployment. |
+| C5 | 7 | A refactor with no new behavior has no failing test first. | Confirmed | The existing tests guard each value. `npm test` and the e2e suite pass unchanged, except for the import lines. |
 
 ### Audit validation environment
 
@@ -611,3 +618,4 @@ Two-pass review of each fix task. Same method and verdicts as section 10.
 - C2: `npm test` 425 of 425. Chromium e2e 174 passed, plus the CLR-6 flake, which passed on its first retry. The new unit test and both new e2e tests failed first on an assertion.
 - C4: `npm test` 425 of 425. Chromium e2e 174 passed, plus the 2 known flakes. Alone, STB-2 passed on a retry. CLR-6 failed 9 of 10 runs without C4 and 7 of 10 with C4. The new test failed first on an assertion (3 buttons in the tab list).
 - C3: `npm test` 426 of 426. Chromium e2e 175 passed, plus the CLR-6 flake. The new test failed first on an assertion (the Fastify 404 body).
+- C5: `npm test` 426 of 426. Chromium e2e 174 passed, plus the 2 known flakes. Alone, STB-2 passed on a retry and CLR-6 failed 5 of 5.

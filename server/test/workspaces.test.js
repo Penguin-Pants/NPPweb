@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { parseWorkspace, WORKSPACES } from '../src/workspaces.js';
+import { WORKSPACES } from '../../shared/contract.js';
+import { parseWorkspace } from '../src/workspaces.js';
 
 test('there are exactly two workspaces, Personal first (WS-1)', () => {
   assert.deepEqual(WORKSPACES, ['personal', 'work']);

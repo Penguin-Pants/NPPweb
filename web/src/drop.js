@@ -2,7 +2,7 @@
 // EDGE-14). Each accepted file becomes a new server document named as the
 // file, and opens in a new tab. A drag of text inside the editor is not a
 // file drag, so the editor keeps its own behavior (DRP-5).
-import { LIMIT_BYTES } from './size-limit.js';
+import { CONTENT_LIMIT_BYTES } from '../../shared/contract.js';
 
 const ACCEPTED = /\.(md|markdown|txt|html|htm)$/i;
 
@@ -29,7 +29,7 @@ export function uniqueName(name, taken) {
  */
 export function droppedText({ name, bytes }) {
   if (!ACCEPTED.test(name)) return { error: 'only .md, .txt and .html files' };
-  if (bytes.length > LIMIT_BYTES) return { error: 'larger than 1 MB' };
+  if (bytes.length > CONTENT_LIMIT_BYTES) return { error: 'larger than 1 MB' };
   try {
     // The decoder drops a byte order mark, and fatal rejects invalid UTF-8.
     return { text: new TextDecoder('utf-8', { fatal: true }).decode(bytes).replace(/\r\n?/g, '\n') };
@@ -44,7 +44,7 @@ export function droppedText({ name, bytes }) {
  */
 async function readFile(file) {
   if (!ACCEPTED.test(file.name)) return droppedText({ name: file.name, bytes: new Uint8Array() });
-  if (file.size > LIMIT_BYTES) return { error: 'larger than 1 MB' };
+  if (file.size > CONTENT_LIMIT_BYTES) return { error: 'larger than 1 MB' };
   let bytes;
   try {
     bytes = new Uint8Array(await file.arrayBuffer());

@@ -2,6 +2,7 @@
 // last modified date, newest first, of the active workspace (v3 WS-6). Open,
 // rename, move to the other workspace (MOV-1) and delete. Open closes the
 // dropdown. Delete is permanent and closes the tab.
+import { NAME_MAX_LENGTH } from '../../shared/contract.js';
 import { choose, formDialog } from './dialogs.js';
 import { createDropdown } from './dropdown.js';
 import { emit } from './events.js';
@@ -112,7 +113,7 @@ export function createDocList({ api, tabs, autosave, exclusive, root, button, pa
           emit('doc-renamed', { id: doc.id, name: data.name });
           return null;
         }
-        if (data?.error === 'invalid_name') return 'Use 1 to 255 characters and no control characters.';
+        if (data?.error === 'invalid_name') return `Use 1 to ${NAME_MAX_LENGTH} characters and no control characters.`;
         if (status === 404) return 'This document no longer exists.';
         if (status === 0) return 'Cannot connect to the server. Try again.';
         return 'Rename failed. Try again.';

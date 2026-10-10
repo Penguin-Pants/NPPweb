@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { afterEach, beforeEach, test } from 'node:test';
+import { LANGUAGE_IDS } from '../../shared/contract.js';
 import { createTestApp, login, ORIGIN } from './helpers.js';
 
-const LANGUAGES = ['plain', 'markdown', 'json', 'html', 'css', 'javascript', 'typescript', 'python', 'sql', 'yaml', 'shell'];
 const MISSING_ID = '00000000-0000-4000-8000-000000000000';
 let ctx;
 let cookie;
@@ -58,7 +58,7 @@ test('an invalid name returns 400 invalid_name and changes nothing', async () =>
 });
 
 test('language accepts each of the 11 values and null', async () => {
-  for (const language of LANGUAGES) {
+  for (const language of LANGUAGE_IDS) {
     const res = await patch({ language });
     assert.equal(res.statusCode, 200, language);
     assert.equal(res.json().language, language);
