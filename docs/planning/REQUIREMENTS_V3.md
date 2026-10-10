@@ -1,9 +1,9 @@
 # NPPweb v3 Workspaces: Requirements
 
-**Status:** Decision-complete. Open questions: none. Not built.
+**Status:** Decision-complete. Open questions: none. M17 (status bar and new-document defaults, section 3.6) is built in PR #6. The workspace milestones (M18 to M21) are not built.
 **Date:** 2026-10-10
-**Purpose:** Single source of truth for a coding agent to turn into a build plan. This file does not include an implementation.
-**Location:** Save as `docs/planning/REQUIREMENTS_V3.md`.
+**Purpose:** Single source of truth for v3. The build plan is `docs/planning/BUILD_PLAN_V3.md`. This file does not include an implementation.
+**Location:** `docs/planning/REQUIREMENTS_V3.md`
 **Builds on:** `docs/planning/REQUIREMENTS.md` (v1) and `docs/planning/REQUIREMENTS_V2.md` (v2). Their requirements stay in force unless section 10 says otherwise.
 
 ---
@@ -13,6 +13,7 @@
 - **Problem:** All notes share one Documents list, one tab set and one "Untitled N" sequence. Work notes and personal notes mix.
 - **User:** The one owner of the private NPPweb instance (ACC-1).
 - **Outcome:** Two fixed workspaces, Personal and Work. A top-bar switch toggles them. Each workspace shows only its own documents and tabs and has its own color. Personal keeps today's documents, tabs and look.
+- **Also in this version (built first, PR #6):** The counts and the language list move to the left edge of the editor pane in the status bar. New documents start as Markdown. Section 3.6 has the requirements.
 - **Out of this version:** The Claude integration from the original request. It is deferred in full (section 8).
 
 ### 1.1 Current behavior (verified)
@@ -27,7 +28,7 @@
 
 ## 2. Decision log
 
-Numbering continues from v2 (D14 to D38).
+Numbering continues from v2 (D14 to D38). D39 to D52 are owner decisions for workspaces. D53 and D54 are owner decisions from PR #6. D55 and D56 are builder decisions from the PR #6 review, approved by the owner on 2026-10-10.
 
 | # | Topic | Decision | Rejected |
 |---|-------|----------|----------|
@@ -45,6 +46,10 @@ Numbering continues from v2 (D14 to D38).
 | D50 | Proposed workspace defaults | Accepted in full. They are WS-6 to WS-9, MOV-2, MOV-3, CLR-3 and EDGE-31. | None |
 | D51 | Notion | One token for both workspaces. One parent page per workspace. A move of a synced document archives its page and recreates it. | Personal only, one shared parent, token per workspace, block the move |
 | D52 | Claude integration | Deferred in full. | None |
+| D53 | Status bar layout | The counts, the Count syntax button and the language list start at the left edge of the editor pane, in the same status bar. | Keep them at the right end |
+| D54 | New document type | New stores Markdown as the document's language. The language list shows "Markdown". A later rename keeps Markdown until the owner changes the list. | A name without an extension resolves to Markdown, with the list on "Auto (detected)" |
+| D55 | Status messages | Short status messages move to the right end of the status bar. Next to the save status, a long message pushed the counts to the right for 5 seconds. | Keep them next to the save status |
+| D56 | Recovery copies | "Save mine as a new document" keeps the language in use. The conflict copy stores the resolved language, because the " (conflict copy)" suffix hides the name extension. The deleted-elsewhere copy keeps the same name and the stored override. | Copy without a language (auto) |
 
 ---
 
@@ -103,6 +108,18 @@ These rules change the v2 Notion requirements. They apply when M15 is built.
 | NOT-15 | A workspace without its parent page variable cannot sync. Its sync control is disabled and names the missing variable. This extends NOT-12. | With only the Personal variable set, a Work document shows the disabled control and the note. |
 | NOT-16 | A move of a synced document sends its Notion page to Notion trash (the NOT-6 archive job). If the target workspace has a parent page, a new page is created under it with the current title and saved content. Else sync turns off for that document. | After a move, no page of that document stays under the old parent outside Notion trash. |
 
+### 3.6 Status bar and new-document defaults (M17, built in PR #6)
+
+These rules apply in both workspaces.
+
+| ID | Requirement | Done when |
+|----|-------------|-----------|
+| STB-1 | The word and character counts (CNT-1, CNT-3), the Count syntax button (CNT-2) and the language list (EDT-4) sit in the status bar and start at the left edge of the editor pane. With the outline open, they start 8 px inside the pane. With the outline closed, they follow the save status. | `e2e/layout.spec.js`: the counts start within 16 px of the pane edge. With the outline closed, they follow the save status. |
+| STB-2 | Short status messages (for example a rejected drop) show at the right end of the status bar (D55). | `e2e/export-drop.spec.js`: a drop message shows to the right of the language list. At 800 px, where it wraps to its own row, it ends at the right end. |
+| STB-3 | In a narrow window the status bar wraps to a second row. No status-bar control leaves the window. | `e2e/layout.spec.js`: at 480 px with the outline open, Count syntax and the language list end at or before 480 px. |
+| NEW-1 | New (top-bar button, empty-state button and shortcut) creates "Untitled N" with the stored language Markdown. The language list shows "Markdown". A dropped file keeps "Auto (detected)", so its extension decides (DRP-6). | `e2e/language.spec.js`: New opens a Markdown tab. A named `.txt` document stays Auto and plain. |
+| NEW-2 | "Save mine as a new document" keeps the language in use (D56). The conflict copy stores the resolved language of its tab. The deleted-elsewhere copy keeps the stored override. | `e2e/conflict.spec.js`: both copies of an "Untitled N" document are Markdown. A conflict copy of `notes.py` is Python. |
+
 ---
 
 ## 4. Edge cases and failure behavior
@@ -124,7 +141,7 @@ Numbering continues from v2 (EDGE-10 to EDGE-27).
 ## 5. Constraints
 
 - **C13:** One SQLite file holds all data (`server/src/db.js:14`). Migrations are append-only (C9, `server/src/migrations.js:2`).
-- **C14:** The CSS class `.workspace` already names the main layout area (`web/index.html:38`, `web/styles.css:167`). New code must not mix the two meanings. The builder can rename the CSS class.
+- **C14:** The CSS class `.workspace` already names the main layout area (`web/index.html:38`, `web/styles.css:176`). New code must not mix the two meanings. The builder can rename the CSS class.
 - **C15:** CLR-5 is always reachable. With the WCAG 2.x relative luminance formula, black or white text on any sRGB color reaches at least 4.58:1. Confidence: high (computed from the formula). Source: https://www.w3.org/TR/WCAG21/#dfn-contrast-ratio
 - **C16:** C5 from v2 still applies: vanilla JavaScript, CodeMirror 6, esbuild, Fastify 5, `node:sqlite` and Node.js 24.
 - **C17:** M15 is still blocked. Network access to `api.notion.com` and a Notion token are missing (`docs/planning/REQUIREMENTS_V2.md:298`). NOT-14 to NOT-16 wait for M15.
@@ -185,17 +202,18 @@ Discovery stopped before a decision. Use this section as the start point when th
 
 ---
 
-## 9. Proposed build sequence
+## 9. Build sequence and status
 
-This section is a proposal for the planning step. It adds no product decisions. Each phase follows the two-pass review in `docs/planning/PLAN_REVIEW.md` section 1, as in v2.
+The task-level plan is `docs/planning/BUILD_PLAN_V3.md` (tasks T28 to T40). Each phase follows the two-pass review in `docs/planning/PLAN_REVIEW.md` section 1, as in v2. V3 reviews go to `PLAN_REVIEW.md` section 14. M17 was added for the PR #6 work, so the workspace milestones of the first draft (M17 to M20) are now M18 to M21.
 
-| Milestone | Work | Covers |
-|-----------|------|--------|
-| M17 | Schema migration, workspace-scoped API, old-request compatibility | WS-1, WS-5, WS-6 (server part), MIG-1, MIG-3 |
-| M18 | Switch, per-workspace tabs, title, start workspace, switch safety | WS-2 to WS-4, WS-6 (client part), WS-7 to WS-9, MIG-2, EDGE-28 to EDGE-30, EDGE-34 |
-| M19 | Move between workspaces | MOV-1 to MOV-3, EDGE-31, EDGE-32 |
-| M20 | Workspace colors in Settings | CLR-1 to CLR-6 |
-| M15 (resumed) | Notion with the workspace rules | NOT-14 to NOT-16, EDGE-33 |
+| Milestone | Work | Covers | Status |
+|-----------|------|--------|--------|
+| M17 | Status bar layout and new-document defaults | STB-1 to STB-3, NEW-1, NEW-2 | Done in PR #6 |
+| M18 | Schema migration, workspace-scoped API, old-request compatibility | WS-1, WS-5, WS-6 (server part), MIG-1, MIG-3 | Planned |
+| M19 | Switch, per-workspace tabs, title, start workspace, switch safety | WS-2 to WS-4, WS-6 (client part), WS-7 to WS-9, MIG-2, EDGE-28 to EDGE-30, EDGE-34 | Planned |
+| M20 | Move between workspaces | MOV-1 to MOV-3, EDGE-31, EDGE-32 | Planned |
+| M21 | Workspace colors in Settings | CLR-1 to CLR-6 | Planned |
+| M15 (resumed) | Notion with the workspace rules | NOT-14 to NOT-16, EDGE-33 | Blocked (C17) |
 
 ### Definition of done
 
@@ -213,12 +231,15 @@ This section is a proposal for the planning step. It adds no product decisions. 
 | v1 DOC-4, Documents list | The list shows the active workspace only (WS-6). It gains the Move action (MOV-1). |
 | v1 DOC-7, open tabs per browser | Open tabs are per workspace and per browser (WS-7). |
 | v1 EDGE-1, deleted elsewhere | Also covers a document moved elsewhere (EDGE-31). |
+| v1 EDT-4, language from the name extension | New documents store Markdown as an override (NEW-1). Recovery copies keep the language in use (NEW-2). Dropped files and unknown extensions are unchanged (EDGE-9). |
+| v1 `BUILD_PLAN.md` section 2.7, `POST /api/documents` | Takes an optional `language` (400 `invalid_language` for an unknown value). Done in PR #6. |
 | v1 deferred idea "Folders or tags" | Still deferred. Two fixed workspaces are not folders or tags. |
 | v2 SAV-3, Settings dialog | Also holds the two color fields (CLR-2). |
 | v2 DRP-2, name clash on drop | The check runs within the active workspace (WS-6). |
+| v2 CNT-1 to CNT-3, counts in the status bar | The counts, Count syntax and the language list start at the left edge of the editor pane (STB-1). Status messages move to the right end (STB-2). |
 | v2 NOT-3, NOT-5, NOT-11, NOT-12 | Read per workspace (NOT-14, NOT-15). |
 | v2 non-goal "AI features" | Unchanged. Claude integration is deferred (section 8.1). |
-| README | Update at build time: workspaces, colors, Move and the Notion variables. |
+| README | New documents start as Markdown: updated in PR #6. Update at build time: workspaces, colors, Move and the Notion variables. |
 
 ---
 

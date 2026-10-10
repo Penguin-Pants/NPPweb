@@ -5,6 +5,7 @@
 **Inputs:** `REQUIREMENTS.md` (copy of `private-notepad-requirements.md`), `REQUIREMENTS_TRACEABILITY.md`, `PLAN_REVIEW.md`
 **Codebase:** None yet. This is a new project.
 **V2:** This file covers v1. V2 changes some v1 behavior (`REQUIREMENTS_V2.md` section 10), for example the autosave timing (SAV-1 to SAV-5 replace the 1-second debounce) and the document list (now a top-bar dropdown). V2 phase status is in `REQUIREMENTS_V2.md` section 9, V2 reviews in `PLAN_REVIEW.md` section 12.
+**V3:** Workspaces, the status bar layout and new-document defaults are planned in `BUILD_PLAN_V3.md` (T28 to T40) from `REQUIREMENTS_V3.md`. V3 reviews are in `PLAN_REVIEW.md` section 14.
 
 ---
 
@@ -206,6 +207,7 @@ CREATE TABLE documents (
 - Language values: `plain`, `markdown`, `json`, `html`, `css`, `javascript`, `typescript`, `python`, `sql`, `yaml`, `shell`.
 - Name rule: trimmed, 1 to 255 characters, no control characters. Duplicate names are allowed. Documents are identified by `id`.
 - "Untitled N" rule: N = 1 + the highest N among names that match `^Untitled (\d+)$`. Use 1 if none match. Compute inside the insert transaction.
+- New (the button) creates a document with `language = 'markdown'`. A "Save mine as a new document" copy gets the language of its tab. A dropped file gets `NULL` (auto), so its extension decides.
 
 ### 2.7 HTTP API
 
@@ -218,9 +220,9 @@ All `/api/*` routes except `POST /api/login` need a session. All responses from 
 | `POST /api/login` | JSON `{password}` | 204 + `Set-Cookie` | 401 `invalid_credentials`, 429 `rate_limited` + `Retry-After` |
 | `POST /api/logout` | none | 204, cookie cleared | 401 |
 | `GET /api/session` | none | 200 `{authenticated:true}` | 401 |
-| `POST /api/password` | JSON `{currentPassword,newPassword}` | 204 | 400 `wrong_current_password`, 400 `weak_password` |
+| `POST /api/password` | JSON `{currentPassword,newPassword}` | 204 | 400 `wrong_current_password`, 400 `weak_password`, 429 `rate_limited` + `Retry-After` |
 | `GET /api/documents` | none | 200 `[{id,name,version,language,updatedAt}]`, newest first | 401 |
-| `POST /api/documents?name=<optional>` | `text/plain` body (may be empty) | 201 `{id,name,version,language,updatedAt}` | 400 `invalid_name`, 413 `too_large` |
+| `POST /api/documents?name=<optional>&language=<optional>` | `text/plain` body (may be empty) | 201 `{id,name,version,language,updatedAt}` | 400 `invalid_name` or `invalid_language`, 413 `too_large` |
 | `GET /api/documents/:id` | none | 200 `{id,name,content,version,language,updatedAt}` | 404 `not_found` |
 | `PUT /api/documents/:id/content` | `text/plain` body, header `If-Match: <version>` | 200 `{version,updatedAt}` | 428 `version_required`, 412 `version_conflict` + `currentVersion`, 404, 413 |
 | `PATCH /api/documents/:id` | JSON `{name?, language?}` | 200 metadata | 400 `invalid_name` or `invalid_language`, 404 |
@@ -267,7 +269,7 @@ All `/api/*` routes except `POST /api/login` need a session. All responses from 
 - Session cookie `pn_session`: 32 random bytes (base64url), `HttpOnly`, `SameSite=Lax`, `Path=/`, `Max-Age` 30 days, `Secure` when `NODE_ENV=production`. Lifetime is fixed at 30 days from sign-in.
 - Password change deletes all other sessions. Reset deletes all sessions.
 - Origin check: `POST`, `PUT`, `PATCH` and `DELETE` need an `Origin` header whose host equals the `Host` header. Otherwise 403 `bad_origin`.
-- Rate limit: failed logins only. 5 per client IP per 15 minutes. 30 globally per 15 minutes. Checked before password verification. A successful login clears that IP's bucket.
+- Rate limit: failed logins and wrong current passwords on `POST /api/password` share one limiter. 5 per client IP per 15 minutes. 30 globally per 15 minutes. Checked before password verification. A correct password on either route clears that IP's bucket.
 - Headers on every response: `Content-Security-Policy: default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`. In production also `Strict-Transport-Security: max-age=31536000`.
 - Logs never contain passwords, tokens or document content. Redact `cookie` and `authorization` headers.
 - Public routes: `GET /login`, login assets (`login.js`, `theme-init.js`, `styles.css`), `GET /manifest.webmanifest`, `GET /icons/*`, `GET /sw.js` (if present), `GET /healthz`, `POST /api/login`. Everything else needs a session.
@@ -696,7 +698,7 @@ Update **Status** to `In progress` or `Done`. Add the PR or commit and short not
 | T25 | Performance check | P7 | S | T20, T24 | Done | d286e22 | Chromium, 3 runs: open 75 to 81 ms, 200 typed characters 694 to 747 ms, Ctrl+End 11 to 14 ms, no console errors. Owner-pending: manual scroll check (section 9.1). |
 | T26 | README and production verification | P7 | M | all | Blocked (owner) | 716fb31 | README done. The production checklist (section 9.1) needs the deployed app from T04. Extra owner check (P1 review 4): 6 wrong logins with 6 different X-Real-IP headers must get 429 on the 6th. |
 
-**Resume rule:** Find the first task in table order whose status is not `Done` and whose dependencies are all `Done`. Run `npm test` and `npm run test:e2e` to confirm a green baseline before you continue.
+**Resume rule:** Find the first task in table order whose status is not `Done` and whose dependencies are all `Done`. Run `npm test` to confirm a green baseline before you continue. From T10 onward, also run `npm run test:e2e`.
 
 
 ### 9.1 Owner checklist record

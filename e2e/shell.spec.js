@@ -76,3 +76,18 @@ test('the password dialog shows API and match errors and keeps the password', as
   await expect(dialog).toBeHidden();
   expect((await api.get('/api/session')).status()).toBe(200);
 });
+
+test('after 5 wrong current passwords the password dialog says how long to wait', async ({ page }) => {
+  await login(page);
+  const dialog = await openPasswordDialog(page);
+  const submit = async (currentPassword) => {
+    await dialog.getByLabel('Current password').fill(currentPassword);
+    await Promise.all([page.waitForResponse('**/api/password'), dialog.getByRole('button', { name: 'Change password' }).click()]);
+  };
+  await dialog.getByLabel('New password (12 to 256 characters)').fill(NEW_PASSWORD);
+  await dialog.getByLabel('New password again').fill(NEW_PASSWORD);
+  for (let i = 0; i < 5; i += 1) await submit(`wrong-password-${i}`);
+  await expect(dialog.getByRole('alert')).toHaveText('The current password is wrong.');
+  await submit(OWNER_PASSWORD);
+  await expect(dialog.getByRole('alert')).toHaveText('Too many failed attempts. Wait 15 minutes, then try again.');
+});

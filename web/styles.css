@@ -124,6 +124,7 @@ select {
 
 /* App shell */
 .app {
+  --outline-width: 240px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -152,6 +153,7 @@ select {
 }
 
 .statusbar {
+  flex-wrap: wrap; /* A narrow window gets a second row, never a hidden control. */
   padding: 2px 8px;
   min-height: 26px;
   border-top-width: 1px;
@@ -162,6 +164,18 @@ select {
 .statusbar select {
   padding: 1px 4px;
   font-size: 12px;
+}
+
+/* The message sits at the right end, also when it wraps to its own row. */
+#status-message {
+  margin-left: auto;
+}
+
+/* With the outline open, the save status fills the width under it, so the
+   counts and the language start 8px inside the editor pane. */
+:root:not([data-outline="closed"]) #save-status {
+  flex: none;
+  min-width: calc(var(--outline-width) - 6px); /* minus the bar gap */
 }
 
 .workspace {
@@ -376,7 +390,7 @@ button.danger {
    (NFR-2). */
 .outline-panel {
   contain: strict;
-  width: 240px;
+  width: var(--outline-width);
   flex: none;
   overflow-y: auto;
   background: var(--surface);

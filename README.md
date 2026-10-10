@@ -66,7 +66,7 @@ Remove `RESET_PASSWORD` after recovery. While it is set, every start resets the 
 
 - **No password at all:** with no `OWNER_PASSWORD` and no stored password, the app refuses to start and logs `No password configured. Set OWNER_PASSWORD.`
 - **Sessions** last 30 days per device. Sign out is in the Account menu.
-- **Wrong passwords:** after 5 failures from one address, or 30 in total, sign-in is blocked for up to 15 minutes.
+- **Wrong passwords:** after 5 failures from one address, or 30 in total, sign-in and password change are blocked for up to 15 minutes. A wrong current password in Change password counts as a failure.
 
 ## Install as a desktop app
 
@@ -117,7 +117,7 @@ Account > Settings sets the autosave delay: a whole number of seconds from 1 to 
 - No offline use. The browser must reach the server to save.
 - A redeploy causes a short downtime (the service has a volume). Text typed meanwhile saves when the server is back.
 - Two devices editing one document get a conflict warning, not live sync.
-- New documents are named "Untitled N". An empty "Untitled N" tab closes without a prompt and its document is deleted.
+- New documents are named "Untitled N" and start as Markdown. To change the type, use the language list in the status bar. An empty "Untitled N" tab closes without a prompt and its document is deleted.
 - Visual mode shows diagrams as images, so diagram text cannot be selected there. The Mermaid ELK layout is not included; diagrams use the dagre layout.
 - In PDF export, `http:` images do not load. `https:` images do.
 - Notion sync is not built yet.

@@ -86,11 +86,26 @@ test('Save mine as a new document creates a conflict copy and reloads the origin
   const copyTab = page.getByRole('tab', { name: 'Untitled 1 (conflict copy)' });
   await expect(copyTab).toHaveAttribute('aria-selected', 'true');
   await expect(editor(page)).toHaveText('mine more');
+  await expect(editor(page)).toHaveAttribute('data-language', 'markdown');
   const copy = (await (await api.get('/api/documents')).json()).find((doc) => doc.name === 'Untitled 1 (conflict copy)');
   expect((await serverDoc(api, copy.id)).content).toBe('mine more');
+  expect(copy.language).toBe('markdown');
   await page.getByRole('tab', { name: 'Untitled 1', exact: true }).click();
   await expect(editor(page)).toHaveText('theirs');
   await expect(status(page)).toHaveText('Saved');
+});
+
+test('a conflict copy of a named document keeps its detected language', async ({ page, api }) => {
+  const res = await api.post('/api/documents?name=notes.py', { data: 'x = 1', headers: { 'Content-Type': 'text/plain' } });
+  const { id } = await res.json();
+  await login(page);
+  await page.evaluate((list) => localStorage.setItem('pn.openTabs.v1', JSON.stringify({ ids: list, activeId: list[0] })), [id]);
+  await page.reload();
+  await expect(editor(page)).toHaveAttribute('data-language', 'python');
+  await editUntilConflict(page, api, id);
+  await conflictDialog(page).getByRole('button', { name: 'Save mine as a new document' }).click();
+  await expect(page.getByRole('tab', { name: 'notes.py (conflict copy)' })).toHaveAttribute('aria-selected', 'true');
+  await expect(editor(page)).toHaveAttribute('data-language', 'python');
 });
 
 test('after a delete elsewhere, Save mine as a new document keeps my text', async ({ page, api }) => {
@@ -105,8 +120,10 @@ test('after a delete elsewhere, Save mine as a new document keeps my text', asyn
   await expect(page.getByRole('tab')).toHaveCount(1);
   await expect(page.getByRole('tab', { name: 'Untitled 1' })).toHaveAttribute('aria-selected', 'true');
   await expect(editor(page)).toHaveText('mine more');
+  await expect(editor(page)).toHaveAttribute('data-language', 'markdown');
   const docs = await (await api.get('/api/documents')).json();
   expect(docs.map((doc) => doc.name)).toEqual(['Untitled 1']);
+  expect(docs[0].language).toBe('markdown');
   expect((await serverDoc(api, docs[0].id)).content).toBe('mine more');
 });
 

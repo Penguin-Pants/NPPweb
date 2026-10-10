@@ -28,7 +28,11 @@ export async function documentRoutes(app, { db, clock }) {
       name = normalizeName(request.query.name);
       if (name === null) return reply.code(400).send({ error: 'invalid_name' });
     }
-    return reply.code(201).send(createDocument(db, { name, content, now: clock() }));
+    const { language } = request.query;
+    if (language !== undefined && !LANGUAGES.includes(language)) {
+      return reply.code(400).send({ error: 'invalid_language' });
+    }
+    return reply.code(201).send(createDocument(db, { name, content, language, now: clock() }));
   });
 
   app.get('/api/documents/:id', async (request, reply) => {

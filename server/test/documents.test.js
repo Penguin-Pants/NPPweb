@@ -60,8 +60,24 @@ test('create stores the body and an optional trimmed name', async () => {
   const res = await create('hello\nworld', withName('  notes.md  '));
   assert.equal(res.statusCode, 201);
   assert.equal(res.json().name, 'notes.md');
+  assert.equal(res.json().language, null);
   const doc = (await get(res.json().id)).json();
   assert.deepEqual(doc, { ...res.json(), content: 'hello\nworld' });
+});
+
+test('create stores an optional language and rejects an unknown one', async () => {
+  const res = await create('', '?language=markdown');
+  assert.equal(res.statusCode, 201);
+  assert.equal(res.json().name, 'Untitled 1');
+  assert.equal(res.json().language, 'markdown');
+  assert.equal((await get(res.json().id)).json().language, 'markdown');
+  assert.equal((await create('', `${withName('a.txt')}&language=python`)).json().language, 'python');
+  for (const query of ['?language=rust', '?language=', '?language=plain&language=sql']) {
+    const bad = await create('', query);
+    assert.equal(bad.statusCode, 400, query);
+    assert.deepEqual(bad.json(), { error: 'invalid_language' });
+  }
+  assert.equal((await list()).length, 2);
 });
 
 test('an empty body creates an empty document', async () => {
