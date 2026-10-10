@@ -1,4 +1,4 @@
-# Build Plan: Private Web Notepad
+# Build Plan: Margin
 
 **Status:** Built through P7 on branch `build/v1` (2026-10-09). 25 of 27 tasks are Done. T04 and T26 are blocked on the owner: they need the Railway deploy and the checks in section 9.1. No open plan decisions. U1 and U2 are resolved (D12 and D13). Proposed out-of-scope fixes are in `PLAN_REVIEW.md` section 11.
 **Date:** 2026-10-09
@@ -108,6 +108,7 @@ SQLite file via node:sqlite
 ├─ railway.json            build, start and healthcheck config
 ├─ playwright.config.js
 ├─ README.md
+├─ margin-brand/           approved icons and BRAND.md, the source for web/icons/
 ├─ scripts/
 │  └─ build-web.js         esbuild bundle + copy HTML/CSS to dist/web
 ├─ server/
@@ -136,7 +137,7 @@ SQLite file via node:sqlite
 │  ├─ login.html
 │  ├─ styles.css
 │  ├─ manifest.webmanifest  install-as-app metadata (T27)
-│  ├─ icons/               icon-192.png, icon-512.png, icon-maskable-512.png (T27)
+│  ├─ icons/               favicon.ico, icon.svg, apple-touch-icon.png, icon-192.png, icon-512.png, icon-maskable-512.png (T27, copies from margin-brand/)
 │  ├─ src/
 │  │  ├─ theme-init.js     sets data-theme before first paint
 │  │  ├─ login.js
@@ -536,9 +537,9 @@ Sizes: **S** = one module plus tests. **M** = several files or a UI flow plus E2
 - **Objective:** Let Chrome and Edge install the app in its own window, where Ctrl+N and Ctrl+W reach the page.
 - **Requirements:** EDT-8, EDT-7 (enabler).
 - **Implementation:**
-  - `web/manifest.webmanifest`: `name` and `short_name` ("Notepad" until branding is decided), `start_url: "/"`, `scope: "/"`, `display: "standalone"`, `background_color` and `theme_color` from the dark theme, icons 192 px, 512 px and 512 px maskable.
-  - `web/icons/`: simple original PNG icons (no third-party logos).
-  - `<link rel="manifest">` and `<meta name="theme-color">` in `index.html` and `login.html`. Build script copies the manifest and icons.
+  - `web/manifest.webmanifest`: `name` and `short_name` ("Margin", `margin-brand/BRAND.md`), `start_url: "/"`, `scope: "/"`, `display: "standalone"`, `background_color` and `theme_color` from the dark theme, icons 192 px, 512 px and 512 px maskable.
+  - `web/icons/`: copies of the approved icons in `margin-brand/` (no third-party logos).
+  - `<link rel="manifest">`, `<meta name="theme-color">` and the favicon, SVG icon and Apple touch icon links in `index.html` and `login.html`. Build script copies the manifest and icons.
   - Add the routes to the public allowlist (TD-19).
   - Check Chrome DevTools > Application > Manifest on the deployed URL. If Chrome reports that a service worker is required, add `web/src/sw.js` with a fetch handler that only calls `fetch(event.request)` (no cache). Register it from `main.js` and `login.js`. Record the result in section 9 notes.
 - **Dependencies:** T14.

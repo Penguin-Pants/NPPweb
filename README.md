@@ -1,4 +1,4 @@
-# NPPweb
+# Margin
 
 A private, single-owner text editor in the browser, inspired by Notepad++. Documents live on the server, so they are the same on every device. One password protects the app. It runs as one service on Railway with a persistent volume.
 
@@ -125,6 +125,10 @@ Account > Settings sets the autosave delay: a whole number of seconds from 1 to 
 ## Backups
 
 Export saves one document at a time. Use Railway volume backups to protect `/data/notepad.db`.
+
+## Brand
+
+`margin-brand/` holds the approved Margin icons and the brand guide (`BRAND.md`). `web/icons/` holds copies of the icons that the app serves. `web/test/brand.test.js` fails when a copy is different from its source or when `web/icons/` holds an icon that no page or manifest uses. To change an icon, change it in `margin-brand/` first. Then copy it to `web/icons/`.
 
 ## Third-party notices
 

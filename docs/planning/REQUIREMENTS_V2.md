@@ -1,4 +1,4 @@
-# NPPweb v2 Markdown Features: Requirements
+# Margin v2 Markdown Features: Requirements
 
 **Status:** Decision-complete. Open questions: none. Build in progress (section 9 holds phase status).
 **Date:** 2026-10-10
@@ -9,9 +9,9 @@
 
 ## 1. Summary
 
-- **Problem:** NPPweb edits Markdown as plain source only. The owner wants to write Markdown visually, see its structure, export it, open local files fast and copy documents to Notion.
-- **User:** The one owner of the private NPPweb instance (ACC-1).
-- **Outcome:** NPPweb keeps all v1 behavior and adds, for Markdown documents, a visual editing mode with one toggle, an outline panel, a formatting toolbar, highlighted code blocks and Mermaid diagrams. All documents get live counts, export, drag and drop open, a configurable autosave delay and opt-in push to Notion.
+- **Problem:** Margin edits Markdown as plain source only. The owner wants to write Markdown visually, see its structure, export it, open local files fast and copy documents to Notion.
+- **User:** The one owner of the private Margin instance (ACC-1).
+- **Outcome:** Margin keeps all v1 behavior and adds, for Markdown documents, a visual editing mode with one toggle, an outline panel, a formatting toolbar, highlighted code blocks and Mermaid diagrams. All documents get live counts, export, drag and drop open, a configurable autosave delay and opt-in push to Notion.
 
 ---
 
@@ -21,7 +21,7 @@ Numbering continues from v1 (D1 to D13).
 
 | # | Topic | Decision | Rejected |
 |---|-------|----------|----------|
-| D14 | Product | Extend NPPweb. Keep server storage, login, tabs, conflict handling and the 11 languages. | Markdown-first rework, new separate app |
+| D14 | Product | Extend Margin. Keep server storage, login, tabs, conflict handling and the 11 languages. | Markdown-first rework, new separate app |
 | D15 | Scope of visual mode and outline | Markdown documents only. Other types keep the code editor. | Markdown and HTML, all documents |
 | D16 | Autosave trigger | Save N seconds after the last edit. During nonstop editing, save at least every N seconds. Default N = 5. | Pause only, fixed timer only |
 | D17 | Autosave setting storage | On the server. One value for all devices. | Per browser |
@@ -29,7 +29,7 @@ Numbering continues from v1 (D1 to D13).
 | D19 | Layout | Open documents stay as tabs at the top. The left panel shows the outline. The Documents list moves to a top-bar dropdown. | Shared left panel, two left columns, list on the right, modal dialog |
 | D20 | Mode toggle | One mode for all Markdown tabs. Visual first. The choice is remembered. | Raw first, per document |
 | D21 | Counts | Words and characters. A toggle switches between syntax excluded and syntax included. Selection counts too. | Second character count without spaces |
-| D22 | Notion direction | Push only. NPPweb is the source of truth. | Push plus import, two-way sync |
+| D22 | Notion direction | Push only. Margin is the source of truth. | Push plus import, two-way sync |
 | D23 | Notion trigger | Opt-in per document. Each successful save pushes. | Manual button, all documents |
 | D24 | Notion location | Child pages under one parent page. | Database rows, Private top level |
 | D25 | Notion token | Railway variable. | In-app settings screen |
@@ -142,7 +142,7 @@ Numbering continues from v1 (D1 to D13).
 
 | ID | Requirement | Done when |
 |----|-------------|-----------|
-| NOT-1 | Sync is push only. NPPweb is the source of truth. The next push overwrites edits made in Notion. | An edit made in Notion is gone after the next push. |
+| NOT-1 | Sync is push only. Margin is the source of truth. The next push overwrites edits made in Notion. | An edit made in Notion is gone after the next push. |
 | NOT-2 | Sync is off for each document by default. The owner turns it on or off per document. All document types can sync. | New documents are not synced. Any type can be turned on. |
 | NOT-3 | Turning sync on creates a child page under the configured parent page. Its title is the document name. Its content is the saved document content. | The page shows in Notion under the parent. |
 | NOT-4 | After each successful save of a synced document, the server pushes the saved content to its Notion page. | A saved edit shows in Notion. |
@@ -150,7 +150,7 @@ Numbering continues from v1 (D1 to D13).
 | NOT-6 | Rename updates the Notion page title. Delete moves the Notion page to Notion trash. Sync off stops pushes and leaves the page as it is. A rename or language override that changes the resolved language also pushes the content again in the new form (NOT-7). | Each action has the stated effect in Notion. Renaming `notes.md` to `notes.py` turns the Notion page into a Python code block. |
 | NOT-7 | Markdown documents push as Markdown. Other types push as one code block with the matching Notion language. `.txt` uses plain text. | A `.py` document shows as a Python code block. |
 | NOT-8 | Each document has a sync status: off, synced, pending or error. The status bar shows it for the active tab. The Documents dropdown shows it per row. A click on the status bar item offers: turn sync on or off, open in Notion and retry now. | Each status shows in its case. |
-| NOT-9 | At most one push runs per document. Saves during a push cause one more push with the newest content. A push never blocks or delays the NPPweb save. | Ten fast saves never have more than one push in flight. The last push holds the final content. |
+| NOT-9 | At most one push runs per document. Saves during a push cause one more push with the newest content. A push never blocks or delays the Margin save. | Ten fast saves never have more than one push in flight. The last push holds the final content. |
 | NOT-10 | Pending Notion jobs (content push, title update and archive) are stored in the database. They survive a server restart and run after start. | A restart during a pending push ends in synced. A restart during a pending archive still moves the page to Notion trash. |
 | NOT-11 | Turning sync on again reuses the stored page if it exists and is not in trash. Else it creates a new page. Either way, the current saved content and title push at once. | No duplicate page appears after off and on. Edits and renames made while sync was off show in Notion right after sync is turned on. |
 | NOT-12 | Without the Railway variables, the sync control is disabled and names the missing variables. | The control shows the note. |
@@ -186,13 +186,13 @@ Numbering continues from v1 (EDGE-1 to EDGE-9).
 | EDGE-13 | A dropped file is empty. | Create an empty document with the file name. |
 | EDGE-14 | A drop happens while the server is unreachable or the session has expired. | Create nothing. Show a message. The user drops again later. |
 | EDGE-15 | A Mermaid block has a syntax error. | Show the error text in place of the diagram. Keep the source. Exports show the source as a code block. |
-| EDGE-16 | The Notion token is missing, wrong or expired. | Pause all pushes. Status error "Notion token rejected". NPPweb saves continue. |
+| EDGE-16 | The Notion token is missing, wrong or expired. | Pause all pushes. Status error "Notion token rejected". Margin saves continue. |
 | EDGE-17 | The Notion page was deleted or moved to trash in Notion. | The next push creates a new page and shows a message. |
 | EDGE-18 | The parent page is not found or not shared with the integration. | Turning sync on fails with a message that names the cause. |
 | EDGE-19 | Notion returns a rate limit error. | Wait for `Retry-After`, then retry. Status stays pending. |
 | EDGE-20 | Content is too large for Notion. | Status error "Too large for Notion". The Notion page keeps its last pushed content. |
 | EDGE-21 | Notion is down or the network fails during a content push, title update or archive. | Retry after 2, 4, 8, 16 and 30 seconds, then every 30 seconds, as autosave does (`web/src/autosave.js:6`). These writes set a full state, so a repeat gives the same result. |
-| EDGE-22 | A synced document is deleted while Notion is unreachable. | The NPPweb delete completes. The archive job retries in the background and survives a restart (NOT-10). |
+| EDGE-22 | A synced document is deleted while Notion is unreachable. | The Margin delete completes. The archive job retries in the background and survives a restart (NOT-10). |
 | EDGE-23 | Notion changes some formatting on push. | Accepted. Headings 5 and 6 become heading 4. Mermaid shows as a code block. Raw HTML can change. |
 | EDGE-24 | The user cancels the print dialog. | Nothing happens. No error. |
 | EDGE-25 | An image cannot load (relative path, `http:` URL or broken link). | Show its alt text in a placeholder box. No Load button for relative or `http:` URLs. |

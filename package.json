@@ -1,8 +1,8 @@
 {
-  "name": "nppweb",
+  "name": "margin",
   "version": "0.0.0",
   "private": true,
-  "description": "Private, single-owner web notepad that runs on Railway.",
+  "description": "Private, single-owner text and Markdown workspace that runs on Railway.",
   "license": "SEE LICENSE IN LICENSE",
   "type": "module",
   "engines": {

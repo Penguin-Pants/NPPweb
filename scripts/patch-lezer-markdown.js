@@ -11,7 +11,9 @@
 import { readFile, writeFile } from 'node:fs/promises';
 
 const VERSION = '1.8.0';
-const MARK = '// NPPweb patch: reuse balanced groups of blocks whole.';
+const MARK = '// Margin patch: reuse balanced groups of blocks whole.';
+// Installs patched before the rename to Margin carry this mark.
+const OLD_MARK = '// NPPweb patch: reuse balanced groups of blocks whole.';
 const dir = new URL('../node_modules/@lezer/markdown/', import.meta.url);
 
 /** The edits, as [before, after] pairs. `common` is the module prefix of the build. */
@@ -96,7 +98,7 @@ const builds = [
 for (const [file, common, extra] of builds) {
   const url = new URL(file, dir);
   let source = await readFile(url, 'utf8');
-  if (source.includes(MARK)) continue;
+  if (source.includes(MARK) || source.includes(OLD_MARK)) continue;
   for (const [before, after] of [...extra, ...edits(common)]) {
     const at = source.indexOf(before);
     if (at < 0 || source.indexOf(before, at + 1) >= 0) throw new Error(`@lezer/markdown ${file}: the patch does not fit. Expected once: ${before.trim().split('\n')[0]}`);

@@ -38,7 +38,8 @@ test('build writes each entry bundle with a sourcemap and copies the static file
 });
 
 test('build copies the HTML pages and stylesheet unchanged', async () => {
-  for (const name of ['index.html', 'login.html', 'styles.css', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png']) {
+  const icons = (await readdir(join(rootDir, 'web', 'icons'))).map((name) => `icons/${name}`);
+  for (const name of ['index.html', 'login.html', 'styles.css', 'manifest.webmanifest', ...icons]) {
     assert.deepEqual(await readFile(join(outDir, name)), await readFile(join(rootDir, 'web', name)), name);
   }
 });

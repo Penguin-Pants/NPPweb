@@ -1,4 +1,4 @@
-# NPPweb v3 Workspaces: Requirements
+# Margin v3 Workspaces: Requirements
 
 **Status:** Decision-complete. Open questions: none. M17 (status bar and new-document defaults, section 3.6) is built in PR #6. The workspace milestones (M18 to M21) are not built.
 **Date:** 2026-10-10
@@ -11,7 +11,7 @@
 ## 1. Summary
 
 - **Problem:** All notes share one Documents list, one tab set and one "Untitled N" sequence. Work notes and personal notes mix.
-- **User:** The one owner of the private NPPweb instance (ACC-1).
+- **User:** The one owner of the private Margin instance (ACC-1).
 - **Outcome:** Two fixed workspaces, Personal and Work. A top-bar switch toggles them. Each workspace shows only its own documents and tabs and has its own color. Personal keeps today's documents, tabs and look.
 - **Also in this version (built first, PR #6):** The counts and the language list move to the left edge of the editor pane in the status bar. New documents start as Markdown. Section 3.6 has the requirements.
 - **Out of this version:** The Claude integration from the original request. It is deferred in full (section 8).
@@ -63,7 +63,7 @@ Numbering continues from v2 (D14 to D38). D39 to D52 are owner decisions for wor
 |----|-------------|-----------|
 | WS-1 | There are exactly two workspaces: Personal and Work. No UI or API path creates, renames or deletes a workspace. | No route or control changes the set of workspaces. |
 | WS-2 | One switch in the top bar toggles the active workspace. It shows the active workspace name. It has an accessible name and works from the keyboard. This extends NFR-5. | A keyboard-only run switches the workspace. |
-| WS-3 | The window title starts with the active workspace name: "Personal - Notepad" or "Work - Notepad". Today the title is "Notepad" (`web/index.html:6`). | The title changes on each switch, also in the installed app window. |
+| WS-3 | The window title starts with the active workspace name: "Personal - Margin" or "Work - Margin". Today the title is "Margin" (`web/index.html:6`). | The title changes on each switch, also in the installed app window. |
 | WS-4 | Each browser stores its active workspace, like the theme (EDT-6). A first visit opens Personal. Blocked storage or an unknown stored value also opens Personal. | After a reload, each device opens its own last workspace. |
 | WS-5 | The server lists, reads, saves, renames and deletes only the documents of the requested workspace. A request for a document of the other workspace gets "not found". | An API test that sends a Work document ID in a Personal request gets 404. The Personal list holds no Work document. |
 | WS-6 | The Documents list, "Untitled N" numbering and the drop name-clash check (DRP-2) are per workspace. New documents, dropped files and "Save mine as a new document" (CON-1, EDGE-1) go to the active workspace. | "Untitled 1" can exist in both workspaces. Dropping `notes.md` in Work while only Personal has `notes.md` gives `notes.md`, not `notes (2).md`. |
@@ -181,7 +181,7 @@ Discovery stopped before a decision. Use this section as the start point when th
   - Apps: claude.ai, Claude Desktop and Claude Code.
   - Finding notes: list plus text search, for Claude only.
 - **Not decided:**
-  - Sign-in method: an OAuth authorization server in NPPweb (the owner enters the password once and approves) or a static access token.
+  - Sign-in method: an OAuth authorization server in Margin (the owner enters the password once and approves) or a static access token.
   - Eight proposed defaults: both switches start off. A workspace with access off is invisible to Claude. Four tools (list, search, read, create). Created notes follow the name rule, the 1 MB limit and DRP-2 suffixes. Settings lists connected Claude apps with a Revoke button. A password change revokes all Claude access. A move into a workspace with access off hides the note at once. The Notion rule became D51.
 - **Facts verified on 2026-10-10:**
   - claude.ai and Claude Desktop custom connectors sign in by OAuth. Password or cookie login is not a supported type. Requirements include a 401 with `WWW-Authenticate: Bearer resource_metadata=...`, RFC 9728 metadata, PKCE with S256 and the redirect `https://claude.ai/api/mcp/auth_callback`. Source: https://claude.com/docs/connectors/building/authentication

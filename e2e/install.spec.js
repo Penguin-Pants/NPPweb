@@ -9,7 +9,7 @@ test('the manifest and icons load without a session', async ({ request, server }
   expect(manifest.status()).toBe(200);
   expect(manifest.headers()['content-type']).toMatch(/^application\/manifest\+json/);
   const body = await manifest.json();
-  expect(body).toMatchObject({ name: 'Notepad', short_name: 'Notepad', start_url: '/', scope: '/', display: 'standalone' });
+  expect(body).toMatchObject({ name: 'Margin', short_name: 'Margin', start_url: '/', scope: '/', display: 'standalone' });
   expect(body.icons.map((icon) => `${icon.sizes} ${icon.purpose ?? 'any'}`)).toEqual([
     '192x192 any',
     '512x512 any',
@@ -29,6 +29,22 @@ test('the login and editor pages link the manifest and theme color', async ({ pa
   await login(page);
   await expect(page.locator('link[rel="manifest"]')).toHaveAttribute('href', '/manifest.webmanifest');
   await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute('content', '#1e1f22');
+});
+
+test('the login and editor pages link the Margin icons, and each loads without a session', async ({ page, request, server }) => {
+  const icons = () =>
+    page.locator('link[rel="icon"], link[rel="apple-touch-icon"]').evaluateAll((links) => links.map((link) => `${link.rel} ${link.getAttribute('href')}`));
+  const expected = ['icon /icons/favicon.ico', 'icon /icons/icon.svg', 'apple-touch-icon /icons/apple-touch-icon.png'];
+  await page.goto('/login');
+  await expect(page).toHaveTitle('Sign in - Margin');
+  expect(await icons()).toEqual(expected);
+  await login(page);
+  expect(await icons()).toEqual(expected);
+  for (const href of expected.map((icon) => icon.split(' ')[1])) {
+    const res = await request.get(`${server.url}${href}`);
+    expect(res.status(), href).toBe(200);
+    expect(res.headers()['content-type'], href).toMatch(/^image\//);
+  }
 });
 
 // The headless shell does not run the install check, and an incognito-like
