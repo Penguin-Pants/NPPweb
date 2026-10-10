@@ -588,3 +588,65 @@ button.danger {
   padding: 0 6px;
   font-size: 12px;
 }
+
+/* Outline (OUT-1, OUT-4, OUT-6) */
+.outline-message {
+  margin: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.outline-message[hidden],
+.outline-list[hidden] {
+  display: none;
+}
+
+.outline-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.outline-entry {
+  display: block;
+  width: 100%;
+  border: 0;
+  background: none;
+  text-align: left;
+  padding: 2px 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.outline-entry:hover {
+  background: var(--surface-2);
+}
+
+.outline-entry[aria-current="location"] {
+  color: var(--accent);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.outline-l1 { font-weight: 600; }
+.outline-l2 { padding-left: 18px; }
+.outline-l3 { padding-left: 30px; }
+.outline-l4 { padding-left: 42px; }
+.outline-l5 { padding-left: 54px; }
+.outline-l6 { padding-left: 66px; }
+
+/* Counts (CNT-1 to CNT-4) */
+.statusbar button {
+  padding: 0 6px;
+  font-size: 12px;
+}
+
+#count-syntax[aria-pressed="true"] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+#selection-counts[hidden],
+#count-syntax[hidden] {
+  display: none;
+}

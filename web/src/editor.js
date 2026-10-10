@@ -41,10 +41,10 @@ const modeExtension = (mode) => (mode === 'visual' ? visualMode : []);
  * @param {object} options
  * @param {'dark' | 'light'} options.theme
  * @param {'visual' | 'raw'} options.markdownMode
- * @param {(update: import('@codemirror/view').ViewUpdate) => void} options.onChange Runs on every document change.
+ * @param {(update: import('@codemirror/view').ViewUpdate) => void} options.onUpdate Runs on every view update.
  * @param {() => void} options.onTooLarge Runs when a change is rejected by the 1 MB limit.
  */
-export function createEditor(parent, { theme, markdownMode, onChange, onTooLarge }) {
+export function createEditor(parent, { theme, markdownMode, onUpdate, onTooLarge }) {
   const themeSlot = new Compartment();
   const languageSlot = new Compartment();
   const modeSlot = new Compartment();
@@ -65,9 +65,7 @@ export function createEditor(parent, { theme, markdownMode, onChange, onTooLarge
     themeSlot.of(themeExtension(currentTheme)),
     modeSlot.of(modeExtension(currentMode)),
     languageSlot.of(language),
-    EditorView.updateListener.of((update) => {
-      if (update.docChanged) onChange(update);
-    }),
+    EditorView.updateListener.of(onUpdate),
   ];
 
   // Shown when no tab owns the view (while a tab loads, or with no tab open).

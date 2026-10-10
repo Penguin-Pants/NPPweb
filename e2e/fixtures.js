@@ -64,8 +64,10 @@ export const test = base.extend({
 });
 
 /**
- * Signs in through the login page and waits for the editor page and its
- * startup settings read, so the autosave delay is in force before typing.
+ * Signs in through the login page and waits until the editor page has
+ * started: its settings read is done, so the autosave delay is in force, and
+ * its tab list is stored and shown, so a test can write pn.openTabs.v1
+ * without the startup overwriting it (tabs.js boot).
  * @param {import('@playwright/test').Page} page
  */
 export async function login(page, password = OWNER_PASSWORD) {
@@ -75,6 +77,7 @@ export async function login(page, password = OWNER_PASSWORD) {
   await page.getByRole('button', { name: 'Sign in' }).click();
   await page.waitForURL((url) => url.pathname === '/');
   await settings;
+  await page.locator('#empty-state:not([hidden]), .tab').first().waitFor();
 }
 
 async function setAutosaveSeconds(url, autosaveSeconds) {

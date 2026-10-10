@@ -1,4 +1,6 @@
 // Editor app entry: wires the modules together.
+import { ensureSyntaxTree, syntaxTree } from '@codemirror/language';
+import { EditorView } from '@codemirror/view';
 import { api } from './api.js';
 import { createAutosave } from './autosave.js';
 import { setupConflictHandling } from './conflict.js';
@@ -8,8 +10,10 @@ import { createDropdown } from './dropdown.js';
 import { createEditor } from './editor.js';
 import { emit, on } from './events.js';
 import { LANGUAGES } from './languages.js';
-import { createMarkdownMode } from './markdown-mode.js';
+import { createCounter, headings, renderedText } from './markdown-text.js';
 import { createToolbar } from './markdown-toolbar.js';
+import { createOutline, formatCounts } from './outline.js';
+import { createStoredChoice } from './stored-choice.js';
 import { createOutlinePanel } from './outline-panel.js';
 import { openFind, openReplace } from './search-panel.js';
 import { modName, setupShortcuts } from './shortcuts.js';
@@ -127,8 +131,10 @@ $('change-password').addEventListener('click', async () => {
 /** @type {ReturnType<typeof createTabs>} */
 let tabs;
 // Markdown mode (MDV-1, MDV-2): one mode for every Markdown tab, per browser.
-const markdownMode = createMarkdownMode({
+const markdownMode = createStoredChoice({
   getStorage: () => localStorage,
+  key: 'pn.markdownMode',
+  values: ['visual', 'raw'],
   onChange: (next) => {
     editor.setMarkdownMode(next);
     renderMarkdownUi();
@@ -137,9 +143,14 @@ const markdownMode = createMarkdownMode({
 const editor = createEditor($('editor'), {
   theme: theme.get(),
   markdownMode: markdownMode.get(),
-  onChange: () => {
-    const id = tabs.shownId();
-    if (id) autosave.edited(id);
+  onUpdate: (update) => {
+    if (update.docChanged) {
+      const id = tabs.shownId();
+      if (id) autosave.edited(id);
+    }
+    if (update.selectionSet) outline.setActive(update.state.selection.main.head);
+    if (update.docChanged || syntaxTree(update.startState) !== syntaxTree(update.state)) scheduleTotals();
+    if (update.docChanged || update.selectionSet) scheduleSelection();
   },
   // DOC-8, EDGE-3: the edit is not applied, so the content stays unchanged.
   onTooLarge: () => showMessage('Document limit is 1 MB. The change was not applied.'),
@@ -163,6 +174,10 @@ tabs = createTabs({
     renderSaveStatus();
     renderLanguage();
     renderMarkdownUi();
+    // The tab paints first; outline and counts follow 100 ms later.
+    outline.show(undefined);
+    scheduleTotals();
+    scheduleSelection();
   },
   showMessage,
 });
@@ -222,6 +237,90 @@ modeButton.addEventListener('click', () => {
   markdownMode.toggle();
   if (tabs.shownId()) editor.focus();
 });
+
+// Outline (OUT-1 to OUT-6) and counts (CNT-1 to CNT-7) of the shown tab. They
+// read the editor's own syntax tree, which parses in the background, and
+// refresh 100 ms after the last change. Totals and the selection refresh apart,
+// so moving the cursor never recounts a long document.
+const outline = createOutline({
+  element: $('outline-body'),
+  onSelect: (pos) => {
+    editor.view.dispatch({ selection: { anchor: pos }, effects: EditorView.scrollIntoView(pos, { y: 'start' }) });
+    editor.focus();
+  },
+});
+const countButton = $('count-syntax');
+const countSyntax = createStoredChoice({
+  getStorage: () => localStorage,
+  key: 'pn.countSyntax',
+  values: ['excluded', 'included'],
+  onChange: () => {
+    refreshTotals();
+    refreshSelection();
+  },
+});
+countButton.addEventListener('click', () => countSyntax.toggle());
+const countTotals = createCounter();
+const countSelection = createCounter();
+
+/** The shown tab's state, and its Markdown tree once parsed to the end. */
+function shownInfo() {
+  const tab = tabs.active();
+  if (!tab || tabs.shownId() !== tab.id) return null;
+  const { state } = editor.view;
+  const markdown = tabs.languageOf(tab.id) === 'markdown';
+  const tree = markdown ? ensureSyntaxTree(state, state.doc.length, 40) : null;
+  return { state, markdown, tree, exclude: markdown && countSyntax.get() === 'excluded' };
+}
+
+let totalsTimer;
+let selectionTimer;
+function scheduleTotals() {
+  clearTimeout(totalsTimer);
+  totalsTimer = setTimeout(refreshTotals, 100);
+}
+function scheduleSelection() {
+  clearTimeout(selectionTimer);
+  selectionTimer = setTimeout(refreshSelection, 100);
+}
+
+function refreshTotals() {
+  const info = shownInfo();
+  countButton.hidden = !info?.markdown; // CNT-4
+  countButton.setAttribute('aria-pressed', String(countSyntax.get() === 'included'));
+  if (!info) {
+    outline.show(undefined);
+    $('counts').textContent = '';
+    return;
+  }
+  if (info.markdown && !info.tree) {
+    scheduleTotals(); // Still parsing: the next try continues the parse.
+    return;
+  }
+  const text = info.state.doc.toString();
+  outline.show(info.markdown ? headings(text, info.tree) : null);
+  outline.setActive(info.state.selection.main.head);
+  $('counts').textContent = formatCounts(countTotals(info.exclude ? renderedText(text, info.tree) : text));
+}
+
+function refreshSelection() {
+  const info = shownInfo();
+  const label = $('selection-counts');
+  const range = info?.state.selection.main;
+  if (!info || range.empty) {
+    label.hidden = true;
+    return;
+  }
+  if (info.exclude && !info.tree) {
+    scheduleSelection();
+    return;
+  }
+  const part = info.exclude
+    ? renderedText(info.state.doc.toString(), info.tree, range.from, range.to)
+    : info.state.sliceDoc(range.from, range.to);
+  label.hidden = false;
+  label.textContent = `Selection: ${formatCounts(countSelection(part))}`;
+}
 
 // CON-1 and EDGE-1: a 412 or 404 save opens a dialog with the choices.
 setupConflictHandling({ api, autosave, tabs });

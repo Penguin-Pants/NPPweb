@@ -331,6 +331,13 @@ Two-pass review of each V2 phase diff (`REQUIREMENTS_V2.md` section 9). Same met
 | M11 | 15 | The MDV-10 shortcut test did not run in Firefox and WebKit. | Confirmed | Tagged `@smoke`. Those browsers are not installed here (section 13). |
 | M11 | 16 | Link targets kept angle brackets, escapes and entities. E-mail autolinks had no mailto:. | Confirmed | `linkTarget` normalizes them. Unit tests added. |
 | M11 | 17 | Test gaps: no http: image test, a scroll test that passed at the end of the document, no html, css, ts or yaml fence tests. Dead branches (`Autolink` in LINK_PARENTS, a CodeMark check) and FENCE twice. | Confirmed | Tests added. Dead code removed. FENCE lives in `markdown-syntax.js`. Widget DOM and the click handler stay covered by E2E tests, as for other DOM wiring. |
+| M12 | 1 | A fresh Markdown parse of 1 MB takes 485 ms here, too slow for CNT-7 (300 ms). | Confirmed (design note) | Outline and counts read the editor's own incremental syntax tree. They retry every 100 ms while it still parses. |
+| M12 | 2 | Counting on tab open blocked the first paint (perf open time 424 ms against about 220 ms). | Confirmed | Fixed before commit: outline and counts follow 100 ms after the tab shows. |
+| M12 | 3 | Each pause in typing recounted the whole document. Perf typing was about 600 ms slower than M11. | Confirmed | Fixed before commit: `createCounter` caches counts per line. Words never span a line break, so the sum equals the full count. A warm recount of 1 MB takes 12 ms against 86 ms. Then 4 alternating runs gave 2497 to 2787 ms against 2402 to 2690 ms for M11. |
+| M12 | 4 | E2E helpers wrote `pn.openTabs.v1` while the app's startup could still overwrite it (`tabs.js` boot), so a test could open no tabs. | Confirmed | Pre-existing race, seen once under load. `login()` in the fixtures now waits until the startup has shown tabs or the empty state. |
+| M12 | 5 | Only common named entities and numeric entities become characters (EXP-3). Others stay as written. | Risk | The full HTML entity list is large. The common ones cover typical text. |
+| M12 | 6 | A [text] with no URL or definition keeps its brackets in plain text, and definition lines ([r]: url) stay. | Rejected | Same as Visual mode (CNT-6). EXP-3 does not name definition lines. |
+| M12 | 7 | `markdown-mode.js` and a counts mode would have been two copies of the same stored choice. | Confirmed | One `stored-choice.js` serves both (AGENTS.md Edits rule 6). |
 
 ## 13. V2 validation environment
 
