@@ -218,7 +218,7 @@ All `/api/*` routes except `POST /api/login` need a session. All responses from 
 | `POST /api/login` | JSON `{password}` | 204 + `Set-Cookie` | 401 `invalid_credentials`, 429 `rate_limited` + `Retry-After` |
 | `POST /api/logout` | none | 204, cookie cleared | 401 |
 | `GET /api/session` | none | 200 `{authenticated:true}` | 401 |
-| `POST /api/password` | JSON `{currentPassword,newPassword}` | 204 | 400 `wrong_current_password`, 400 `weak_password` |
+| `POST /api/password` | JSON `{currentPassword,newPassword}` | 204 | 400 `wrong_current_password`, 400 `weak_password`, 429 `rate_limited` + `Retry-After` |
 | `GET /api/documents` | none | 200 `[{id,name,version,language,updatedAt}]`, newest first | 401 |
 | `POST /api/documents?name=<optional>` | `text/plain` body (may be empty) | 201 `{id,name,version,language,updatedAt}` | 400 `invalid_name`, 413 `too_large` |
 | `GET /api/documents/:id` | none | 200 `{id,name,content,version,language,updatedAt}` | 404 `not_found` |
@@ -267,7 +267,7 @@ All `/api/*` routes except `POST /api/login` need a session. All responses from 
 - Session cookie `pn_session`: 32 random bytes (base64url), `HttpOnly`, `SameSite=Lax`, `Path=/`, `Max-Age` 30 days, `Secure` when `NODE_ENV=production`. Lifetime is fixed at 30 days from sign-in.
 - Password change deletes all other sessions. Reset deletes all sessions.
 - Origin check: `POST`, `PUT`, `PATCH` and `DELETE` need an `Origin` header whose host equals the `Host` header. Otherwise 403 `bad_origin`.
-- Rate limit: failed logins only. 5 per client IP per 15 minutes. 30 globally per 15 minutes. Checked before password verification. A successful login clears that IP's bucket.
+- Rate limit: failed logins and wrong current passwords on `POST /api/password` share one limiter. 5 per client IP per 15 minutes. 30 globally per 15 minutes. Checked before password verification. A correct password on either route clears that IP's bucket.
 - Headers on every response: `Content-Security-Policy: default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`. In production also `Strict-Transport-Security: max-age=31536000`.
 - Logs never contain passwords, tokens or document content. Redact `cookie` and `authorization` headers.
 - Public routes: `GET /login`, login assets (`login.js`, `theme-init.js`, `styles.css`), `GET /manifest.webmanifest`, `GET /icons/*`, `GET /sw.js` (if present), `GET /healthz`, `POST /api/login`. Everything else needs a session.

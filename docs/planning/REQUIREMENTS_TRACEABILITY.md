@@ -40,7 +40,7 @@ No requirement is unmapped.
 | ACC-4 | REQ 3.1, D4 | Change-password screen; needs current password; in-app password wins; variable only seeds | T05, T06, T09, T14 | Old password fails and new one works, also after restart with `OWNER_PASSWORD` still set. | `password-route.test.js` restart case, `bootstrap.test.js` ignored-variable branch, `e2e/shell.spec.js`, T26 item 4 | Implemented |
 | ACC-5 | REQ 3.1, D4 | Reset variable restores the Railway password on start | T06, T26 | With `RESET_PASSWORD` set, a restart makes `OWNER_PASSWORD` work and the in-app password fail. | `bootstrap.test.js` reset branch, T26 item 5 | Implemented |
 | ACC-6 | REQ 3.1 | 30-day sessions per device; logout button | T07, T14 | Valid at 30 days minus 1 ms, invalid at 30 days plus 1 ms. Logout ends the session. | `auth.test.js` with injected clock, `e2e/shell.spec.js` | Implemented |
-| ACC-7 | REQ 3.1 | Failed logins are rate limited | T08, T10, T26 | 6th failure from one IP in 15 minutes gets 429. Global cap 30. | `rate-limit.test.js`, `e2e/login.spec.js`, T26 item 6 | Implemented |
+| ACC-7 | REQ 3.1 | Failed logins are rate limited | T08, T10, T26 | 6th failure from one IP in 15 minutes gets 429. Global cap 30. | `rate-limit.test.js`, `password-route.test.js`, `e2e/login.spec.js`, T26 item 6 | Implemented |
 | ACC-8 | REQ 3.1 | Refuse to start with no variable and no stored password | T06 | Exit 1 with "No password configured. Set OWNER_PASSWORD." | `bootstrap.test.js` refuse branch | Implemented |
 
 ## 3. Editor
