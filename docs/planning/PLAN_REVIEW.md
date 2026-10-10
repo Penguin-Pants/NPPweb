@@ -285,6 +285,8 @@ Not built. Each one needs a user decision.
 |---|------|----------|--------|
 | 1 | P1 review 11 | Count wrong current passwords on `POST /api/password` in the login limiter. | A stolen session cookie would otherwise allow unlimited password guessing. Approved and built 2026-10-10 (section 9). |
 | 2 | P5 review 2 | Match the Mod shortcuts (N, W, S, F, H) by `event.key` and keep `event.code` for Alt+N and Alt+W. | On AZERTY and other layouts, `event.code` maps Ctrl+Z to KeyW, so undo opens the close dialog, and Ctrl+W can reach the browser and close the installed window. T22 specifies `event.code`. Approved and built 2026-10-10 (section 9). |
+| 3 | Audit baseline (section 15) | `e2e/workspaces.spec.js:530`: replace the one-time `getComputedStyle` read with `await expect(dot).toHaveCSS('background-color', 'rgb(94, 161, 255)')`. | Flaky on `main` (2 of 3 runs failed): the click on `p2.md` starts a list refresh, and its reply renders the tab strip again (`tabs.render` makes new nodes). A read of a node that was replaced gives `""`. A web-first assertion reads the current node again. A copy with the change passed 6 of 6 runs. |
+| 4 | Audit baseline (section 15) | `e2e/export-drop.spec.js:127`: wait for the counts (`await expect(page.locator('#counts')).not.toBeEmpty()`) before the drop. | Flaky on `main` (2 of 3 runs failed): the counts show 100 ms after a tab opens (`web/src/main.js:358`). Before that, the first status-bar row has room for the message, so it does not wrap and the row check fails (579 < 598). A copy with the wait passed 6 of 6 runs. |
 
 ## 12. V2 phase review log
 
@@ -541,3 +543,43 @@ Two-pass review of each V3 phase and of `BUILD_PLAN_V3.md`. Same method and verd
 - Chromium e2e only, on the preinstalled Chromium build 1194 through a temporary config with `executablePath`. Playwright 1.64 expects build 1248, which is not installed. Firefox and WebKit are not installed, so the `@smoke` runs there stay with the owner, the new switch round trip too.
 - Each task: `npm test` and the full Chromium suite green before its commit. Each new test failed first on an assertion (against a stub or the code before the task).
 - The perf spec, run alone at the end: all timings within the targets (1 MB Python open 163 ms, 200 characters 919 ms, Ctrl+End 22 ms; dense Markdown 200 characters 903 ms, counts 145 ms, outline 213 ms). Its "no console errors" check fails here, the same on `main`: the full Chromium build asks for `/favicon.ico`, which the gate answers with 401 before sign-in and the server with 404 after. Playwright's headless shell does not ask for it. A fix outside v3 is proposed to the owner.
+
+---
+
+## 15. Codebase audit
+
+**Scope:** the whole codebase at 8f6c968: `server/src`, `web/src`, `scripts` and the HTML pages. Server checks ran through `app.inject`.
+**Date:** 2026-10-10
+**Method:** section 1. Pass 1 lists findings. Pass 2 classifies each one as Confirmed, Risk or Rejected.
+**Severity:** the repo defines no scale, so the agent used this one (not yet approved): Critical (data loss or a security breach), High (a common path is broken), Medium (a likely path gets worse, with no data loss) and Low (an edge case or an engineering cost only).
+
+| # | Finding | Severity | Verdict | Action |
+|---|---------|----------|---------|--------|
+| C1 | `tabs.newDocument` returns false on a failed create, and its three callers ignore it (`web/src/tabs.js:297`, `web/src/main.js:537`, `:538`, `:545`). A New during the redeploy downtime does nothing and shows no message. The other create paths (drop, recovery copies) show one. | Medium | Confirmed | Task C1. |
+| C2 | A Delete confirmed in a dialog that opened before a switch applied went to the new workspace. The server answered 404, which counts as done, so nothing was deleted and no message showed (`web/src/doclist.js:164`, `:166`). A rename on the same path showed "This document no longer exists" (`:114`). | Low | Confirmed | Task C2. PR #10 row 1 (section 14) covered rows that stayed after a switch, not a dialog that was already open. |
+| C3 | Unknown routes answer with the Fastify 404 body (`message`, `error: "Not Found"`, `statusCode`), not `{ "error": "<code>" }` (`BUILD_PLAN.md:215`). Probe: `GET /api/nope` with a session. Static misses are the same. | Low | Confirmed | Task C3. |
+| C4 | Each tab is a `div role="tab"` with a click listener only: no `tabindex` and no keys (`web/src/tabs.js:139`, `:161`). The close button is inside the tab element. Documents > Open was the only keyboard path to another tab. | Low | Confirmed | Task C4. NFR-5 does not list the tab strip. |
+| C5 | Four contract values are written twice, once in `server/src` and once in `web/src`: the language ids, the 1 MiB limit, the workspace ids and the 5-second autosave default. Each copy has its own pin test, so a change on one side passes its tests. | Low | Confirmed | Task C5. |
+| C6 | `doc-saved` and `doc-too-large` are emitted with no listener (`web/src/autosave.js:94`, `:120`). `editor.content()` has no caller (`web/src/editor.js:114`). The comment at `web/src/main.js:251` says "Until T23", but T23 is done. | Low | Confirmed | Task C6. |
+| C7 | `package.json` allows `^1.8.0` for `@lezer/markdown`, but the postinstall patch stops on any version other than 1.8.0 (`scripts/patch-lezer-markdown.js:13`, `:89`). After a 1.8.1 release, `npm update` would break every install. | Low | Confirmed | Task C7. |
+| K1 | A request with no timeout can hold a workspace switch and its lock. | n/a | Risk | Already R10 and PR #10 row 5 (section 14): no timeout is built. Also, a timeout after a save that the server committed would retry with the old version and get a false conflict. Not built. |
+| K2 | An "Untitled N" whose saved text the owner cleared closes and is deleted with no prompt (`web/src/tabs.js:350`). DOC-6 allows it. | n/a | Risk | Owner decision. Option: skip the prompt only at version 1, when the document never held saved text. |
+| X1 | A move can give two documents in the target workspace the same name. | n/a | Rejected | MOV-2 allows it (`REQUIREMENTS_V3.md:79`). |
+| X2 | Expired sessions are deleted only at startup. | n/a | Rejected | An expired session cannot sign in (`server/src/auth/sessions.js:41`). Rows come only from successful sign-ins. |
+| X3 | The diagram frame has no `sandbox` attribute. | n/a | Rejected | The page CSP blocks inline script, and Mermaid runs with `securityLevel: 'strict'` (`web/src/mermaid-render.js:15`). |
+| X4 | The diagram cache keeps the `isWanted` callbacks of each entry. | n/a | Rejected | At most 32 entries (`web/src/mermaid-render.js:35`). A widget calls `render` only while no result exists. |
+| X5 | `scripts/build-web.js` does not empty `dist/web` first. | n/a | Rejected | Railway builds from a clean checkout. Old local chunks do no harm. |
+| X6 | A new `X-Real-IP` value on each request gets past the per-IP limit (probe: 7 wrong passwords, no 429). | n/a | Rejected | Already R2. The global limit holds. |
+
+### Audit fix log
+
+Two-pass review of each fix task. Same method and verdicts as section 10.
+
+| Task | # | Finding | Verdict | Action |
+|------|---|---------|---------|--------|
+
+### Audit validation environment
+
+- Node.js 24.21.0 through nvm, outside the repo. The container default is Node 22.
+- Chromium e2e only, on the preinstalled Chromium build 1194 through a temporary config with `executablePath`, as in v3. Firefox and WebKit are not installed.
+- Baseline on 8f6c968: `npm test` 424 of 424. Chromium e2e 169 passed and 2 failed. Both failures are flaky on `main` (section 11, rows 3 and 4). When they fail during a task, they run again alone.
