@@ -204,7 +204,7 @@ Numbering continues from v1 (EDGE-1 to EDGE-9).
 ## 5. Constraints
 
 - **C5:** Extend the current stack: vanilla JavaScript, CodeMirror 6, esbuild, Fastify 5, `node:sqlite` and Node.js 24 (`package.json`).
-- **C6:** The repo license is AGPL-3.0 (`LICENSE:1`). Code under MIT, BSD-3-Clause, Apache-2.0 or AGPL-3.0 can be used if its copyright and license notices stay. Mermaid's ELK layout depends on elkjs (EPL-2.0), which needs a legal check, so it is excluded. Confidence: medium (secondary sources).
+- **C6:** The repo license is AGPL-3.0 (`LICENSE:1`). Code under MIT, BSD-3-Clause, Apache-2.0, AGPL-3.0, ISC, Unlicense or BlueOak-1.0.0 can be used if its copyright and license notices stay. The owner added ISC, Unlicense and BlueOak-1.0.0 on 2026-10-10 (`PLAN_REVIEW.md` section 12, M13 row 17). Mermaid's ELK layout depends on elkjs (EPL-2.0), which needs a legal check, so it is excluded. Confidence: medium (secondary sources).
 - **C7:** The CSP is in `server/src/security-headers.js:3-11`. `img-src` adds `https:` for MDV-14. Nothing else changes.
 - **C8:** The 1 MB document limit (`server/src/documents/routes.js:14`) applies to dropped files.
 - **C9:** Database migrations are append-only (`server/src/migrations.js:2`).
@@ -293,7 +293,7 @@ The owner approved this sequence as the V2 build plan on 2026-10-10. Each phase 
 | M10 | Settings API and autosave timing | SAV-1 to SAV-5 | Done |
 | M11 | Visual mode, toggle, toolbar, shortcuts, code block highlighting, remote images | MDV-1 to MDV-10, MDV-14, the Visual mode part of MDV-11 | Done. Owner check: Ctrl+K in Firefox and Safari. |
 | M12 | Outline, counts and the syntax-stripping rules that EXP-3 reuses | OUT-1 to OUT-6, CNT-1 to CNT-7 | Done. The perf test measures CNT-7 and OUT-2 on 1 MB of Markdown. |
-| M13 | Mermaid in Visual mode and theme animation | MDV-13, the Visual mode part of MDV-12, THM-1, THM-2 | Done. Owner check: theme animation in Firefox and Safari. Blocker: Mermaid brings ISC and Unlicense packages, which C6 does not name. Owner decision needed (`PLAN_REVIEW.md` section 12, M13 row 17). |
+| M13 | Mermaid in Visual mode and theme animation | MDV-13, the Visual mode part of MDV-12, THM-1, THM-2 | Done. Owner check: theme animation in Firefox and Safari. The owner allowed the ISC and Unlicense packages that Mermaid brings (C6, 2026-10-10). |
 | M14 | Export and drag and drop | EXP-1 to EXP-7, DRP-1 to DRP-6, the export parts of MDV-11 and MDV-12 | Done. Owner check: Save as PDF in the print dialog of a real browser. |
 | M15 | Notion: test call first (C10), then sync | NOT-1 to NOT-13 | Blocked. The C10 test call needs network access to `api.notion.com` (denied in the build environment) and a Notion token with a shared parent page. Sync is not built on unverified API details (`PLAN_REVIEW.md` section 13). |
 | M16 | Hardening, README, performance | NFR-2 to NFR-5 | Done, except NFR-2 typing in dense Markdown. The perf test holds 1 MB of notes in Visual mode to the NFR-1 targets. Blocker: dense Markdown (a block every 40 bytes) types 200 characters in 4.0 to 6.5 s, because of the Markdown parser. Owner decision needed (`PLAN_REVIEW.md` section 12, M16 row 3). The Notion menu part of NFR-5 waits for M15. |
