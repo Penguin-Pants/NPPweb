@@ -141,6 +141,9 @@ test('arrow keys move through the Documents dropdown (LAY-4)', async ({ page, ap
   await page.keyboard.press('Enter');
   await expect(dropdown(page)).toBeHidden();
   await expect(page.getByRole('tab', { name: 'one.txt' })).toHaveAttribute('aria-selected', 'true');
+  // The tab loads its document and then focuses the editor. Wait for that,
+  // so a slow load cannot take the focus back from the dropdown below.
+  await expect(page.locator('.cm-content')).toBeFocused();
 
   // Tab reaches each row's actions, the Move button too (v3 MOV-1).
   await documentsButton(page).focus();
