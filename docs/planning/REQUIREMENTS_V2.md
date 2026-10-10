@@ -1,6 +1,6 @@
 # NPPweb v2 Markdown Features: Requirements
 
-**Status:** Decision-complete. Open questions: none.
+**Status:** Decision-complete. Open questions: none. Build in progress (section 9 holds phase status).
 **Date:** 2026-10-10
 **Purpose:** Single source of truth for a coding agent to turn into a build plan. This file does not include an implementation.
 **Builds on:** `docs/planning/REQUIREMENTS.md` (v1). v1 requirements stay in force unless section 10 says otherwise.
@@ -45,6 +45,7 @@ Numbering continues from v1 (D1 to D13).
 | D35 | Formatting input | Toolbar and keyboard shortcuts. | Shortcuts only, typed Markdown only |
 | D36 | Remote images | Click to load in Visual mode. Exports keep image tags. | Always load, never load |
 | D37 | Proposed defaults | Accepted in full. | None |
+| D38 | Notion child pages | A push that would delete a child page or database stops with an error. Nothing is deleted. | Delete them, keep them |
 
 ---
 
@@ -196,6 +197,7 @@ Numbering continues from v1 (EDGE-1 to EDGE-9).
 | EDGE-24 | The user cancels the print dialog. | Nothing happens. No error. |
 | EDGE-25 | An image cannot load (relative path, `http:` URL or broken link). | Show its alt text in a placeholder box. No Load button for relative or `http:` URLs. |
 | EDGE-26 | A Notion page create times out or returns 500, 502, 503 or 504. The page can exist even though the call failed. | Do not repeat the create blindly. If the error names the committed page ID (C10), store that page and continue. Else do not create again on its own: set status error "Notion page may exist. Check Notion, then retry." A lookup by title cannot identify the page, because names are not unique (`server/src/documents/repo.js:46-54`). Retry now from the owner creates the page again. | No automatic retry creates a second page. |
+| EDGE-27 | The synced Notion page has a child page or database that was added in Notion. | The push stops. Status error "Remove the child page or database in Notion to resume sync." Nothing is deleted (D38). |
 
 ---
 
@@ -281,20 +283,20 @@ All four are sources of ideas. Code may be copied only with its notices (C6).
 
 ---
 
-## 9. Proposed build sequence
+## 9. Build sequence and status
 
-**This section is a proposal for the planning step. It adds no product decisions.**
+The owner approved this sequence as the V2 build plan on 2026-10-10. Each phase ends with a two-pass review (`PLAN_REVIEW.md` section 1), logged in `PLAN_REVIEW.md` section 12. Deviations go to `PLAN_REVIEW.md` section 9.
 
-| Milestone | Work | Covers |
-|-----------|------|--------|
-| M9 | Layout: tabs, left panel, Documents dropdown | LAY-1 to LAY-5 |
-| M10 | Settings API and autosave timing | SAV-1 to SAV-5 |
-| M11 | Visual mode, toggle, toolbar, shortcuts, code block highlighting, remote images | MDV-1 to MDV-10, MDV-14, the Visual mode part of MDV-11 |
-| M12 | Outline, counts and the syntax-stripping rules that EXP-3 reuses | OUT-1 to OUT-6, CNT-1 to CNT-7 |
-| M13 | Mermaid in Visual mode and theme animation | MDV-13, the Visual mode part of MDV-12, THM-1, THM-2 |
-| M14 | Export and drag and drop | EXP-1 to EXP-7, DRP-1 to DRP-6, the export parts of MDV-11 and MDV-12 |
-| M15 | Notion: test call first (C10), then sync | NOT-1 to NOT-13 |
-| M16 | Hardening, README, performance | NFR-2 to NFR-5 |
+| Milestone | Work | Covers | Status |
+|-----------|------|--------|--------|
+| M9 | Layout: tabs, left panel, Documents dropdown | LAY-1 to LAY-5 | Not started |
+| M10 | Settings API and autosave timing | SAV-1 to SAV-5 | Not started |
+| M11 | Visual mode, toggle, toolbar, shortcuts, code block highlighting, remote images | MDV-1 to MDV-10, MDV-14, the Visual mode part of MDV-11 | Not started |
+| M12 | Outline, counts and the syntax-stripping rules that EXP-3 reuses | OUT-1 to OUT-6, CNT-1 to CNT-7 | Not started |
+| M13 | Mermaid in Visual mode and theme animation | MDV-13, the Visual mode part of MDV-12, THM-1, THM-2 | Not started |
+| M14 | Export and drag and drop | EXP-1 to EXP-7, DRP-1 to DRP-6, the export parts of MDV-11 and MDV-12 | Not started |
+| M15 | Notion: test call first (C10), then sync | NOT-1 to NOT-13 | Not started |
+| M16 | Hardening, README, performance | NFR-2 to NFR-5 | Not started |
 
 ---
 

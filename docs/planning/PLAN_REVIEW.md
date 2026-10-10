@@ -180,7 +180,7 @@ Coding agents record deviations from the plan here.
 | Date | Task | Deviation | Reason | Approved by |
 |------|------|-----------|--------|-------------|
 | 2026-10-09 | T01 | `web/test/build-web.test.js` replaces "one trivial test". It builds into a temp folder and checks the 3 bundles, their sourcemaps and the copied HTML and CSS. `scripts/build-web.js` takes an optional output folder argument for this test. | `AGENTS.md` Testing rule 3: no assertion may pass when the requirement is inverted. A trivial test always passes. | User (chat, 2026-10-09) |
-| 2026-10-09 | All | Phase reviews use the two-pass method in section 1 (Confirmed, Risk or Rejected). Results go to section 10. | The execution prompt names a "TWO-PASS REVIEW" with a finding classification in `AGENTS.md`. Neither `AGENTS.md` nor the installed skills define one. | Agent, not yet approved |
+| 2026-10-09 | All | Phase reviews use the two-pass method in section 1 (Confirmed, Risk or Rejected). Results go to section 10. | The execution prompt names a "TWO-PASS REVIEW" with a finding classification in `AGENTS.md`. Neither `AGENTS.md` nor the installed skills define one. | User (chat, 2026-10-10), also for V2 |
 | 2026-10-09 | T20, T22, T25, T27 | When all automated acceptance checks pass, the task is marked Done for dependency purposes. Its manual checks (visual check, installed-app shortcuts, deployed install check, scroll feel) are listed as owner-pending in section 9 of `BUILD_PLAN.md` and in T26. | These manual checks need a deployed URL or a human. Without this rule, T22 and T26 stall behind T04. | Agent, not yet approved |
 | 2026-10-09 | T02 | `index.js` exports `start({ env, exit, logger })` and runs it only when it is the main module (`import.meta.main`). | Windows cannot deliver SIGTERM to a child process handler, so the shutdown test emits the signal in-process. | Agent, not yet approved |
 | 2026-10-09 | T04 | The owner deploy checklist lives in `README.md` ("Deploy on Railway"). T26 extends that section. | One place for operations notes. | Agent, not yet approved |
@@ -273,3 +273,17 @@ Not built. Each one needs a user decision.
 |---|------|----------|--------|
 | 1 | P1 review 11 | Count wrong current passwords on `POST /api/password` in the login limiter. | A stolen session cookie would otherwise allow unlimited password guessing. |
 | 2 | P5 review 2 | Match the Mod shortcuts (N, W, S, F, H) by `event.key` and keep `event.code` for Alt+N and Alt+W. | On AZERTY and other layouts, `event.code` maps Ctrl+Z to KeyW, so undo opens the close dialog, and Ctrl+W can reach the browser and close the installed window. T22 specifies `event.code`. |
+
+## 12. V2 phase review log
+
+Two-pass review of each V2 phase diff (`REQUIREMENTS_V2.md` section 9). Same method and verdicts as section 10.
+
+| Phase | # | Finding | Verdict | Action |
+|-------|---|---------|---------|--------|
+
+## 13. V2 validation environment
+
+- Node.js 24.21.0 from nodejs.org (checksum verified), outside the repo. The container default is Node 22.
+- Chromium e2e only. Firefox and WebKit are not installed, so the `@smoke` runs in those browsers are owner-pending.
+- The perf spec runs alone. Its 200-character typing time was 2790 to 3258 ms before any V2 change (limit 3000 ms), so this container is near the limit.
+- `api.notion.com` is not reachable from this container.
