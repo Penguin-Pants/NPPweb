@@ -262,7 +262,8 @@ test('a language change whose reply arrives after the switch shows no message (T
   release();
   await reply;
   await afterReply(page);
-  await expect(message(page)).toHaveText('');
+  // One read: the message clears itself after 5 seconds, so a retrying check would pass anyway.
+  expect(await message(page).textContent()).toBe('');
 });
 
 test('a New whose reply arrives after the switch shows no message and opens no tab (TD-41, R14)', async ({ page }) => {
@@ -548,7 +549,8 @@ test.describe('tab colors with a 30-second autosave delay', () => {
     await page.getByRole('tab', { name: 'p2.md' }).click();
     const dot = page.getByRole('tab', { name: 'p1.md' }).locator('.tab-dirty');
     await expect(dot).toBeVisible();
-    expect(await css(dot, 'backgroundColor')).toBe('rgb(94, 161, 255)');
+    // A list refresh renders the strip again, so the check reads the current node each time.
+    await expect(dot).toHaveCSS('background-color', 'rgb(94, 161, 255)');
   });
 });
 

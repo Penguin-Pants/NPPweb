@@ -125,6 +125,8 @@ test('PDF export prints the rendered page from a frame titled with the PDF name,
 test('a status message that wraps to its own row stays at the right end (STB-2)', async ({ page, api }) => {
   await page.setViewportSize({ width: 800, height: 600 });
   await openDocs(page, api, [['notes.md', 'old']]);
+  // The counts show 100 ms after the tab opens. Before that, the first row has room for the message.
+  await expect(page.locator('#counts')).not.toBeEmpty();
   await drop(page, [{ name: 'report.pdf', text: 'x' }]);
   const message = page.locator('#status-message');
   await expect(message).toHaveText('Not opened: report.pdf (only .md, .txt and .html files).');
