@@ -26,6 +26,7 @@ import { setupSessionRecovery } from './session.js';
 import { createTabs } from './tabs.js';
 import { animateThemeSwitch, createTheme } from './theme.js';
 import { showWorkspace, WORKSPACE, WORKSPACE_NAMES } from './workspace.js';
+import { textColorOn } from './workspace-color.js';
 import { createExclusive, switchWorkspace } from './workspace-switch.js';
 
 const $ = (id) => /** @type {HTMLElement} */ (document.getElementById(id));
@@ -44,6 +45,23 @@ function showTheme(current) {
   themeButton.textContent = current === 'dark' ? 'Light theme' : 'Dark theme';
 }
 showTheme(theme.get());
+
+// The stored workspace (WS-4). theme-init.js already showed it.
+const workspace = createStoredChoice({ getStorage: () => localStorage, ...WORKSPACE });
+api.setWorkspace(workspace.get());
+
+// Workspace colors (CLR-1 to CLR-5, TD-36). They come from the server
+// settings. A stored color goes inline on <html> over the CSS default.
+let workspaceColors = { personal: null, work: null };
+function applyWorkspaceColor() {
+  const color = workspaceColors[workspace.get()];
+  const { style } = document.documentElement;
+  const text = color && textColorOn(color);
+  for (const [name, value] of [['--ws-strip', color], ['--ws-strip-fg', text], ['--ws-strip-mark', text]]) {
+    if (value) style.setProperty(name, value);
+    else style.removeProperty(name);
+  }
+}
 themeButton.addEventListener('click', () => animateThemeSwitch({ toggle: () => theme.toggle(), button: themeButton }));
 
 // Status bar message for one-off notices.
@@ -81,8 +99,14 @@ let delayRequest = 0;
 async function loadSettings() {
   const request = (delayRequest += 1);
   const result = await api.getSettings();
-  if (result.status === 200 && request === delayRequest) autosave.setDelay(result.data.autosaveSeconds * 1000);
+  if (result.status === 200 && request === delayRequest) applySettings(result.data);
   return result;
+}
+function applySettings({ autosaveSeconds, workspaceColors: colors }) {
+  autosave.setDelay(autosaveSeconds * 1000);
+  // A v2 server (a rollback, R15) sends no colors: both keep their default.
+  workspaceColors = colors ?? { personal: null, work: null };
+  applyWorkspaceColor();
 }
 // One Settings dialog at a time, also while its first read is slow.
 let settingsOpen = false;
@@ -104,18 +128,31 @@ async function showSettings() {
   }
   await formDialog({
     title: 'Settings',
-    fields: [{ name: 'seconds', label: 'Autosave delay in seconds (1 to 60)', value: String(current.data.autosaveSeconds) }],
+    fields: [
+      { name: 'seconds', label: 'Autosave delay in seconds (1 to 60)', value: String(current.data.autosaveSeconds) },
+      // CLR-2: an empty field is the workspace's default color (TD-39).
+      ...['personal', 'work'].map((id) => ({
+        name: id,
+        label: `${WORKSPACE_NAMES[id]} color (hex, empty for default)`,
+        value: current.data.workspaceColors[id] ?? '',
+      })),
+    ],
     submitLabel: 'Save',
-    onSubmit: async ({ seconds }) => {
-      // The server checks the rule (whole number, 1 to 60). '' becomes 0 and
-      // text becomes NaN, which it rejects too.
-      const { status, data } = await api.saveSettings({ autosaveSeconds: Number(seconds.trim()) });
+    onSubmit: async ({ seconds, personal, work }) => {
+      // The server checks the rules (whole number, 1 to 60, and #RGB or
+      // #RRGGBB). '' becomes 0 and text becomes NaN, which it rejects too.
+      const color = (value) => value.trim() || null;
+      const { status, data } = await api.saveSettings({
+        autosaveSeconds: Number(seconds.trim()),
+        workspaceColors: { personal: color(personal), work: color(work) },
+      });
       if (status === 200) {
         delayRequest += 1;
-        autosave.setDelay(data.autosaveSeconds * 1000);
+        applySettings(data);
         return null;
       }
       if (data?.error === 'invalid_autosave_seconds') return 'Use a whole number from 1 to 60.';
+      if (data?.error === 'invalid_color') return `Use #RGB or #RRGGBB for the ${WORKSPACE_NAMES[data.workspace]} color.`;
       if (status === 0) return 'Cannot connect to the server. Try again.';
       return 'Saving the settings failed. Try again.';
     },
@@ -189,9 +226,6 @@ const autosave = createAutosave({
   onEvent: emit,
 });
 loadSettings();
-// The stored workspace (WS-4). theme-init.js already showed it.
-const workspace = createStoredChoice({ getStorage: () => localStorage, ...WORKSPACE });
-api.setWorkspace(workspace.get());
 tabs = createTabs({
   editor,
   autosave,
@@ -446,6 +480,7 @@ workspaceButton.addEventListener('click', () =>
           workspace.toggle();
           api.setWorkspace(target);
           showWorkspace(document, target);
+          applyWorkspaceColor();
           renderWorkspace();
         },
       });

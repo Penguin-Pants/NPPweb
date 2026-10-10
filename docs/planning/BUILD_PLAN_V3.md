@@ -299,7 +299,7 @@ Numbering continues from v1 (R1 to R8).
 | T35 | Move route | M20 | S | T31 | Done | | A move can come with a rename in one PATCH. A non-string target returns 400 `invalid_workspace`. |
 | T36 | Move action in the Documents dropdown | M20 | M | T34, T35 | Done | | Move sits between Rename and Delete. A 404 names the workspace and refreshes the list. M20 review in `PLAN_REVIEW.md` section 14. |
 | T37 | Color settings API | M21 | S | none | Done | | `workspaceColors` must name both workspaces and nothing else, else 400 `invalid_request`. v2 settings tests now compare `autosaveSeconds` only. |
-| T38 | Colors in the UI | M21 | M | T34, T37 | Planned | | |
+| T38 | Colors in the UI | M21 | M | T34, T37 | Done | | `--ws-strip-mark` keeps the Personal default dot (`PLAN_REVIEW.md` section 9). A reply without `workspaceColors` (a v2 server) keeps both defaults. Screenshots for the owner in the PR. |
 | T39 | README and docs | M21 | S | T36, T38 | Planned | | |
 | T40 | Notion workspace rules | M15 | S | M15, T35 | Blocked | | C17 |
 

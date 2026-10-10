@@ -431,3 +431,81 @@ test.describe('moves with a 30-second autosave delay', () => {
     await expect(deletedDialog(page)).toBeVisible();
   });
 });
+
+// Colors (CLR-1 to CLR-6, TD-36 to TD-39).
+const css = (locator, property) => locator.evaluate((el, name) => getComputedStyle(el)[name], property);
+const strip = (page) => css(page.locator('#tabstrip'), 'backgroundColor');
+const DARK_SURFACE = 'rgb(38, 40, 44)';
+const LIGHT_SURFACE = 'rgb(255, 255, 255)';
+const WORK_PRESET = 'rgb(15, 118, 110)';
+
+async function openSettings(page) {
+  await page.getByRole('button', { name: 'Account' }).click();
+  await page.getByRole('button', { name: 'Settings' }).click();
+  return page.getByRole('dialog', { name: 'Settings' });
+}
+
+test('each workspace colors the tab strip in both themes, and Personal keeps today\'s look (CLR-1, CLR-6)', async ({ page, api }) => {
+  const w1 = await create(api, 'work', 'w1.md', 'one');
+  const w2 = await create(api, 'work', 'w2.md', 'two');
+  await login(page);
+  await storeTabs(page, { work: [w1, w2] });
+  expect(await strip(page)).toBe(DARK_SURFACE);
+  await switchTo(page, 'Work');
+  expect(await strip(page)).toBe(WORK_PRESET);
+  expect(await css(switchButton(page), 'backgroundColor')).toBe(WORK_PRESET);
+  expect(await css(page.getByRole('tab', { name: 'w2.md' }), 'color')).toBe('rgb(255, 255, 255)');
+  expect(await css(page.getByRole('tab', { name: 'w1.md' }), 'backgroundColor')).not.toBe(WORK_PRESET);
+
+  await page.locator('#theme-toggle').click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+  expect(await strip(page)).toBe(WORK_PRESET);
+  await switchTo(page, 'Personal');
+  expect(await strip(page)).toBe(LIGHT_SURFACE);
+});
+
+test('a color set in Settings colors the strip, shows on another device after a reload, and an empty field restores the default (CLR-2 to CLR-4)', async ({ page, browser, baseURL }) => {
+  await login(page);
+  let dialog = await openSettings(page);
+  await dialog.getByLabel('Work color (hex, empty for default)').fill('#12');
+  await dialog.getByRole('button', { name: 'Save' }).click();
+  await expect(dialog.getByRole('alert')).toHaveText('Use #RGB or #RRGGBB for the Work color.');
+  await dialog.getByLabel('Work color (hex, empty for default)').fill('#FF0');
+  await dialog.getByRole('button', { name: 'Save' }).click();
+  await expect(dialog).toBeHidden();
+  expect(await strip(page)).toBe(DARK_SURFACE);
+  await switchTo(page, 'Work');
+  expect(await strip(page)).toBe('rgb(255, 255, 0)');
+  expect(await css(switchButton(page), 'color')).toBe('rgb(0, 0, 0)');
+
+  const other = await browser.newContext({ baseURL });
+  try {
+    const second = await other.newPage();
+    await second.addInitScript(() => localStorage.setItem('pn.workspace', 'work'));
+    await login(second);
+    expect(await strip(second)).toBe('rgb(255, 255, 0)');
+  } finally {
+    await other.close();
+  }
+
+  dialog = await openSettings(page);
+  await expect(dialog.getByLabel('Work color (hex, empty for default)')).toHaveValue('#FF0');
+  await dialog.getByLabel('Work color (hex, empty for default)').fill('');
+  await dialog.getByRole('button', { name: 'Save' }).click();
+  await expect(dialog).toBeHidden();
+  expect(await strip(page)).toBe(WORK_PRESET);
+});
+
+test('a Personal color applies to Personal only (CLR-1)', async ({ page }) => {
+  await login(page);
+  const dialog = await openSettings(page);
+  await dialog.getByLabel('Personal color (hex, empty for default)').fill('#000080');
+  await dialog.getByRole('button', { name: 'Save' }).click();
+  await expect(dialog).toBeHidden();
+  expect(await strip(page)).toBe('rgb(0, 0, 128)');
+  expect(await css(switchButton(page), 'color')).toBe('rgb(255, 255, 255)');
+  await switchTo(page, 'Work');
+  expect(await strip(page)).toBe(WORK_PRESET);
+  await switchTo(page, 'Personal');
+  expect(await strip(page)).toBe('rgb(0, 0, 128)');
+});

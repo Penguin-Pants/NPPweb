@@ -101,6 +101,6 @@ export const api = {
   /** @param {string} id */
   deleteDocument: (id) => docCall('DELETE', docPath(id)),
   getSettings: () => call('GET', '/api/settings'),
-  /** @param {{ autosaveSeconds: number }} settings */
+  /** @param {{ autosaveSeconds: number, workspaceColors?: { personal: string | null, work: string | null } }} settings */
   saveSettings: (settings) => call('PUT', '/api/settings', { json: settings }),
 };
