@@ -262,7 +262,8 @@ test('a language change whose reply arrives after the switch shows no message (T
   release();
   await reply;
   await afterReply(page);
-  await expect(message(page)).toHaveText('');
+  // One read: the message clears itself after 5 seconds, so a retrying check would pass anyway.
+  expect(await message(page).textContent()).toBe('');
 });
 
 test('a New whose reply arrives after the switch shows no message and opens no tab (TD-41, R14)', async ({ page }) => {
