@@ -6,7 +6,7 @@ import { syntaxTree } from '@codemirror/language';
 import { Facet, MapMode, Prec, StateEffect, StateField } from '@codemirror/state';
 import { Decoration, EditorView, keymap, ViewPlugin, WidgetType } from '@codemirror/view';
 import { languageId } from './languages.js';
-import { decodeEntity, linkTarget, normalizeLabel, referenceDefinitions } from './markdown-syntax.js';
+import { decodeEntity, isDrawnMermaid, linkTarget, normalizeLabel, referenceDefinitions } from './markdown-syntax.js';
 import { renderedText } from './markdown-text.js';
 import { mermaidRenderer } from './mermaid-render.js';
 import { isMac } from './shortcuts.js';
@@ -34,17 +34,6 @@ export const diagramTheme = Facet.define({ combine: (values) => values[0] ?? 'da
 
 /** Line ranges that the selection touches (MDV-5). */
 const shownRanges = (state) => state.selection.ranges.map((range) => [state.doc.lineAt(range.from).from, state.doc.lineAt(range.to).to]);
-
-/**
- * A closed fenced block tagged mermaid at the top level, which Visual mode
- * draws as a diagram. Blocks in quotes or lists stay code. An unclosed block
- * stays code, so it never hides the rest of the document.
- */
-function isDrawnMermaid(node, doc) {
-  if (node.name !== 'FencedCode' || node.parent?.name !== 'Document' || node.getChildren('CodeMark').length < 2) return false;
-  const info = node.getChild('CodeInfo');
-  return info !== null && doc.sliceString(info.from, info.to).trim().split(/\s+/, 1)[0].toLowerCase() === 'mermaid';
-}
 
 /** A line that can open a mermaid block. The syntax tree decides. */
 const MERMAID_FENCE = /^ {0,3}(?:`{3,}|~{3,})[ \t]*mermaid/i;
@@ -97,10 +86,11 @@ export function collectMermaid(state, fences = mermaidFences(state.doc)) {
   const { doc } = state;
   const shown = shownRanges(state);
   const top = syntaxTree(state).topNode;
+  const slice = (a, b) => doc.sliceString(a, b);
   const blocks = [];
   for (const start of fences) {
     const node = top.childAfter(start);
-    if (!node || doc.lineAt(node.from).from !== start || !isDrawnMermaid(node, doc)) continue;
+    if (!node || doc.lineAt(node.from).from !== start || !isDrawnMermaid(node, slice)) continue;
     const to = doc.lineAt(node.to).to;
     if (shown.some(([a, b]) => a <= to && b >= start)) continue;
     const code = node.getChild('CodeText');
@@ -201,7 +191,7 @@ export function collectVisual(state, from, to) {
         case 'FencedCode':
         case 'CodeBlock': {
           // A drawn diagram covers the whole block (collectMermaid).
-          if (isDrawnMermaid(node, doc)) {
+          if (isDrawnMermaid(node, text)) {
             const blockFrom = doc.lineAt(node.from).from;
             const blockTo = doc.lineAt(node.to).to;
             if (!shown.some(([a, b]) => a <= blockTo && b >= blockFrom)) return false;
@@ -251,7 +241,7 @@ export function collectVisual(state, from, to) {
           const marks = node.getChildren('LinkMark');
           if (marks.length >= 2) {
             // The description shows as plain text, as in .txt export.
-            const alt = renderedText(doc, tree, marks[0].to, marks[1].from);
+            const alt = renderedText(doc, tree, marks[0].to, marks[1].from, node);
             widget({ kind: 'image', from: node.from, to: node.to, alt, url: target(node, marks) ?? '' });
           }
           return false;

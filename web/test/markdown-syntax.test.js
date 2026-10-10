@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import { ensureSyntaxTree } from '@codemirror/language';
 import { EditorState } from '@codemirror/state';
 import { languageSupport } from '../src/languages.js';
-import { decodeEntity, linkTarget, normalizeLabel, referenceDefinitions } from '../src/markdown-syntax.js';
+import { decodeEntity, fenceLanguage, isDrawnMermaid, linkTarget, normalizeLabel, referenceDefinitions } from '../src/markdown-syntax.js';
 
 test('decodeEntity knows named and numeric entities and returns null for others', () => {
   assert.equal(decodeEntity('&amp;'), '&');
@@ -48,4 +48,22 @@ test('normalizeLabel folds case as CommonMark does, so [ẞ] matches [SS]', () =
   assert.equal(normalizeLabel('[ẞ]'), normalizeLabel('[SS]'));
   assert.equal(normalizeLabel('[  Foo\n bar ]'), normalizeLabel('[FOO BAR]'));
   assert.notEqual(normalizeLabel('[a]'), normalizeLabel('[b]'));
+});
+
+test('fenceLanguage reads the first info word in lower case, and isDrawnMermaid needs a closed top-level mermaid fence (MDV-12)', () => {
+  const text = '```Mermaid  extra\ngraph TD\n```\n\n```\nx\n```\n\n- a\n\n  ```mermaid\n  graph\n  ```\n\n```mermaid\nopen';
+  const state = EditorState.create({ doc: text, extensions: languageSupport('markdown') });
+  const tree = ensureSyntaxTree(state, text.length, 5000);
+  const slice = (a, b) => text.slice(a, b);
+  const fences = [];
+  tree.iterate({ enter: (node) => void (node.name === 'FencedCode' && fences.push(node.node)) });
+  assert.deepEqual(
+    fences.map((node) => [fenceLanguage(node, slice), isDrawnMermaid(node, slice)]),
+    [
+      ['mermaid', true],
+      ['', false],
+      ['mermaid', false],
+      ['mermaid', false],
+    ],
+  );
 });

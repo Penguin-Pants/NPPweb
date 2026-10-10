@@ -38,11 +38,20 @@ export function droppedText({ name, bytes }) {
   }
 }
 
-/** Reads a dropped File, without reading one that is too large (EDGE-10). */
+/**
+ * Reads a dropped File, without reading one that is too large (EDGE-10). A
+ * folder or a file that moved away cannot be read.
+ */
 async function readFile(file) {
   if (!ACCEPTED.test(file.name)) return droppedText({ name: file.name, bytes: new Uint8Array() });
   if (file.size > LIMIT_BYTES) return { error: 'larger than 1 MB' };
-  return droppedText({ name: file.name, bytes: new Uint8Array(await file.arrayBuffer()) });
+  let bytes;
+  try {
+    bytes = new Uint8Array(await file.arrayBuffer());
+  } catch {
+    return { error: 'could not be read' };
+  }
+  return droppedText({ name: file.name, bytes });
 }
 
 const CANNOT_REACH = 'Could not open the dropped files. Check the connection or sign in, then drop them again.';
@@ -93,32 +102,41 @@ const isFileDrag = (event) => [...(event.dataTransfer?.types ?? [])].includes('F
 /**
  * Shows the overlay while files are dragged over the page and hands dropped
  * files to `onFiles` (DRP-5). Other drags, such as text inside the editor,
- * pass through.
+ * pass through. While a modal dialog is open, files cannot be dropped, so
+ * nothing opens behind it. A file drag is still stopped there, so the
+ * browser never opens the file in place of the app.
  * @param {object} options
  * @param {Window} options.win
  * @param {HTMLElement} options.overlay Covers the page while shown.
  * @param {(files: File[]) => void} options.onFiles
  */
 export function setupDrop({ win, overlay, onFiles }) {
-  const hide = () => (overlay.hidden = true);
-  win.addEventListener(
-    'dragenter',
-    (event) => {
-      if (isFileDrag(event)) overlay.hidden = false;
-    },
-    true,
-  );
+  let timer = 0;
+  const hide = () => {
+    win.clearTimeout(timer);
+    overlay.hidden = true;
+  };
+  const inDialog = () => win.document.querySelector('dialog:modal') !== null;
+  // dragover repeats while a drag moves over the page. A drag that leaves
+  // the window or is cancelled can end with no event at all, so the overlay
+  // goes 1 second after the last dragover. The next dragover shows it again.
+  const show = (event) => {
+    if (!isFileDrag(event) || inDialog()) return;
+    overlay.hidden = false;
+    win.clearTimeout(timer);
+    timer = win.setTimeout(hide, 1000);
+  };
+  win.addEventListener('dragenter', show, true);
   win.addEventListener(
     'dragover',
     (event) => {
       if (!isFileDrag(event)) return;
       event.preventDefault();
-      event.dataTransfer.dropEffect = 'copy';
+      event.dataTransfer.dropEffect = inDialog() ? 'none' : 'copy';
+      show(event);
     },
     true,
   );
-  // The overlay covers the page, so leaving it means leaving the window.
-  overlay.addEventListener('dragleave', hide);
   // Capture phase, so the editor never inserts a dropped file as text.
   win.addEventListener(
     'drop',
@@ -127,7 +145,7 @@ export function setupDrop({ win, overlay, onFiles }) {
       event.preventDefault();
       event.stopPropagation();
       hide();
-      onFiles([...event.dataTransfer.files]);
+      if (!inDialog()) onFiles([...event.dataTransfer.files]);
     },
     true,
   );

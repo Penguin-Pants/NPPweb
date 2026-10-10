@@ -61,6 +61,26 @@ test('mermaid blocks become their diagram when one is given, else code (MDV-12)'
   assert.equal(html(text), '<pre><code class="language-mermaid">graph TD\nA--&gt;B</code></pre>');
 });
 
+test('only top-level mermaid blocks are diagrams, as in Visual mode; ones in lists and quotes stay code (MDV-12, EXP-4)', () => {
+  const text = '- a\n\n  ```mermaid\n  graph TD\n  ```\n\n> ```mermaid\n> graph LR\n> ```';
+  assert.deepEqual(mermaidSources(text, treeOf(text)), []);
+  const diagrams = new Map([
+    ['graph TD', '<svg>d</svg>'],
+    ['graph LR', '<svg>e</svg>'],
+  ]);
+  assert.doesNotMatch(html(text, diagrams), /<svg/);
+});
+
+test('many images in one paragraph export in linear time, each with its own alt text (EXP-4)', () => {
+  const text = '![a *b*](https://i.example/c.png) '.repeat(10_000);
+  const tree = treeOf(text);
+  const start = performance.now();
+  const out = markdownToHtml(text, tree);
+  const ms = performance.now() - start;
+  assert.equal(out.match(/<img src="https:\/\/i\.example\/c\.png" alt="a b">/g).length, 10_000);
+  assert.ok(ms < 1000, `${Math.round(ms)} ms`);
+});
+
 test('the export page is self-contained: escaped title, inline styles, no scripts (EXP-4)', () => {
   const page = exportPage('a <b>.md', '<p>x</p>');
   assert.match(page, /^<!doctype html>/);

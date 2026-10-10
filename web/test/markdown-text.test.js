@@ -180,3 +180,13 @@ test('renderedText reads a CodeMirror Text the same as a string', () => {
     assert.equal(renderedText(doc, tree, from, to), renderedText(text, tree, from, to), `${from}-${to}`);
   }
 });
+
+test('renderedText walks only a given node that holds the range, with the same result as a walk from the top', () => {
+  const text = '> x ![a\n> *b* `c` &amp;](u) y';
+  const tree = treeOf(text);
+  let image;
+  tree.iterate({ enter: (node) => void (node.name === 'Image' && (image = node.node)) });
+  const [open, close] = image.getChildren('LinkMark');
+  assert.equal(renderedText(text, tree, open.to, close.from, image), 'a\nb c &');
+  assert.equal(renderedText(text, tree, open.to, close.from), 'a\nb c &');
+});

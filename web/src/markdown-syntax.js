@@ -1,5 +1,6 @@
-// Small Markdown helpers that Visual mode, the commands and the plain-text
-// rules share: entities, link targets and reference definitions.
+// Small Markdown helpers that Visual mode, the commands, export and the
+// plain-text rules share: entities, link targets, reference definitions and
+// fenced block languages.
 
 import { characterEntities } from 'character-entities';
 
@@ -77,4 +78,31 @@ export function referenceDefinitions(tree, slice) {
   });
   definitionCache.set(tree, defs);
   return defs;
+}
+
+/**
+ * The first word of a fenced block's info string, in lower case, or ''.
+ * @param {import('@lezer/common').SyntaxNode} node
+ * @param {(from: number, to: number) => string} slice Reads the document text.
+ */
+export function fenceLanguage(node, slice) {
+  const info = node.getChild('CodeInfo');
+  return info ? slice(info.from, info.to).trim().split(/\s+/, 1)[0].toLowerCase() : '';
+}
+
+/**
+ * A closed fenced block tagged mermaid at the top level, which Visual mode
+ * draws as a diagram and export too (MDV-12, EXP-4). Blocks in quotes or
+ * lists stay code. An unclosed block stays code, so it never hides the rest
+ * of the document.
+ * @param {import('@lezer/common').SyntaxNode} node
+ * @param {(from: number, to: number) => string} slice Reads the document text.
+ */
+export function isDrawnMermaid(node, slice) {
+  return (
+    node.name === 'FencedCode' &&
+    node.parent?.name === 'Document' &&
+    node.getChildren('CodeMark').length > 1 &&
+    fenceLanguage(node, slice) === 'mermaid'
+  );
 }

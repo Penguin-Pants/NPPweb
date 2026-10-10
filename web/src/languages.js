@@ -93,13 +93,18 @@ const PARSERS = {
 };
 
 /**
+ * The last name extension as written, without the dot, or ''.
+ * @param {string | null | undefined} name
+ */
+export const extensionOf = (name) => /\.([^./]+)$/.exec(name ?? '')?.[1] ?? '';
+
+/**
  * Language id from the last name extension, case-insensitive. Unknown or
  * missing extensions give 'plain' (EDGE-9).
  * @param {string} name
  */
 export function detectLanguage(name) {
-  const extension = /\.([^./]+)$/.exec(name ?? '')?.[1].toLowerCase();
-  return BY_EXTENSION.get(extension) ?? 'plain';
+  return BY_EXTENSION.get(extensionOf(name).toLowerCase()) ?? 'plain';
 }
 
 /**

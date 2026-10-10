@@ -37,15 +37,24 @@ function reader(text) {
   };
 }
 
+/** Calls `enter` for `node` and the nodes in it that touch `from` to `to`, in document order. A false return skips the children. */
+function walk(node, from, to, enter) {
+  if (node.from > to || node.to < from || enter(node) === false) return;
+  for (let child = node.firstChild; child; child = child.nextSibling) walk(child, from, to, enter);
+}
+
 /**
  * The edits that turn Markdown into plain text, for the nodes that touch
  * `from` to `to`, sorted by position. Each edit stays inside the lines of
  * its top-level block, so blocks can be rendered one at a time.
  * @param {ReturnType<typeof reader>} read
  * @param {import('@lezer/common').Tree} tree
+ * @param {number} from
+ * @param {number} to
+ * @param {import('@lezer/common').SyntaxNode} [top] Walk only this node, not the whole tree.
  * @returns {Edit[]}
  */
-function syntaxEdits(read, tree, from, to) {
+function syntaxEdits(read, tree, from, to, top) {
   /** @type {Edit[]} */
   const edits = [];
   const remove = (a, b) => a < b && edits.push({ from: a, to: b, insert: '' });
@@ -72,114 +81,112 @@ function syntaxEdits(read, tree, from, to) {
     return referenceDefinitions(tree, read.slice).has(normalizeLabel(key));
   };
 
-  tree.iterate({
-    from,
-    to,
-    enter({ name, node }) {
-      switch (name) {
-        case 'HeaderMark': {
-          const heading = node.parent;
-          if (heading.name.startsWith('Setext')) remove(lineStart(node.from) - 1, lineEnd(node.from));
-          else if (node.from === heading.from) remove(indentBefore(node.from), spacesAfter(node.to));
-          else remove(spacesBefore(node.from), lineEnd(node.from));
-          return;
-        }
-        case 'EmphasisMark':
-        case 'StrikethroughMark':
-          remove(node.from, node.to);
-          return;
-        case 'InlineCode': {
-          const [open, close] = node.getChildren('CodeMark');
-          if (!close) return false;
-          const code = read.slice(open.to, close.from);
-          // One space on each side is padding, unless the code is only spaces (CommonMark 6.1).
-          const pad = code.length > 1 && code[0] === ' ' && code.at(-1) === ' ' && code.trim() !== '' ? 1 : 0;
-          remove(open.from, open.to + pad);
-          remove(close.from - pad, close.to);
-          return false;
-        }
-        case 'Escape':
-          remove(node.from, node.from + 1);
-          return;
-        case 'HardBreak':
-          remove(node.from, node.to - 1); // The spaces or the backslash. The line break stays.
-          return;
-        case 'Entity': {
-          const decoded = decodeEntity(read.slice(node.from, node.to));
-          if (decoded !== null) edits.push({ from: node.from, to: node.to, insert: decoded });
-          return;
-        }
-        case 'QuoteMark':
-          removeQuoteMark(node);
-          return;
-        case 'HorizontalRule':
-          remove(node.from, node.to);
-          return;
-        case 'FencedCode': {
-          // Only marks are read, so a nested code language is never walked.
-          for (const mark of node.getChildren('QuoteMark')) removeQuoteMark(mark);
-          const [open, ...rest] = node.getChildren('CodeMark');
-          // The opening line goes with its line break. After a list mark, the
-          // indentation of the next line goes too, so the code joins the mark.
-          const openEnd = lineEnd(open.from);
-          let end = Math.min(openEnd + 1, node.to);
-          if (indentBefore(open.from) === open.from && open.from > lineStart(open.from)) {
-            const column = open.from - lineStart(open.from);
-            while (end < node.to && end - openEnd - 1 < column && char(end) === ' ') end += 1;
-          }
-          remove(indentBefore(open.from), end);
-          // An unclosed fence has no closing mark, so its last line stays.
-          const close = rest.at(-1);
-          if (close) remove(lineStart(close.from) - 1, lineEnd(close.from));
-          return false;
-        }
-        case 'HTMLBlock':
-        case 'CommentBlock':
-        case 'ProcessingInstructionBlock':
-          // Raw HTML stays as it is (MDV-8). Only its quote marks go. The
-          // nested HTML parse is never walked.
-          for (const mark of node.getChildren('QuoteMark')) removeQuoteMark(mark);
-          return false;
-        case 'HTMLTag':
-        case 'Comment':
-        case 'ProcessingInstruction':
-          return false;
-        case 'Link':
-        case 'Image': {
-          const marks = node.getChildren('LinkMark');
-          if (marks.length < 2 || !isLink(node, marks)) return;
-          remove(node.from, marks[0].to);
-          remove(marks[1].from, node.to);
-          return;
-        }
-        case 'Autolink':
-          for (const mark of node.getChildren('LinkMark')) remove(mark.from, mark.to);
-          return false;
-        case 'TableDelimiter':
-          // The delimiter row, with the line break before it.
-          if (node.parent?.name === 'Table') remove(lineStart(node.from) - 1, lineEnd(node.from));
-          return;
-        case 'TableHeader':
-        case 'TableRow': {
-          // A pipe between cells becomes a tab, also around an empty cell.
-          // Outer pipes go. The spaces around a pipe go with it.
-          const pipes = node.getChildren('TableDelimiter');
-          let last = node.from;
-          pipes.forEach((pipe, i) => {
-            const before = Math.max(spacesBefore(pipe.from), last);
-            const after = Math.min(spacesAfter(pipe.to), node.to);
-            if (i === 0 && before === node.from) remove(node.from, after);
-            else if (i === pipes.length - 1 && after === node.to) remove(before, node.to);
-            else edits.push({ from: before, to: after, insert: '\t' });
-            last = after;
-          });
-          return;
-        }
-        default:
-          return;
+  const enter = ({ name, node }) => {
+    switch (name) {
+      case 'HeaderMark': {
+        const heading = node.parent;
+        if (heading.name.startsWith('Setext')) remove(lineStart(node.from) - 1, lineEnd(node.from));
+        else if (node.from === heading.from) remove(indentBefore(node.from), spacesAfter(node.to));
+        else remove(spacesBefore(node.from), lineEnd(node.from));
+        return;
       }
-    },
-  });
+      case 'EmphasisMark':
+      case 'StrikethroughMark':
+        remove(node.from, node.to);
+        return;
+      case 'InlineCode': {
+        const [open, close] = node.getChildren('CodeMark');
+        if (!close) return false;
+        const code = read.slice(open.to, close.from);
+        // One space on each side is padding, unless the code is only spaces (CommonMark 6.1).
+        const pad = code.length > 1 && code[0] === ' ' && code.at(-1) === ' ' && code.trim() !== '' ? 1 : 0;
+        remove(open.from, open.to + pad);
+        remove(close.from - pad, close.to);
+        return false;
+      }
+      case 'Escape':
+        remove(node.from, node.from + 1);
+        return;
+      case 'HardBreak':
+        remove(node.from, node.to - 1); // The spaces or the backslash. The line break stays.
+        return;
+      case 'Entity': {
+        const decoded = decodeEntity(read.slice(node.from, node.to));
+        if (decoded !== null) edits.push({ from: node.from, to: node.to, insert: decoded });
+        return;
+      }
+      case 'QuoteMark':
+        removeQuoteMark(node);
+        return;
+      case 'HorizontalRule':
+        remove(node.from, node.to);
+        return;
+      case 'FencedCode': {
+        // Only marks are read, so a nested code language is never walked.
+        for (const mark of node.getChildren('QuoteMark')) removeQuoteMark(mark);
+        const [open, ...rest] = node.getChildren('CodeMark');
+        // The opening line goes with its line break. After a list mark, the
+        // indentation of the next line goes too, so the code joins the mark.
+        const openEnd = lineEnd(open.from);
+        let end = Math.min(openEnd + 1, node.to);
+        if (indentBefore(open.from) === open.from && open.from > lineStart(open.from)) {
+          const column = open.from - lineStart(open.from);
+          while (end < node.to && end - openEnd - 1 < column && char(end) === ' ') end += 1;
+        }
+        remove(indentBefore(open.from), end);
+        // An unclosed fence has no closing mark, so its last line stays.
+        const close = rest.at(-1);
+        if (close) remove(lineStart(close.from) - 1, lineEnd(close.from));
+        return false;
+      }
+      case 'HTMLBlock':
+      case 'CommentBlock':
+      case 'ProcessingInstructionBlock':
+        // Raw HTML stays as it is (MDV-8). Only its quote marks go. The
+        // nested HTML parse is never walked.
+        for (const mark of node.getChildren('QuoteMark')) removeQuoteMark(mark);
+        return false;
+      case 'HTMLTag':
+      case 'Comment':
+      case 'ProcessingInstruction':
+        return false;
+      case 'Link':
+      case 'Image': {
+        const marks = node.getChildren('LinkMark');
+        if (marks.length < 2 || !isLink(node, marks)) return;
+        remove(node.from, marks[0].to);
+        remove(marks[1].from, node.to);
+        return;
+      }
+      case 'Autolink':
+        for (const mark of node.getChildren('LinkMark')) remove(mark.from, mark.to);
+        return false;
+      case 'TableDelimiter':
+        // The delimiter row, with the line break before it.
+        if (node.parent?.name === 'Table') remove(lineStart(node.from) - 1, lineEnd(node.from));
+        return;
+      case 'TableHeader':
+      case 'TableRow': {
+        // A pipe between cells becomes a tab, also around an empty cell.
+        // Outer pipes go. The spaces around a pipe go with it.
+        const pipes = node.getChildren('TableDelimiter');
+        let last = node.from;
+        pipes.forEach((pipe, i) => {
+          const before = Math.max(spacesBefore(pipe.from), last);
+          const after = Math.min(spacesAfter(pipe.to), node.to);
+          if (i === 0 && before === node.from) remove(node.from, after);
+          else if (i === pipes.length - 1 && after === node.to) remove(before, node.to);
+          else edits.push({ from: before, to: after, insert: '\t' });
+          last = after;
+        });
+        return;
+      }
+      default:
+        return;
+    }
+  };
+  if (top) walk(top, from, to, enter);
+  else tree.iterate({ from, to, enter });
   return edits.sort((a, b) => a.from - b.from || a.to - b.to);
 }
 
@@ -188,12 +195,16 @@ function syntaxEdits(read, tree, from, to) {
  * dropped for its part inside the range, so a cut mark disappears.
  * @param {string | import('@codemirror/state').Text} text
  * @param {import('@lezer/common').Tree} tree
+ * @param {number} [from]
+ * @param {number} [to]
+ * @param {import('@lezer/common').SyntaxNode} [top] A node that holds the range, such as an image for its
+ *   alt text. Only it is walked, so many images in one paragraph stay fast.
  */
-export function renderedText(text, tree, from = 0, to = text.length) {
+export function renderedText(text, tree, from = 0, to = text.length, top = undefined) {
   const read = reader(text);
   let out = '';
   let pos = from;
-  for (const edit of syntaxEdits(read, tree, from, to)) {
+  for (const edit of syntaxEdits(read, tree, from, to, top)) {
     const start = Math.max(edit.from, from);
     const end = Math.min(edit.to, to);
     if (end < pos || start > to || (start === end && edit.insert === '')) continue;

@@ -83,3 +83,11 @@ test('a name the server rejects is named in the message and the rest still open'
   assert.deepEqual(f.opened.map(([name]) => name), ['good.md']);
   assert.deepEqual(f.messages, ['Not opened: bad.md (not accepted by the server).']);
 });
+
+test('a file that cannot be read is named in the message and the rest still open', async () => {
+  const f = fakes();
+  const gone = { name: 'gone.md', size: 1, arrayBuffer: async () => Promise.reject(new Error('NotFoundError')) };
+  await openDropped({ files: [gone, file('b.md')], ...f });
+  assert.deepEqual(f.opened.map(([name]) => name), ['b.md']);
+  assert.deepEqual(f.messages, ['Not opened: gone.md (could not be read).']);
+});

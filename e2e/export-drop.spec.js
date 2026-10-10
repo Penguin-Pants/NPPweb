@@ -1,4 +1,5 @@
-import { readFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
+import { pathToFileURL } from 'node:url';
 import { expect, login, openDocs, test } from './fixtures.js';
 
 const exportButton = (page) => page.getByRole('button', { name: 'Export', exact: true });
@@ -37,6 +38,27 @@ test('the Export menu offers the formats of the active tab, and hides with no ta
   await expect(exportButton(page)).toBeHidden();
 });
 
+test('an .html tab that is not Markdown exports its own source (EXP-2)', async ({ page, api }) => {
+  await openDocs(page, api, [['page.html', '<h1>Hi</h1>']]);
+  await exportButton(page).click();
+  await expect(formats(page)).toHaveText(['Original (.html)', 'Plain text (.txt)']);
+  await page.keyboard.press('Escape');
+  const source = await exportAs(page, 'Original');
+  expect(source).toEqual({ name: 'page.html', text: '<h1>Hi</h1>' });
+});
+
+test('the Export menu works from the keyboard and gives the focus back to its button (NFR-5)', async ({ page, api }) => {
+  await openDocs(page, api, [['k.md', '# K']]);
+  await exportButton(page).focus();
+  await page.keyboard.press('ArrowDown');
+  await expect(formats(page).first()).toBeFocused();
+  await page.keyboard.press('ArrowDown');
+  const downloading = page.waitForEvent('download');
+  await page.keyboard.press('Enter');
+  expect((await downloading).suggestedFilename()).toBe('k.txt');
+  await expect(exportButton(page)).toBeFocused();
+});
+
 test('md, txt and html exports download at once with the unsaved text (EXP-1, EXP-3, EXP-4, EXP-6, EXP-7)', async ({ page, api }) => {
   await openDocs(page, api, [['a/b notes.md', '# Title\n\n**bold** [link](https://x.y)\n\n```python\ndef f(): pass\n```']]);
   await page.locator('.cm-line', { hasText: 'bold' }).click();
@@ -72,16 +94,31 @@ test('an html export draws Mermaid inline and opens with no network (EXP-4, MDV-
   await offline.close();
 });
 
-test('PDF export prints the rendered page from a frame (EXP-5)', async ({ page, api }) => {
+test('a saved html export shows a relative image next to it (EXP-4)', async ({ page, api }, testInfo) => {
+  await openDocs(page, api, [['pic.md', '![a pic](pic.png)']]);
+  const html = await exportAs(page, 'Web page');
+  const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
+  await writeFile(testInfo.outputPath('pic.png'), Buffer.from(png, 'base64'));
+  await writeFile(testInfo.outputPath('pic.html'), html.text);
+  const view = await page.context().newPage();
+  await view.goto(pathToFileURL(testInfo.outputPath('pic.html')).href);
+  await expect.poll(() => view.locator('img').evaluate((img) => img.naturalWidth)).toBe(1);
+});
+
+test('PDF export prints the rendered page from a frame titled with the PDF name, then cleans up (EXP-5, EXP-6)', async ({ page, api }) => {
   await page.addInitScript(() => {
     window.print = () => {
-      window.top.__printed = { title: document.title, heading: document.querySelector('h1')?.textContent };
+      const { top } = window;
+      top.__printed = { title: document.title, appTitle: top.document.title, heading: document.querySelector('h1')?.textContent };
+      window.dispatchEvent(new Event('afterprint'));
     };
   });
   await openDocs(page, api, [['p.md', '# Printed\n\ntext']]);
   await exportButton(page).click();
   await formats(page).filter({ hasText: 'PDF' }).click();
-  await expect.poll(() => page.evaluate(() => window.__printed)).toEqual({ title: 'p.md', heading: 'Printed' });
+  await expect.poll(() => page.evaluate(() => window.__printed)).toEqual({ title: 'p', appTitle: 'p', heading: 'Printed' });
+  await expect(page).toHaveTitle('Notepad');
+  await expect(page.locator('#print-frame')).toHaveCount(0);
 });
 
 /** Drops files on the page: name, text and optional raw bytes. */
@@ -133,6 +170,44 @@ test('a drag of text shows no overlay, and a file drop never inserts into the ed
   await expect(page.getByRole('tab', { name: 'b.md' })).toBeVisible();
   await page.getByRole('tab', { name: 'a.md' }).click();
   await expect(page.locator('.cm-content')).toHaveText('keep');
+});
+
+/** Real browser drag events for one file on disk, through the DevTools protocol. */
+async function fileDrag(page, path) {
+  const cdp = await page.context().newCDPSession(page);
+  const data = { items: [], files: [path], dragOperationsMask: 1 };
+  return (type) => cdp.send('Input.dispatchDragEvent', { type, x: 300, y: 300, data });
+}
+
+test('a cancelled file drag hides the overlay (DRP-5)', async ({ page, api }, testInfo) => {
+  await openDocs(page, api, [['a.md', 'keep']]);
+  await writeFile(testInfo.outputPath('c.md'), 'x');
+  const drag = await fileDrag(page, testInfo.outputPath('c.md'));
+  await drag('dragEnter');
+  await expect(page.locator('#drop-overlay')).toBeVisible();
+  await drag('dragCancel');
+  await expect(page.locator('#drop-overlay')).toBeHidden();
+  await page.getByRole('button', { name: 'New', exact: true }).click();
+  await expect(page.getByRole('tab')).toHaveCount(2);
+});
+
+test('while a dialog is open, a file drag shows no overlay and a drop opens nothing (DRP-5)', async ({ page, api }, testInfo) => {
+  await openDocs(page, api, [['a.md', 'keep']]);
+  await page.getByRole('button', { name: 'Close a.md' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Close document' });
+  await expect(dialog).toBeVisible();
+  await writeFile(testInfo.outputPath('d.md'), 'x');
+  const drag = await fileDrag(page, testInfo.outputPath('d.md'));
+  await drag('dragEnter');
+  await drag('dragOver');
+  await expect(page.locator('#drop-overlay')).toBeHidden();
+  await drag('drop');
+  await page.waitForTimeout(300);
+  await expect(page.locator('#drop-overlay')).toBeHidden();
+  expect(new URL(page.url()).protocol).toBe('http:');
+  await dialog.getByRole('button', { name: 'Keep' }).click();
+  await expect(page.getByRole('tab')).toHaveCount(0);
+  expect((await (await api.get('/api/documents')).json()).map((doc) => doc.name)).toEqual(['a.md']);
 });
 
 test('a drop without a session creates nothing and says so (EDGE-14)', async ({ page, api }) => {

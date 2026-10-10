@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { ensureSyntaxTree, language } from '@codemirror/language';
 import { EditorState } from '@codemirror/state';
-import { detectLanguage, languageId, LANGUAGES, languageSupport, resolveLanguage } from '../src/languages.js';
+import { detectLanguage, extensionOf, languageId, LANGUAGES, languageSupport, resolveLanguage } from '../src/languages.js';
 
 const EXPECTED = {
   'a.md': 'markdown',
@@ -123,4 +123,12 @@ test('fenced code with an unknown or missing info string stays plain code text (
     const doc = `\`\`\`${info}\nfn main() {}\n\`\`\`\n`;
     assert.equal(namesAt(doc, doc.indexOf('fn') + 1)[0], 'CodeText', info);
   }
+});
+
+test('extensionOf gives the last extension as written, or nothing', () => {
+  assert.equal(extensionOf('a.tar.MD'), 'MD');
+  assert.equal(extensionOf('notes'), '');
+  assert.equal(extensionOf('dir.d/notes'), '');
+  assert.equal(extensionOf('notes.'), '');
+  assert.equal(extensionOf(null), '');
 });

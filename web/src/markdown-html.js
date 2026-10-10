@@ -5,7 +5,7 @@
 // output needs no sanitizer.
 import { classHighlighter, highlightCode } from '@lezer/highlight';
 import { codeLanguage } from './languages.js';
-import { decodeEntity, linkTarget, normalizeLabel, referenceDefinitions } from './markdown-syntax.js';
+import { decodeEntity, fenceLanguage, isDrawnMermaid, linkTarget, normalizeLabel, referenceDefinitions } from './markdown-syntax.js';
 import { renderedText } from './markdown-text.js';
 
 const ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' };
@@ -24,12 +24,6 @@ function safeUrl(url, image) {
   return null;
 }
 
-/** First word of a fence's info string, lower case. */
-const infoWord = (node, text) => {
-  const info = node.getChild('CodeInfo');
-  return info ? text.slice(info.from, info.to).trim().split(/\s+/, 1)[0].toLowerCase() : '';
-};
-
 /** The code of a fenced or indented block, without its fences or container marks. */
 function codeOf(node, text) {
   let code = '';
@@ -39,24 +33,19 @@ function codeOf(node, text) {
   return code.replace(/\n+$/, '');
 }
 
-const isClosed = (node) => node.getChildren('CodeMark').length > 1;
-
 /**
- * The source of each closed fenced block tagged mermaid, once each, for the
- * caller to render before markdownToHtml (MDV-12).
+ * The source of each Mermaid block that Visual mode draws, once each, for
+ * the caller to render before markdownToHtml (MDV-12).
  * @param {string} text
  * @param {import('@lezer/common').Tree} tree
  * @returns {string[]}
  */
 export function mermaidSources(text, tree) {
+  const slice = (a, b) => text.slice(a, b);
   const sources = new Set();
-  tree.iterate({
-    enter({ name, node }) {
-      if (name !== 'FencedCode') return;
-      if (infoWord(node, text) === 'mermaid' && isClosed(node)) sources.add(codeOf(node, text));
-      return false;
-    },
-  });
+  for (let node = tree.topNode.firstChild; node; node = node.nextSibling) {
+    if (isDrawnMermaid(node, slice)) sources.add(codeOf(node, text));
+  }
   return [...sources];
 }
 
@@ -175,7 +164,7 @@ export function markdownToHtml(text, tree, { diagrams = new Map() } = {}) {
         const marks = node.getChildren('LinkMark');
         const url = marks.length < 2 ? undefined : target(node, marks);
         if (url === undefined) return escape(slice(node.from, node.to));
-        const alt = escape(renderedText(text, tree, marks[0].to, marks[1].from));
+        const alt = escape(renderedText(text, tree, marks[0].to, marks[1].from, node));
         const src = safeUrl(url, true);
         return src === null ? `<img alt="${alt}">` : `<img src="${escape(src)}" alt="${alt}">`;
       }
@@ -223,8 +212,8 @@ export function markdownToHtml(text, tree, { diagrams = new Map() } = {}) {
 
   function codeBlock(node) {
     const code = codeOf(node, text);
-    const word = node.name === 'FencedCode' ? infoWord(node, text) : '';
-    if (word === 'mermaid' && isClosed(node) && diagrams.has(code)) return `<figure class="diagram">${diagram(code)}</figure>`;
+    const word = node.name === 'FencedCode' ? fenceLanguage(node, slice) : '';
+    if (isDrawnMermaid(node, slice) && diagrams.has(code)) return `<figure class="diagram">${diagram(code)}</figure>`;
     const attr = word ? ` class="language-${escape(word)}"` : '';
     return `<pre><code${attr}>${highlighted(code, word)}</code></pre>`;
   }
@@ -373,8 +362,9 @@ figure.diagram svg { max-width: 100%; height: auto; }
 `;
 
 // The exported file allows no scripts, connections or fonts. Images may
-// load, because exports keep remote image tags (EXP-4).
-const EXPORT_CSP = "default-src 'none'; img-src https: http: data:; style-src 'unsafe-inline'";
+// load, because exports keep remote image tags (EXP-4). file: lets a
+// relative image next to a saved file show. Images cannot run script.
+const EXPORT_CSP = "default-src 'none'; img-src https: http: data: file:; style-src 'unsafe-inline'";
 
 /**
  * A self-contained HTML page for export (EXP-4): inline CSS, light theme, no

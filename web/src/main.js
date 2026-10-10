@@ -362,21 +362,21 @@ function refreshSelection() {
 // Export menu (EXP-1, EXP-2): the formats of the active tab, built on open.
 const exportWrap = $('export-wrap');
 const exportMenu = $('export-menu');
-const FORMAT_LABELS = { md: 'Markdown (.md)', txt: 'Plain text (.txt)', html: 'Web page (.html)', pdf: 'PDF (print dialog)' };
+const exportButton = /** @type {HTMLButtonElement} */ ($('toggle-export'));
 const exporter = createDropdown({
   root: exportWrap,
-  button: /** @type {HTMLButtonElement} */ ($('toggle-export')),
+  button: exportButton,
   panel: exportMenu,
   items: () => [...exportMenu.querySelectorAll('button')],
   onOpen: () => {
     const tab = tabs.active();
     const formats = tab ? exportFormats(tab.name, tabs.languageOf(tab.id)) : [];
     exportMenu.replaceChildren(
-      ...formats.map((format) => {
+      ...formats.map(({ id, label }) => {
         const item = document.createElement('button');
         item.type = 'button';
-        item.textContent = FORMAT_LABELS[format] ?? `Original (.${format})`;
-        item.addEventListener('click', () => exportAs(format));
+        item.textContent = label;
+        item.addEventListener('click', () => exportAs(id));
         return item;
       }),
     );
@@ -393,9 +393,11 @@ async function exportDiagrams(state) {
   return diagrams;
 }
 
-// The editor's state is the content, also unsaved changes (EXP-7).
+// The editor's state is the content, also unsaved changes (EXP-7). The
+// focus goes back to the Export button, as it was in the closed menu (NFR-5).
 async function exportAs(format) {
   exporter.close();
+  exportButton.focus();
   const tab = tabs.active();
   if (!tab || tabs.shownId() !== tab.id) return;
   const { state } = editor.view;
