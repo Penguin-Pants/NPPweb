@@ -454,6 +454,11 @@ export function createTabs({ editor, autosave, api, getStorage, elements, onActi
     },
 
     render,
+    /** True when the tab has no unsaved text, or no tab shows the document. */
+    isClean: (id) => {
+      const tab = find(id);
+      return !tab || isClean(tab);
+    },
     active: () => find(activeId) ?? null,
     /** The id of the document in the editor view, for autosave. */
     shownId: () => shownId,

@@ -141,6 +141,18 @@ test('arrow keys move through the Documents dropdown (LAY-4)', async ({ page, ap
   await page.keyboard.press('Enter');
   await expect(dropdown(page)).toBeHidden();
   await expect(page.getByRole('tab', { name: 'one.txt' })).toHaveAttribute('aria-selected', 'true');
+
+  // Tab reaches each row's actions, the Move button too (v3 MOV-1).
+  await documentsButton(page).focus();
+  await page.keyboard.press('ArrowDown');
+  await expect(openButtons(page).nth(0)).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(page.getByRole('button', { name: 'Rename three.txt' })).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(page.getByRole('button', { name: 'Move three.txt to Work' })).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('#status-message')).toHaveText('Moved three.txt to Work.');
+  await expect(openButtons(page)).toHaveCount(2);
 });
 
 test('rename and delete dialogs keep the dropdown open, and Escape closes it afterwards', async ({ page, api }) => {

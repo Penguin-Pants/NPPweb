@@ -304,3 +304,130 @@ test('two browsers in different workspaces work independently (EDGE-34)', async 
     await other.close();
   }
 });
+
+// Move (MOV-1 to MOV-3, EDGE-31, EDGE-32, TD-34).
+const documentsButton = (page) => page.getByRole('button', { name: 'Documents', exact: true });
+const moveButton = (page, name, target) => page.getByRole('button', { name: `Move ${name} to ${target}` });
+const deletedDialog = (page) => page.getByRole('dialog', { name: 'This document was deleted on another device.' });
+
+test('Move to Work takes a document out of this list and into the Work list (MOV-1)', async ({ page, api }) => {
+  await create(api, 'personal', 'a.md', 'aaa');
+  await create(api, 'personal', 'b.md', 'bbb');
+  await login(page);
+  await documentsButton(page).click();
+  await expect(moveButton(page, 'a.md', 'Work')).toHaveText('Move to Work');
+  await moveButton(page, 'a.md', 'Work').click();
+  await expect(message(page)).toHaveText('Moved a.md to Work.');
+  await expect(page.locator('.doc-row')).toHaveCount(1);
+  expect(await names(api, 'personal')).toEqual(['b.md']);
+  expect(await names(api, 'work')).toEqual(['a.md']);
+  await page.keyboard.press('Escape');
+  await switchTo(page, 'Work');
+  await documentsButton(page).click();
+  await expect(moveButton(page, 'a.md', 'Personal')).toHaveText('Move to Personal');
+});
+
+test('a failed move keeps the tab and moves nothing (EDGE-32)', async ({ page, api }) => {
+  const a = await create(api, 'personal', 'a.md', 'aaa');
+  await login(page);
+  await storeTabs(page, { personal: [a] });
+  await page.route(`**/api/documents/${a}`, (route) =>
+    route.request().method() === 'PATCH' ? route.abort() : route.fallback(),
+  );
+  await documentsButton(page).click();
+  await moveButton(page, 'a.md', 'Work').click();
+  await expect(message(page)).toHaveText('Not moved. Try again.');
+  await expect(page.getByRole('tab', { name: 'a.md' })).toHaveCount(1);
+  expect(await names(api, 'work')).toEqual([]);
+});
+
+test('a move of a document that another device moved says so and drops its row (EDGE-32)', async ({ page, api }) => {
+  const a = await create(api, 'personal', 'a.md', 'aaa');
+  await login(page);
+  await documentsButton(page).click();
+  await expect(moveButton(page, 'a.md', 'Work')).toBeVisible();
+  expect((await api.patch(`/api/documents/${a}?workspace=personal`, { data: { workspace: 'work' } })).status()).toBe(200);
+  await moveButton(page, 'a.md', 'Work').click();
+  await expect(message(page)).toHaveText('Not moved: the document is no longer in Personal.');
+  await expect(page.locator('.doc-row')).toHaveCount(0);
+});
+
+test.describe('moves with a 30-second autosave delay', () => {
+  test.use({ autosaveSeconds: 30 });
+
+  test('an edit typed just before a move is in the moved document, and its tab closes (MOV-3)', async ({ page, api }) => {
+    const a = await create(api, 'personal', 'a.md', 'aaa');
+    await login(page);
+    await storeTabs(page, { personal: [a] });
+    await editor(page).click();
+    await page.keyboard.press('ControlOrMeta+End');
+    await page.keyboard.type(' more');
+    await expect(status(page)).toHaveText('Unsaved changes');
+    await documentsButton(page).click();
+    await moveButton(page, 'a.md', 'Work').click();
+    await expect(message(page)).toHaveText('Moved a.md to Work.');
+    await expect(page.getByRole('tab')).toHaveCount(0);
+    expect((await (await api.get(`/api/documents/${a}?workspace=work`)).json()).content).toBe('aaa more');
+  });
+
+  test('a save that fails before a move keeps the tab and moves nothing (EDGE-32)', async ({ page, api }) => {
+    const a = await create(api, 'personal', 'a.md', 'aaa');
+    await login(page);
+    await storeTabs(page, { personal: [a] });
+    await page.route('**/api/documents/*/content', (route) => route.abort());
+    await editor(page).click();
+    await page.keyboard.type('x');
+    await documentsButton(page).click();
+    await moveButton(page, 'a.md', 'Work').click();
+    await expect(message(page)).toHaveText('Not moved: unsaved changes could not be saved.');
+    await expect(page.getByRole('tab', { name: 'a.md' })).toHaveCount(1);
+    expect(await names(api, 'work')).toEqual([]);
+  });
+
+  test('text typed during a move request stays in its tab, and its next save offers a new document (TD-34, R11)', async ({ page, api }) => {
+    const a = await create(api, 'personal', 'a.md', 'aaa');
+    await login(page);
+    await storeTabs(page, { personal: [a] });
+    let release;
+    const held = new Promise((resolve) => (release = resolve));
+    await page.route(`**/api/documents/${a}`, async (route) => {
+      if (route.request().method() !== 'PATCH') return route.fallback();
+      await held;
+      await route.continue();
+    });
+    await documentsButton(page).click();
+    await moveButton(page, 'a.md', 'Work').click();
+    await editor(page).click();
+    await page.keyboard.press('ControlOrMeta+End');
+    await page.keyboard.type(' late');
+    const reply = page.waitForResponse((res) => res.url().endsWith(`/api/documents/${a}`) && res.request().method() === 'PATCH');
+    release();
+    await reply;
+    await expect(message(page)).toHaveText('Moved a.md to Work.');
+    await expect(page.getByRole('tab', { name: 'a.md' })).toHaveCount(1);
+    await page.keyboard.press('ControlOrMeta+s');
+    await expect(deletedDialog(page)).toBeVisible();
+    await deletedDialog(page).getByRole('button', { name: 'Save mine as a new document' }).click();
+    await expect(editor(page)).toHaveText('aaa late');
+    expect(await names(api, 'personal')).toEqual(['a.md']);
+    expect(await names(api, 'work')).toEqual(['a.md']);
+  });
+
+  test('a document moved on another device: a clean tab closes at the next refresh, a dirty one warns at its next save (EDGE-31)', async ({ page, api }) => {
+    const a = await create(api, 'personal', 'a.md', 'aaa');
+    const b = await create(api, 'personal', 'b.md', 'bbb');
+    await login(page);
+    await storeTabs(page, { personal: [a, b] });
+    await page.getByRole('tab', { name: 'b.md' }).click();
+    await editor(page).click();
+    await page.keyboard.type('dirty ');
+    for (const id of [a, b]) {
+      expect((await api.patch(`/api/documents/${id}?workspace=personal`, { data: { workspace: 'work' } })).status()).toBe(200);
+    }
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await expect(page.getByRole('tab', { name: 'a.md' })).toHaveCount(0);
+    await expect(page.getByRole('tab', { name: 'b.md' })).toHaveCount(1);
+    await page.keyboard.press('ControlOrMeta+s');
+    await expect(deletedDialog(page)).toBeVisible();
+  });
+});

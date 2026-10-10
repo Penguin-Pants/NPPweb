@@ -1,20 +1,24 @@
 // Document list (DOC-4, T18) in a top-bar dropdown (LAY-3, LAY-4): name and
-// last modified date, newest first. Open, rename and delete. Open closes the
+// last modified date, newest first, of the active workspace (v3 WS-6). Open,
+// rename, move to the other workspace (MOV-1) and delete. Open closes the
 // dropdown. Delete is permanent and closes the tab.
 import { choose, formDialog } from './dialogs.js';
 import { createDropdown } from './dropdown.js';
 import { emit } from './events.js';
+import { WORKSPACE_NAMES } from './workspace.js';
 
 /**
  * @param {object} deps
  * @param {typeof import('./api.js').api} deps.api
  * @param {ReturnType<typeof import('./tabs.js').createTabs>} deps.tabs
+ * @param {Pick<ReturnType<typeof import('./autosave.js').createAutosave>, 'flush'>} deps.autosave
+ * @param {ReturnType<typeof import('./workspace-switch.js').createExclusive>} deps.exclusive
  * @param {HTMLElement} deps.root Holds the button and the dropdown panel.
  * @param {HTMLButtonElement} deps.button The Documents button.
  * @param {HTMLElement} deps.panel The dropdown panel.
  * @param {(text: string) => void} deps.showMessage
  */
-export function createDocList({ api, tabs, root, button, panel, showMessage }) {
+export function createDocList({ api, tabs, autosave, exclusive, root, button, panel, showMessage }) {
   const list = document.createElement('ul');
   list.className = 'doc-rows';
   panel.append(list);
@@ -52,6 +56,13 @@ export function createDocList({ api, tabs, root, button, panel, showMessage }) {
     rename.dataset.action = 'rename';
     rename.setAttribute('aria-label', `Rename ${doc.name}`);
     rename.addEventListener('click', () => renameDocument(doc));
+    const target = WORKSPACE_NAMES[otherWorkspace()];
+    const moveTo = document.createElement('button');
+    moveTo.type = 'button';
+    moveTo.textContent = `Move to ${target}`;
+    moveTo.dataset.action = 'move';
+    moveTo.setAttribute('aria-label', `Move ${doc.name} to ${target}`);
+    moveTo.addEventListener('click', () => moveDocument(doc));
     const remove = document.createElement('button');
     remove.type = 'button';
     remove.className = 'danger';
@@ -59,7 +70,7 @@ export function createDocList({ api, tabs, root, button, panel, showMessage }) {
     remove.dataset.action = 'delete';
     remove.setAttribute('aria-label', `Delete ${doc.name}`);
     remove.addEventListener('click', () => deleteDocument(doc));
-    item.append(open, rename, remove);
+    item.append(open, rename, moveTo, remove);
     return item;
   }
 
@@ -106,6 +117,36 @@ export function createDocList({ api, tabs, root, button, panel, showMessage }) {
     });
     if (result === null) return;
     await refresh();
+  }
+
+  const otherWorkspace = () => (api.workspace() === 'personal' ? 'work' : 'personal');
+
+  // MOV-1 to MOV-3, EDGE-32 (TD-34). An open tab saves first. Only a clean
+  // tab closes: text typed during the request stays, and its next save gets
+  // 404 and the EDGE-1 dialog, so no text is lost (R11).
+  async function moveDocument(doc) {
+    const target = otherWorkspace();
+    await exclusive('move', async () => {
+      if (!(await autosave.flush(doc.id))) {
+        showMessage('Not moved: unsaved changes could not be saved.');
+        return;
+      }
+      const { status, stale } = await api.updateDocument(doc.id, { workspace: target });
+      if (stale) return;
+      if (status === 404) {
+        // Moved or deleted on another device: the list shows that now.
+        showMessage(`Not moved: the document is no longer in ${WORKSPACE_NAMES[api.workspace()]}.`);
+        await refresh();
+        return;
+      }
+      if (status !== 200) {
+        showMessage('Not moved. Try again.');
+        return;
+      }
+      if (tabs.isClean(doc.id)) tabs.removeTab(doc.id);
+      showMessage(`Moved ${doc.name} to ${WORKSPACE_NAMES[target]}.`);
+      await refresh();
+    });
   }
 
   async function deleteDocument(doc) {

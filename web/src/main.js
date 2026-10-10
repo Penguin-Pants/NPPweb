@@ -489,6 +489,8 @@ window.addEventListener('beforeunload', (event) => {
 const doclist = createDocList({
   api,
   tabs,
+  autosave,
+  exclusive,
   root: $('doclist-menu'),
   button: /** @type {HTMLButtonElement} */ ($('toggle-doclist')),
   panel: $('doclist'),
