@@ -223,13 +223,22 @@ export function createTabs({ editor, autosave, api, getStorage, elements, onActi
   }
 
   const controller = {
-    /** Restores the stored tabs, dropping documents that no longer exist. */
-    async boot() {
+    /**
+     * Restores the stored tabs of the active workspace, dropping documents
+     * that no longer exist.
+     * @param {{ list?: import('./api.js').DocumentMeta[] }} [options] The
+     *   workspace's list when the caller read it already (a switch, TD-33).
+     */
+    async boot({ list } = {}) {
       const stored = readOpenTabs(getStorage, storageKey());
-      const list = await api.listDocuments();
-      // A switch during the read boots the other workspace itself (TD-41).
-      if (list.stale) return;
-      const byId = list.status === 200 ? new Map(list.data.map((doc) => [doc.id, doc])) : null;
+      let docs = list ?? null;
+      if (!docs) {
+        const result = await api.listDocuments();
+        // A switch during the read boots the other workspace itself (TD-41).
+        if (result.stale) return;
+        if (result.status === 200) docs = result.data;
+      }
+      const byId = docs ? new Map(docs.map((doc) => [doc.id, doc])) : null;
       tabs = stored.ids
         .filter((id) => !byId || byId.has(id))
         .map((id) => ({ id, name: byId?.get(id).name ?? 'Loading', language: byId?.get(id).language ?? null, state: null }));
@@ -368,6 +377,20 @@ export function createTabs({ editor, autosave, api, getStorage, elements, onActi
 
     /** Closes a tab without saving (its document is gone). */
     removeTab,
+
+    /**
+     * Closes every tab with no prompt and no delete, before a workspace
+     * switch (TD-33). Every tab is saved by then. The stored tab list stays,
+     * so the workspace gets its tabs back on the way back (WS-7).
+     */
+    closeAllSaved() {
+      for (const tab of tabs) autosave.untrack(tab.id);
+      tabs = [];
+      activeId = null;
+      shownId = null;
+      editor.showBlank();
+      render();
+    },
 
     /** Shows a new name on an open tab. */
     rename(id, name) {

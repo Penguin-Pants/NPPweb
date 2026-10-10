@@ -109,3 +109,198 @@ test('tabs stored before the upgrade restore as the Personal tabs, and Work keep
   await expect(page.getByRole('tab')).toHaveCount(0);
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('pn.openTabs.v1')))).toEqual({ ids, activeId: ids[1] });
 });
+
+// The switch (WS-2, WS-7 to WS-9, EDGE-28 to EDGE-30, EDGE-34, TD-33).
+const switchButton = (page) => page.locator('#workspace-switch');
+const message = (page) => page.locator('#status-message');
+const isPersonalList = (url) => url.pathname === '/api/documents' && !url.searchParams.has('workspace');
+
+/** Creates a document in a workspace through the API. Returns its id. */
+async function create(api, workspace, name, content) {
+  const res = await api.post(`/api/documents?workspace=${workspace}&name=${encodeURIComponent(name)}`, {
+    data: content,
+    headers: text,
+  });
+  expect(res.status()).toBe(201);
+  return (await res.json()).id;
+}
+
+/** Stores the open tabs of both workspaces in this browser, then reloads. */
+async function storeTabs(page, { personal = [], work = [] }) {
+  await page.evaluate(
+    ([p, w]) => {
+      localStorage.setItem('pn.openTabs.v1', JSON.stringify({ ids: p, activeId: p[0] ?? null }));
+      localStorage.setItem('pn.openTabs.work.v1', JSON.stringify({ ids: w, activeId: w[0] ?? null }));
+    },
+    [personal, work],
+  );
+  await page.reload();
+}
+
+async function switchTo(page, name) {
+  await switchButton(page).click();
+  await expect(page).toHaveTitle(`${name} - Notepad`);
+}
+
+/** Lets a reply that just arrived run its handlers. */
+const afterReply = (page) => page.evaluate(() => new Promise((resolve) => setTimeout(resolve, 300)));
+
+test('switching away and back restores each workspace\'s tabs, active tab and title (WS-2, WS-3, WS-7) @smoke', async ({ page, api }) => {
+  const a = await create(api, 'personal', 'a.md', 'aaa');
+  const b = await create(api, 'personal', 'b.md', 'bbb');
+  await login(page);
+  await storeTabs(page, { personal: [a, b] });
+  await expect(page.getByRole('tab', { name: 'a.md' })).toHaveAttribute('aria-selected', 'true');
+  await expect(switchButton(page)).toHaveText('Personal');
+  await expect(switchButton(page)).toHaveAttribute('aria-label', 'Workspace: Personal. Switch to Work');
+
+  await switchTo(page, 'Work');
+  await expect(switchButton(page)).toHaveText('Work');
+  await expect(switchButton(page)).toHaveAttribute('aria-label', 'Workspace: Work. Switch to Personal');
+  await expect(page.getByRole('tab')).toHaveCount(0);
+  await newDocument(page);
+
+  await switchTo(page, 'Personal');
+  await expect(page.getByRole('tab')).toHaveCount(2);
+  await expect(page.getByRole('tab', { name: 'a.md' })).toHaveAttribute('aria-selected', 'true');
+  await expect(editor(page)).toHaveText('aaa');
+
+  await switchTo(page, 'Work');
+  await expect(page.getByRole('tab', { name: 'Untitled 1' })).toHaveAttribute('aria-selected', 'true');
+  expect(await names(api, 'work')).toEqual(['Untitled 1']);
+  expect(await names(api, 'personal')).toEqual(['b.md', 'a.md']);
+});
+
+test.describe('with a 30-second autosave delay', () => {
+  test.use({ autosaveSeconds: 30 });
+
+  test('text typed just before a switch is on the server after it (WS-8)', async ({ page, api }) => {
+    await login(page);
+    await newDocument(page);
+    await editor(page).click();
+    await page.keyboard.type('typed just before');
+    await expect(status(page)).toHaveText('Unsaved changes');
+    await switchTo(page, 'Work');
+    const [doc] = await (await api.get('/api/documents')).json();
+    expect((await (await api.get(`/api/documents/${doc.id}`)).json()).content).toBe('typed just before');
+  });
+});
+
+test('a save that fails before a switch keeps the workspace and says why (EDGE-28)', async ({ page }) => {
+  await login(page);
+  await newDocument(page);
+  await page.route('**/api/documents/*/content', (route) => route.abort());
+  await editor(page).click();
+  await page.keyboard.type('not saved');
+  await switchButton(page).click();
+  await expect(message(page)).toHaveText(
+    'Unsaved changes could not be saved: the server cannot be reached. The workspace did not change.',
+  );
+  await expect(page).toHaveTitle('Personal - Notepad');
+  await expect(switchButton(page)).toHaveText('Personal');
+  await expect(editor(page)).toHaveText('not saved');
+});
+
+test('a failed list read keeps the workspace, and the text typed before is saved (EDGE-30)', async ({ page, api }) => {
+  await login(page);
+  await newDocument(page);
+  await editor(page).click();
+  await page.keyboard.type('saved first');
+  await page.route((url) => url.pathname === '/api/documents' && url.searchParams.get('workspace') === 'work', (route) =>
+    route.abort(),
+  );
+  await switchButton(page).click();
+  await expect(message(page)).toHaveText('Could not open the Work documents. Try again.');
+  await expect(page).toHaveTitle('Personal - Notepad');
+  const [doc] = await (await api.get('/api/documents')).json();
+  expect((await (await api.get(`/api/documents/${doc.id}`)).json()).content).toBe('saved first');
+});
+
+test('a Personal list read that returns after the switch leaves the Work tabs as they are (TD-41)', async ({ page, api }) => {
+  const p = await create(api, 'personal', 'p.md', 'personal text');
+  const w = await create(api, 'work', 'w.md', 'work text');
+  await login(page);
+  await storeTabs(page, { personal: [p], work: [w] });
+  await expect(page.getByRole('tab', { name: 'p.md' })).toHaveAttribute('aria-selected', 'true');
+  let release;
+  const held = new Promise((resolve) => (release = resolve));
+  await page.route(isPersonalList, async (route) => {
+    await held;
+    await route.continue();
+  }, { times: 1 });
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await switchTo(page, 'Work');
+  await expect(page.getByRole('tab', { name: 'w.md' })).toHaveAttribute('aria-selected', 'true');
+  const reply = page.waitForResponse((res) => isPersonalList(new URL(res.url())));
+  release();
+  await reply;
+  await afterReply(page);
+  await expect(page.getByRole('tab', { name: 'w.md' })).toHaveCount(1);
+  await expect(editor(page)).toHaveText('work text');
+});
+
+test('a language change whose reply arrives after the switch shows no message (TD-41)', async ({ page, api }) => {
+  const p = await create(api, 'personal', 'p.md', 'x = 1');
+  await login(page);
+  await storeTabs(page, { personal: [p] });
+  await expect(page.getByRole('tab', { name: 'p.md' })).toHaveAttribute('aria-selected', 'true');
+  let release;
+  const held = new Promise((resolve) => (release = resolve));
+  const isPatch = (url) => url.pathname === `/api/documents/${p}`;
+  await page.route(isPatch, async (route) => {
+    if (route.request().method() !== 'PATCH') return route.fallback();
+    await held;
+    await route.continue();
+  });
+  await page.getByLabel('Language').selectOption('python');
+  await switchTo(page, 'Work');
+  const reply = page.waitForResponse((res) => isPatch(new URL(res.url())) && res.request().method() === 'PATCH');
+  release();
+  await reply;
+  await afterReply(page);
+  await expect(message(page)).toHaveText('');
+});
+
+test('a keyboard-only run switches the workspace (WS-2)', async ({ page }) => {
+  await login(page);
+  await page.locator('#theme-toggle').focus();
+  await page.keyboard.press('Shift+Tab');
+  await expect(switchButton(page)).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveTitle('Work - Notepad');
+  await expect(switchButton(page)).toBeFocused();
+  await page.keyboard.press('Space');
+  await expect(page).toHaveTitle('Personal - Notepad');
+});
+
+test('a theme change in Work also shows in Personal (WS-9)', async ({ page }) => {
+  await login(page);
+  await switchTo(page, 'Work');
+  await page.locator('#theme-toggle').click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+  await switchTo(page, 'Personal');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+  await page.reload();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+});
+
+test('two browsers in different workspaces work independently (EDGE-34)', async ({ page, browser, baseURL, api }) => {
+  await login(page);
+  const other = await browser.newContext({ baseURL });
+  try {
+    const second = await other.newPage();
+    await login(second);
+    await switchTo(second, 'Work');
+    await newDocument(page);
+    await newDocument(second);
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await second.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await expect(page).toHaveTitle('Personal - Notepad');
+    await expect(page.getByRole('tab')).toHaveCount(1);
+    await expect(second.getByRole('tab')).toHaveCount(1);
+    expect(await names(api, 'personal')).toEqual(['Untitled 1']);
+    expect(await names(api, 'work')).toEqual(['Untitled 1']);
+  } finally {
+    await other.close();
+  }
+});

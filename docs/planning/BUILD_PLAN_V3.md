@@ -295,7 +295,7 @@ Numbering continues from v1 (R1 to R8).
 | T31 | Workspace-scoped document API | M18 | M | T30 | Done | | `onRequest` hook checks `workspace` before the body is read. Upgrade check is a test. M18 review in `PLAN_REVIEW.md` section 14. |
 | T32 | Workspace state, title and class rename | M19 | S | none | Done | | `showWorkspace` in `web/src/workspace.js` sets `data-workspace` and, on `<html data-page="app">`, the title. `.workspace` is now `.main-area`. |
 | T33 | Workspace-scoped client calls and tabs | M19 | M | T31, T32 | Done | | `api.js` generation and `stale`. Personal calls keep the v1 paths (`PLAN_REVIEW.md` section 9). The e2e `drop` helper moved to `e2e/fixtures.js`. |
-| T34 | Switch control and switch safety | M19 | M | T33 | Planned | | |
+| T34 | Switch control and switch safety | M19 | M | T33 | Done | | M19 review in `PLAN_REVIEW.md` section 14. Owner check: the installed app window title changes on a switch (Chrome, Edge). |
 | T35 | Move route | M20 | S | T31 | Planned | | |
 | T36 | Move action in the Documents dropdown | M20 | M | T34, T35 | Planned | | |
 | T37 | Color settings API | M21 | S | none | Planned | | |

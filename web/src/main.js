@@ -18,14 +18,15 @@ import { createCounter, createSummary } from './markdown-text.js';
 import { createToolbar } from './markdown-toolbar.js';
 import { mermaidRenderer } from './mermaid-render.js';
 import { createOutline, formatCounts } from './outline.js';
-import { createStoredChoice, readChoice } from './stored-choice.js';
+import { createStoredChoice } from './stored-choice.js';
 import { createOutlinePanel } from './outline-panel.js';
 import { openFind, openReplace } from './search-panel.js';
 import { modName, setupShortcuts } from './shortcuts.js';
 import { setupSessionRecovery } from './session.js';
 import { createTabs } from './tabs.js';
 import { animateThemeSwitch, createTheme } from './theme.js';
-import { WORKSPACE } from './workspace.js';
+import { showWorkspace, WORKSPACE, WORKSPACE_NAMES } from './workspace.js';
+import { createExclusive, switchWorkspace } from './workspace-switch.js';
 
 const $ = (id) => /** @type {HTMLElement} */ (document.getElementById(id));
 
@@ -189,7 +190,8 @@ const autosave = createAutosave({
 });
 loadSettings();
 // The stored workspace (WS-4). theme-init.js already showed it.
-api.setWorkspace(readChoice({ getStorage: () => localStorage, ...WORKSPACE }));
+const workspace = createStoredChoice({ getStorage: () => localStorage, ...WORKSPACE });
+api.setWorkspace(workspace.get());
 tabs = createTabs({
   editor,
   autosave,
@@ -418,11 +420,49 @@ async function exportAs(format) {
   }
 }
 
+// A workspace switch, a drop and a move never overlap (TD-42).
+const exclusive = createExclusive(showMessage);
+
+// Workspace switch (WS-2, TD-32, TD-33). The button names the active workspace.
+const workspaceButton = /** @type {HTMLButtonElement} */ ($('workspace-switch'));
+const otherWorkspace = () => (workspace.get() === 'personal' ? 'work' : 'personal');
+function renderWorkspace() {
+  const current = WORKSPACE_NAMES[workspace.get()];
+  workspaceButton.textContent = current;
+  workspaceButton.setAttribute('aria-label', `Workspace: ${current}. Switch to ${WORKSPACE_NAMES[otherWorkspace()]}`);
+}
+renderWorkspace();
+workspaceButton.addEventListener('click', () =>
+  exclusive('workspace switch', async () => {
+    workspaceButton.disabled = true;
+    try {
+      await switchWorkspace({
+        target: otherWorkspace(),
+        autosave,
+        api,
+        tabs,
+        showMessage,
+        apply: (target) => {
+          workspace.toggle();
+          api.setWorkspace(target);
+          showWorkspace(document, target);
+          renderWorkspace();
+        },
+      });
+    } finally {
+      workspaceButton.disabled = false;
+      // A disabled button loses the focus. Give it back unless a tab took it.
+      if (document.activeElement === document.body) workspaceButton.focus();
+    }
+  }),
+);
+
 // Drop files on the page to open them (DRP-1 to DRP-6).
 setupDrop({
   win: window,
   overlay: $('drop-overlay'),
-  onFiles: (files) => openDropped({ files, api, open: (meta, text) => tabs.addDocument(meta, text), showMessage }),
+  onFiles: (files) =>
+    exclusive('drop', () => openDropped({ files, api, open: (meta, text) => tabs.addDocument(meta, text), showMessage })),
 });
 
 // CON-1 and EDGE-1: a 412 or 404 save opens a dialog with the choices.
