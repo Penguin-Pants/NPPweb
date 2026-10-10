@@ -292,7 +292,7 @@ Numbering continues from v1 (R1 to R8).
 | T28 | Status bar layout | M17 | S | none | Done | PR #6 (aa926e0, 10eac16) | Narrow-window wrap from the Codex review. |
 | T29 | New-document defaults and recovery copies | M17 | S | none | Done | PR #6 (aa926e0, 70239d0, 10eac16) | Recovery copy fixes from the Codex review. |
 | T30 | Migration 2: workspace column | M18 | S | none | Done | | Fresh and upgraded databases reach `user_version` 2. |
-| T31 | Workspace-scoped document API | M18 | M | T30 | Planned | | |
+| T31 | Workspace-scoped document API | M18 | M | T30 | Done | | `onRequest` hook checks `workspace` before the body is read. Upgrade check is a test. M18 review in `PLAN_REVIEW.md` section 14. |
 | T32 | Workspace state, title and class rename | M19 | S | none | Planned | | |
 | T33 | Workspace-scoped client calls and tabs | M19 | M | T31, T32 | Planned | | |
 | T34 | Switch control and switch safety | M19 | M | T33 | Planned | | |
