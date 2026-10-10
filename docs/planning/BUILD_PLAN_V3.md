@@ -80,6 +80,7 @@ API changes in `BUILD_PLAN.md` section 2.7 terms:
 | TD-28 | The active workspace is a `createStoredChoice` (`web/src/stored-choice.js`) with key `pn.workspace` and values `['personal', 'work']`. | The first value is the default for a first visit, blocked storage and unknown values (WS-4). Same module as the theme. |
 | TD-29 | `theme-init.js` sets `data-workspace` on `<html>` and `document.title` ("Personal - Notepad" or "Work - Notepad") before first paint. | WS-3. No flash of the wrong title or tab strip color. |
 | TD-30 | `api.js` holds the active workspace (`api.setWorkspace(id)`) and adds `workspace=<id>` to every `/api/documents` path. `listDocuments(workspace?)` takes an override for the switch prefetch. | Callers (`tabs.js`, `doclist.js`, `drop.js`, `conflict.js`) stay unchanged. New, drop and recovery copies go to the active workspace (WS-6). |
+| TD-41 | `api.js` keeps a workspace generation number. `setWorkspace` increases it. Each `/api/documents` call records the generation when it starts. If the generation changed when the response arrives, the call returns `{ status: 0, data: null, stale: true }` and emits no `session-expired`. The prefetch with an explicit `workspace` (TD-30) is exempt. Callers stop on `stale` and show no message. | A refresh, load, New or drop that started before a switch must not change the new workspace. Example: a Personal list that returns after the switch makes `planRefresh` close every clean Work tab. A stale create still runs on the server, so that document is in the old workspace's list (R14). |
 | TD-31 | Personal tabs keep the key `pn.openTabs.v1` (`web/src/tabs.js:9`). Work tabs use `pn.openTabs.work.v1`. `readOpenTabs` and `writeOpenTabs` take the key. | MIG-2 needs no data migration: the old key already holds the Personal tabs. |
 
 ### 2.5 Switch
@@ -87,7 +88,7 @@ API changes in `BUILD_PLAN.md` section 2.7 terms:
 | ID | Decision | Reason |
 |----|----------|--------|
 | TD-32 | One `<button id="workspace-switch">` in the top bar, after the spacer and before the theme button. Its text is the active name. Its `aria-label` is "Workspace: Personal. Switch to Work" (or the reverse). It shows only the active workspace, so the "other color" part of CLR-1 does not apply. | WS-2. A native button works from the keyboard. Its place keeps New as the first Tab stop, which `e2e/layout.spec.js` checks. |
-| TD-33 | The switch runs these steps. During the switch the button is disabled. (1) Read the target list with `listDocuments(target)`. Not 200: stay and show "Could not open the Work documents. Try again." (EDGE-30). (2) Flush every tracked document. Repeat while `autosave.hasUnsaved()` and the last round saved, at most 3 rounds. A failed flush: stay. If the cause is a conflict or a delete, the CON-1 or EDGE-1 dialog explains it (EDGE-29). Else show "Unsaved changes could not be saved: <cause>. The workspace did not change." (EDGE-28). (3) In one synchronous step: untrack and drop all tabs without the close prompt, set the workspace (stored choice, `api.setWorkspace`, `data-workspace`, title), then run `tabs.boot({ list })` with the list from step 1. | WS-7, WS-8. Step 3 has no `await`, so no keystroke can land between the last save and the tab close. Modal dialogs block the button, so a switch cannot start while a CON-1 dialog is open. |
+| TD-33 | `saveAll()` flushes every tracked document. It repeats while `autosave.hasUnsaved()` and the last round saved, at most 3 rounds. It returns true only when nothing is unsaved. The switch runs these steps, with the button disabled. (1) `saveAll()`. False: stay. A conflict or a delete: the CON-1 or EDGE-1 dialog explains it (EDGE-29). Another save failure: show "Unsaved changes could not be saved: <cause>. The workspace did not change." (EDGE-28). Text still changing after 3 rounds: show "Text is still changing. Try the switch again." (2) Read the target list with `listDocuments(target)`. Not 200: stay and show "Could not open the Work documents. Try again." Step 1 already saved all text (EDGE-30). (3) `saveAll()` again, for text typed during step 2. False: stay, with the step 1 messages. (4) Check `autosave.hasUnsaved()` again. If false, in one synchronous step: untrack and drop all tabs without the close prompt, set the workspace (stored choice, `api.setWorkspace`, `data-workspace`, title), then run `tabs.boot({ list })` with the list from step 2. | WS-7, WS-8, EDGE-30. Step 4 runs only after a `saveAll()` that returned true, with no `await` between its check and the tab close, so no keystroke can land in a tab that then closes. Modal dialogs block the button, so a switch cannot start while a CON-1 dialog is open. |
 
 ### 2.6 Move UI
 
@@ -145,9 +146,9 @@ API changes in `BUILD_PLAN.md` section 2.7 terms:
 
 #### T28 Status bar layout (S, Done)
 - **Requirements:** STB-1 to STB-3, D53, D55.
-- **Implementation:** `web/index.html` status bar order: save status, selection counts, counts, Count syntax, language list, spacer, status message. `web/styles.css`: `--outline-width` on `.app`, used by `.outline-panel` and by the save status `min-width` while the outline is open. `.statusbar` wraps (`flex-wrap: wrap`).
+- **Implementation:** `web/index.html` status bar order: save status, selection counts, counts, Count syntax, language list, status message. `web/styles.css`: `--outline-width` on `.app`, used by `.outline-panel` and by the save status `min-width` while the outline is open. `.statusbar` wraps (`flex-wrap: wrap`). The status message has `margin-left: auto`, so it stays at the right end on a wrapped row.
 - **Acceptance criteria:** The STB rows of `REQUIREMENTS_V3.md` section 3.6.
-- **Validation:** `e2e/layout.spec.js` (pane edge, outline closed, 480 px window). `e2e/export-drop.spec.js` (message after the language list). Each check failed on the old code.
+- **Validation:** `e2e/layout.spec.js` (pane edge, outline closed, 480 px window). `e2e/export-drop.spec.js` (message after the language list, and at the right end when it wraps at 800 px). Each check failed on the old code.
 
 #### T29 New-document defaults and recovery copies (S, Done)
 - **Requirements:** NEW-1, NEW-2, D54, D56.
@@ -189,18 +190,18 @@ API changes in `BUILD_PLAN.md` section 2.7 terms:
 #### T33 Workspace-scoped client calls and per-workspace tabs (M)
 - **Objective:** All client calls and stored tabs follow the active workspace.
 - **Requirements:** WS-6 (client), WS-7 (storage), MIG-2.
-- **Implementation:** `api.js` per TD-30. `tabs.js` per TD-31: the storage key comes from the active workspace. `main.js` calls `api.setWorkspace` at start, before `tabs.boot`.
+- **Implementation:** `api.js` per TD-30 and TD-41. `tabs.js` per TD-31: the storage key comes from the active workspace. `tabs.js`, `doclist.js` and `drop.js` stop on `stale`. `main.js` calls `api.setWorkspace` at start, before `tabs.boot`.
 - **Dependencies:** T31, T32.
-- **Acceptance criteria:** With `pn.workspace = work`, New, a drop and both recovery copies create Work documents. The drop name clash check uses the Work list. Tabs stored under `pn.openTabs.v1` before the upgrade restore as the Personal tabs.
-- **Validation:** `web/test/tabs.test.js` (key per workspace). `e2e/workspaces.spec.js`: drop `notes.md` in Work while Personal has `notes.md` gives `notes.md`. MIG-2 test: write `pn.openTabs.v1` with no `pn.workspace`, reload, same tabs and active tab.
+- **Acceptance criteria:** With `pn.workspace = work`, New, a drop and both recovery copies create Work documents. The drop name clash check uses the Work list. Tabs stored under `pn.openTabs.v1` before the upgrade restore as the Personal tabs. A response that arrives after `setWorkspace` returns `stale`.
+- **Validation:** `web/test/tabs.test.js` (key per workspace). `web/test/api.test.js` with a fake `fetch`: a response that resolves after `setWorkspace` is `stale`, and the explicit-workspace prefetch is not. `e2e/workspaces.spec.js`: drop `notes.md` in Work while Personal has `notes.md` gives `notes.md`. MIG-2 test: write `pn.openTabs.v1` with no `pn.workspace`, reload, same tabs and active tab.
 
 #### T34 Switch control and switch safety (M)
 - **Objective:** The owner switches workspaces without losing text.
 - **Requirements:** WS-2, WS-7, WS-8, WS-9, EDGE-28 to EDGE-30, EDGE-34.
 - **Implementation:** The button (TD-32) and the switch steps (TD-33) in `web/src/workspace-switch.js`, with `api`, `autosave`, `tabs` and the stored choice as injected dependencies. `tabs.js` gets `closeAllSaved()` and `boot({ list })`.
 - **Dependencies:** T33.
-- **Acceptance criteria:** Switching away and back restores the same tabs and active tab. Text typed 1 second before a switch is on the server after it. A failed save keeps the workspace and shows the message. A failed list read keeps the workspace. A keyboard-only run switches the workspace. A theme change in Work shows in Personal. Two browser contexts in different workspaces work independently.
-- **Validation:** `web/test/workspace-switch.test.js` with fakes: each EDGE path, the 3-round limit, no await in step 3 (a fake flush that marks a document dirty again causes another round). `e2e/workspaces.spec.js`: round trip, save before switch, offline save (route abort), keyboard run, shared theme, two contexts. Extend the NFR-5 keyboard test in `e2e/layout.spec.js` with the switch.
+- **Acceptance criteria:** Switching away and back restores the same tabs and active tab. Text typed 1 second before a switch is on the server after it. A failed save keeps the workspace and shows the message. A failed list read keeps the workspace, and all text typed before the switch is on the server. Text that keeps changing for 3 rounds keeps the workspace. A Personal refresh that returns after the switch leaves the Work tabs unchanged. A keyboard-only run switches the workspace. A theme change in Work shows in Personal. Two browser contexts in different workspaces work independently.
+- **Validation:** `web/test/workspace-switch.test.js` with fakes: each EDGE path, the order flush then list read, the 3-round limit that stays (a fake flush that marks a document dirty again each round), the second `saveAll()` after text typed during the list read. `e2e/workspaces.spec.js`: round trip, save before switch, offline save (route abort), failed list read with saved text, a delayed Personal list (route) that returns after the switch, keyboard run, shared theme, two contexts. Extend the NFR-5 keyboard test in `e2e/layout.spec.js` with the switch.
 
 ### Phase M20: Move between workspaces
 
@@ -277,7 +278,8 @@ Numbering continues from v1 (R1 to R8).
 | R10 | A switch waits for every save. On a slow network it can take seconds. | The button is disabled during the switch. The save status shows "Saving...". |
 | R11 | Text typed during a move request reaches a 404 and opens the EDGE-1 dialog. | Accepted: no text is lost (TD-34). The e2e test covers it. |
 | R12 | The migration runs at app start on Railway (v1 TD-17). A failure stops the start. | It runs in one transaction (`migrate` in `server/src/db.js`). Upgrade check in section 5. |
-| R13 | This container runs Node 22. Production runs Node 24. | Run the suites on Node 24 before release, as in v2 (`PLAN_REVIEW.md` section 13). PR #6 ran on Node 22: `npm test` 355 pass, Chromium e2e 137 pass. |
+| R13 | This container runs Node 22. Production runs Node 24. | Run the suites on Node 24 before release, as in v2 (`PLAN_REVIEW.md` section 13). PR #6 ran on Node 22: `npm test` 355 pass, Chromium e2e 138 pass. |
+| R14 | A New or a drop that is in flight during a switch still creates its document in the old workspace, but its response is dropped (TD-41). | The document shows in the old workspace's list. No text is lost. |
 
 ---
 

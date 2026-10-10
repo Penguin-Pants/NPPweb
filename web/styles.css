@@ -166,6 +166,11 @@ select {
   font-size: 12px;
 }
 
+/* The message sits at the right end, also when it wraps to its own row. */
+#status-message {
+  margin-left: auto;
+}
+
 /* With the outline open, the save status fills the width under it, so the
    counts and the language start 8px inside the editor pane. */
 :root:not([data-outline="closed"]) #save-status {

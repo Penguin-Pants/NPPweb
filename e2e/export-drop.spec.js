@@ -134,6 +134,19 @@ async function drop(page, files) {
   await expect(page.locator('#drop-overlay')).toBeHidden();
 }
 
+test('a status message that wraps to its own row stays at the right end (STB-2)', async ({ page, api }) => {
+  await page.setViewportSize({ width: 800, height: 600 });
+  await openDocs(page, api, [['notes.md', 'old']]);
+  await drop(page, [{ name: 'report.pdf', text: 'x' }]);
+  const message = page.locator('#status-message');
+  await expect(message).toHaveText('Not opened: report.pdf (only .md, .txt and .html files).');
+  const bar = await page.locator('.statusbar').boundingBox();
+  const box = await message.boundingBox();
+  const language = await page.getByRole('combobox', { name: 'Language' }).boundingBox();
+  expect(box.y).toBeGreaterThanOrEqual(language.y + language.height); // It is on the second row.
+  expect(box.x + box.width).toBeGreaterThan(bar.x + bar.width - 16);
+});
+
 test('dropped files open as new documents in drop order, with free names, and rejects are named (DRP-1 to DRP-4, DRP-6)', async ({ page, api }) => {
   await openDocs(page, api, [['notes.md', 'old']]);
   await drop(page, [
