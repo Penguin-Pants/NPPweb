@@ -45,6 +45,7 @@ test('a click opens the document once and activates its tab', async ({ page, api
   await expect(page.getByRole('tab', { name: 'notes.txt' })).toHaveAttribute('aria-selected', 'true');
   await expect(page.locator('.cm-content')).toHaveText('some notes');
   await newDocument(page);
+  await openList(page);
   await openRow(page, 'notes.txt');
   await expect(page.getByRole('tab')).toHaveCount(2);
   await expect(page.getByRole('tab', { name: 'notes.txt' })).toHaveAttribute('aria-selected', 'true');
@@ -55,6 +56,7 @@ test('rename updates the list, the open tab and the server', async ({ page, api 
   await login(page);
   await openList(page);
   await openRow(page, 'old-name.txt');
+  await openList(page);
   await page.getByRole('button', { name: 'Rename old-name.txt' }).click();
   const dialog = page.getByRole('dialog', { name: 'Rename document' });
   await dialog.getByLabel('Name').fill('   ');
@@ -76,6 +78,7 @@ test('delete asks once, says it is permanent, removes the document and closes it
   await openRow(page, 'doomed.txt');
   await expect(page.getByRole('tab', { name: 'doomed.txt' })).toBeVisible();
 
+  await openList(page);
   await page.getByRole('button', { name: 'Delete doomed.txt' }).click();
   const dialog = page.getByRole('dialog', { name: 'Delete document' });
   await expect(dialog).toContainText('permanently');

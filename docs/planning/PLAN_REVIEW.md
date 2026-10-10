@@ -280,6 +280,13 @@ Two-pass review of each V2 phase diff (`REQUIREMENTS_V2.md` section 9). Same met
 
 | Phase | # | Finding | Verdict | Action |
 |-------|---|---------|---------|--------|
+| M9 | 1 | The Cancel button of the delete dialog closed the Documents dropdown: the dialog closes before the click reaches the document, so a `dialog[open]` check misses it. | Confirmed | Fixed before commit: a target inside any dialog or no longer in the page never counts as outside. Covered by the doclist delete spec and the rename-dialog spec. |
+| M9 | 2 | The open dropdown covers the tab strip, so a click on a tab under it does not reach the tab. | Rejected | Expected for a dropdown (D19). A click outside closes it. `language.spec.js` now presses Escape first. |
+| M9 | 3 | Tab moves focus out of the open dropdown and leaves it open over the tabs. | Rejected | LAY-4 names Escape, a click outside and Open. Each still works. |
+| M9 | 4 | With pn.outline set to closed, the panel can show for one frame before `main.js` hides it. | Risk | Cosmetic. The module script runs before first paint in practice (unverified). No change. |
+| M9 | 5 | A window focus refresh re-renders the dropdown rows, so a focused row button loses focus. | Risk | Minor keyboard annoyance. The list must refresh on focus (TD-15). No change. |
+| M9 | 6 | `createDropdown` has no unit test. | Rejected | DOM wiring, covered by `e2e/layout.spec.js` (Escape, outside click, Open, arrow keys, dialogs, account menu), as v1 did for DOM modules (P3 5). |
+| M9 | 7 | The account menu kept its own open, close, outside-click and Escape code. | Confirmed | Fixed before commit: both menus use `dropdown.js` (AGENTS.md Edits rule 6). The account menu also gains arrow keys. |
 
 ## 13. V2 validation environment
 

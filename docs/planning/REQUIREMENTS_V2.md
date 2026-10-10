@@ -289,7 +289,7 @@ The owner approved this sequence as the V2 build plan on 2026-10-10. Each phase 
 
 | Milestone | Work | Covers | Status |
 |-----------|------|--------|--------|
-| M9 | Layout: tabs, left panel, Documents dropdown | LAY-1 to LAY-5 | Not started |
+| M9 | Layout: tabs, left panel, Documents dropdown | LAY-1 to LAY-5 | Done. Outline content comes in M12. |
 | M10 | Settings API and autosave timing | SAV-1 to SAV-5 | Not started |
 | M11 | Visual mode, toggle, toolbar, shortcuts, code block highlighting, remote images | MDV-1 to MDV-10, MDV-14, the Visual mode part of MDV-11 | Not started |
 | M12 | Outline, counts and the syntax-stripping rules that EXP-3 reuses | OUT-1 to OUT-6, CNT-1 to CNT-7 | Not started |

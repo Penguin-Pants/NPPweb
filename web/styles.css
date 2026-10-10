@@ -203,13 +203,11 @@ select {
   position: relative;
 }
 
-.menu-list {
+.menu-list,
+.doclist {
   position: absolute;
-  right: 0;
   top: calc(100% + 4px);
   z-index: 10;
-  display: grid;
-  min-width: 180px;
   padding: 4px;
   background: var(--surface);
   border: 1px solid var(--border);
@@ -217,7 +215,14 @@ select {
   box-shadow: 0 6px 20px rgb(0 0 0 / 0.3);
 }
 
-.menu-list[hidden] {
+.menu-list {
+  right: 0;
+  display: grid;
+  min-width: 180px;
+}
+
+.menu-list[hidden],
+.doclist[hidden] {
   display: none;
 }
 
@@ -340,9 +345,17 @@ button.danger {
   display: none;
 }
 
-/* Document list sidebar */
+/* Document list dropdown (LAY-3) */
 .doclist {
-  width: 300px;
+  left: 0;
+  width: 360px;
+  max-height: min(60vh, 480px);
+  overflow-y: auto;
+}
+
+/* Outline panel (LAY-2) */
+.outline-panel {
+  width: 240px;
   flex: none;
   overflow-y: auto;
   background: var(--surface);
@@ -350,11 +363,11 @@ button.danger {
   padding: 8px;
 }
 
-.doclist[hidden] {
+.outline-panel[hidden] {
   display: none;
 }
 
-.doclist h2 {
+.outline-panel h2 {
   margin: 4px 4px 8px;
   font-size: 13px;
   font-weight: 600;

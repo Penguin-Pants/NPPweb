@@ -13,7 +13,11 @@
 <body class="app">
   <header class="topbar">
     <button type="button" id="new-doc">New</button>
-    <button type="button" id="toggle-doclist" aria-expanded="false" aria-controls="doclist">Documents</button>
+    <button type="button" id="toggle-outline" aria-expanded="true" aria-controls="outline" title="Show or hide the outline">Outline</button>
+    <div class="menu" id="doclist-menu">
+      <button type="button" id="toggle-doclist" aria-expanded="false" aria-controls="doclist">Documents</button>
+      <div id="doclist" class="doclist" role="group" aria-label="Documents" hidden></div>
+    </div>
     <button type="button" id="find">Find</button>
     <span class="spacer"></span>
     <button type="button" id="theme-toggle"></button>
@@ -26,7 +30,10 @@
     </div>
   </header>
   <div class="workspace">
-    <aside id="doclist" class="doclist" aria-label="Documents" hidden></aside>
+    <aside id="outline" class="outline-panel" aria-label="Outline">
+      <h2>Outline</h2>
+      <div id="outline-body"></div>
+    </aside>
     <main class="editor-pane">
       <div id="tabstrip" class="tabstrip" role="tablist" aria-label="Open documents"></div>
       <div id="editor" class="editor"></div>

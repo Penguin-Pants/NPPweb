@@ -98,6 +98,8 @@ test('a tab that is not shown picks up a rename when it is shown again', async (
   await dialog.getByLabel('Name').fill('b.sql');
   await dialog.getByRole('button', { name: 'Rename' }).click();
   await expect(content(page)).toHaveAttribute('data-language', 'python');
+  // The Documents dropdown covers the tab strip until it closes (LAY-4).
+  await page.keyboard.press('Escape');
   await page.getByRole('tab', { name: 'b.sql', exact: true }).click();
   await expect(content(page)).toHaveAttribute('data-language', 'sql');
   await expect(languageSelect(page)).toHaveAttribute('title', 'Language: SQL');

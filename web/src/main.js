@@ -4,9 +4,11 @@ import { createAutosave } from './autosave.js';
 import { setupConflictHandling } from './conflict.js';
 import { formDialog } from './dialogs.js';
 import { createDocList } from './doclist.js';
+import { createDropdown } from './dropdown.js';
 import { createEditor } from './editor.js';
 import { emit, on } from './events.js';
 import { LANGUAGES } from './languages.js';
+import { createOutlinePanel } from './outline-panel.js';
 import { openFind, openReplace } from './search-panel.js';
 import { modName, setupShortcuts } from './shortcuts.js';
 import { setupSessionRecovery } from './session.js';
@@ -40,34 +42,27 @@ function showMessage(text) {
 }
 
 // Account menu.
-const accountButton = $('account-button');
+const accountButton = /** @type {HTMLButtonElement} */ ($('account-button'));
 const accountMenu = $('account-menu');
-function setMenuOpen(open) {
-  accountMenu.hidden = !open;
-  accountButton.setAttribute('aria-expanded', String(open));
-}
-accountButton.addEventListener('click', () => setMenuOpen(accountMenu.hidden));
-document.addEventListener('click', (event) => {
-  if (!accountMenu.hidden && !accountButton.parentElement.contains(/** @type {Node} */ (event.target))) {
-    setMenuOpen(false);
-  }
-});
-accountMenu.addEventListener('keydown', (event) => {
-  if (event.key === 'Escape') {
-    setMenuOpen(false);
-    accountButton.focus();
-  }
+const account = createDropdown({
+  root: accountButton.parentElement,
+  button: accountButton,
+  panel: accountMenu,
+  items: () => [...accountMenu.querySelectorAll('button')],
 });
 
+// Outline panel (LAY-2, LAY-5).
+createOutlinePanel({ getStorage: () => localStorage, panel: $('outline'), toggle: $('toggle-outline') });
+
 $('logout').addEventListener('click', async () => {
-  setMenuOpen(false);
+  account.close();
   const { status } = await api.logout();
   if (status === 204 || status === 401) location.replace('/login');
   else showMessage('Sign-out failed. Try again.');
 });
 
 $('change-password').addEventListener('click', async () => {
-  setMenuOpen(false);
+  account.close();
   const changed = await formDialog({
     title: 'Change password',
     fields: [
@@ -184,8 +179,9 @@ window.addEventListener('beforeunload', (event) => {
 const doclist = createDocList({
   api,
   tabs,
+  root: $('doclist-menu'),
+  button: /** @type {HTMLButtonElement} */ ($('toggle-doclist')),
   panel: $('doclist'),
-  toggle: /** @type {HTMLButtonElement} */ ($('toggle-doclist')),
   showMessage,
 });
 
