@@ -66,17 +66,15 @@ export function listDocuments(db) {
 }
 
 /**
- * A new "Untitled N" document is Markdown by default. A named one keeps auto,
- * so its extension decides.
  * @param {import('node:sqlite').DatabaseSync} db
- * @param {{ name?: string, content: string, now: number }} input name must already be normalized.
+ * @param {{ name?: string, content: string, language?: string | null, now: number }} input
+ *   name must already be normalized and language validated. No language = auto.
  * @returns {DocumentMeta}
  */
-export function createDocument(db, { name, content, now }) {
+export function createDocument(db, { name, content, language = null, now }) {
   return transaction(db, () => {
     const id = randomUUID();
     const finalName = name ?? nextUntitledName(db);
-    const language = name === undefined ? 'markdown' : null;
     db.prepare(
       'INSERT INTO documents (id, name, content, language, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
     ).run(id, finalName, encodeContent(content), language, now, now);

@@ -44,11 +44,17 @@ export const api = {
   changePassword: (currentPassword, newPassword) =>
     call('POST', '/api/password', { json: { currentPassword, newPassword } }),
   listDocuments: () => call('GET', '/api/documents'),
-  /** @param {string} [content] @param {string} [name] Omit for "Untitled N". */
-  createDocument: (content = '', name) =>
-    call('POST', name === undefined ? '/api/documents' : `/api/documents?name=${encodeURIComponent(name)}`, {
-      text: content,
-    }),
+  /**
+   * @param {string} [content]
+   * @param {string} [name] Omit for "Untitled N".
+   * @param {string | null} [language] Omit or null for auto.
+   */
+  createDocument: (content = '', name, language) => {
+    const query = [];
+    if (name !== undefined) query.push(`name=${encodeURIComponent(name)}`);
+    if (language) query.push(`language=${encodeURIComponent(language)}`);
+    return call('POST', `/api/documents${query.length ? `?${query.join('&')}` : ''}`, { text: content });
+  },
   /** @param {string} id */
   getDocument: (id) => call('GET', docPath(id)),
   /** @param {string} id @param {string} content @param {number} version */

@@ -36,8 +36,7 @@ test('create without a name gives Untitled 1, then Untitled 2', async () => {
   assert.deepEqual(Object.keys(first.json()).sort(), ['id', 'language', 'name', 'updatedAt', 'version']);
   assert.equal(first.json().name, 'Untitled 1');
   assert.equal(first.json().version, 1);
-  assert.equal(first.json().language, 'markdown');
-  assert.equal((await get(first.json().id)).json().language, 'markdown');
+  assert.equal(first.json().language, null);
   assert.equal(first.json().updatedAt, now);
   assert.match(first.json().id, /^[0-9a-f-]{36}$/);
   assert.equal((await create()).json().name, 'Untitled 2');
@@ -64,6 +63,21 @@ test('create stores the body and an optional trimmed name', async () => {
   assert.equal(res.json().language, null);
   const doc = (await get(res.json().id)).json();
   assert.deepEqual(doc, { ...res.json(), content: 'hello\nworld' });
+});
+
+test('create stores an optional language and rejects an unknown one', async () => {
+  const res = await create('', '?language=markdown');
+  assert.equal(res.statusCode, 201);
+  assert.equal(res.json().name, 'Untitled 1');
+  assert.equal(res.json().language, 'markdown');
+  assert.equal((await get(res.json().id)).json().language, 'markdown');
+  assert.equal((await create('', `${withName('a.txt')}&language=python`)).json().language, 'python');
+  for (const query of ['?language=rust', '?language=', '?language=plain&language=sql']) {
+    const bad = await create('', query);
+    assert.equal(bad.statusCode, 400, query);
+    assert.deepEqual(bad.json(), { error: 'invalid_language' });
+  }
+  assert.equal((await list()).length, 2);
 });
 
 test('an empty body creates an empty document', async () => {

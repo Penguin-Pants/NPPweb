@@ -206,7 +206,7 @@ CREATE TABLE documents (
 - Language values: `plain`, `markdown`, `json`, `html`, `css`, `javascript`, `typescript`, `python`, `sql`, `yaml`, `shell`.
 - Name rule: trimmed, 1 to 255 characters, no control characters. Duplicate names are allowed. Documents are identified by `id`.
 - "Untitled N" rule: N = 1 + the highest N among names that match `^Untitled (\d+)$`. Use 1 if none match. Compute inside the insert transaction.
-- A document created without a name gets `language = 'markdown'`. A document created with a name gets `NULL` (auto), so its extension decides.
+- New (the button) creates a document with `language = 'markdown'`. A "Save mine as a new document" copy gets the language of its tab. A dropped file gets `NULL` (auto), so its extension decides.
 
 ### 2.7 HTTP API
 
@@ -221,7 +221,7 @@ All `/api/*` routes except `POST /api/login` need a session. All responses from 
 | `GET /api/session` | none | 200 `{authenticated:true}` | 401 |
 | `POST /api/password` | JSON `{currentPassword,newPassword}` | 204 | 400 `wrong_current_password`, 400 `weak_password` |
 | `GET /api/documents` | none | 200 `[{id,name,version,language,updatedAt}]`, newest first | 401 |
-| `POST /api/documents?name=<optional>` | `text/plain` body (may be empty) | 201 `{id,name,version,language,updatedAt}` | 400 `invalid_name`, 413 `too_large` |
+| `POST /api/documents?name=<optional>&language=<optional>` | `text/plain` body (may be empty) | 201 `{id,name,version,language,updatedAt}` | 400 `invalid_name` or `invalid_language`, 413 `too_large` |
 | `GET /api/documents/:id` | none | 200 `{id,name,content,version,language,updatedAt}` | 404 `not_found` |
 | `PUT /api/documents/:id/content` | `text/plain` body, header `If-Match: <version>` | 200 `{version,updatedAt}` | 428 `version_required`, 412 `version_conflict` + `currentVersion`, 404, 413 |
 | `PATCH /api/documents/:id` | JSON `{name?, language?}` | 200 metadata | 400 `invalid_name` or `invalid_language`, 404 |
