@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import { ensureSyntaxTree } from '@codemirror/language';
 import { EditorSelection, EditorState } from '@codemirror/state';
 import { languageSupport } from '../src/languages.js';
-import { collectMermaid, collectVisual } from '../src/markdown-visual.js';
+import { collectMermaid, collectVisual, mapFences, mermaidFences } from '../src/markdown-visual.js';
 
 // A last line "end" holds the cursor, so the lines under test are not revealed.
 function specsFor(body, { selection, from, to } = {}) {
@@ -240,6 +240,35 @@ test('a mermaid block under the cursor shows its source instead (MDV-12)', () =>
   const { blocks, specs } = mermaidFor('```mermaid\ngraph TD\nA-->B\n```', 'A-->B');
   assert.deepEqual(blocks, []);
   assert.ok(specs.some((s) => s.kind === 'line' && s.cls.includes('cm-md-codeblock')));
+});
+
+test('an unclosed mermaid fence stays code, so the rest of the document stays visible', () => {
+  const { blocks, specs } = mermaidFor('intro\n\n```mermaid\ngraph TD\nA-->B', 'intro');
+  assert.deepEqual(blocks, []);
+  assert.ok(specs.some((s) => s.kind === 'line' && s.cls.includes('cm-md-codeblock')));
+});
+
+test('the list of mermaid fence lines follows edits and matches a fresh scan (NFR-2)', () => {
+  const doc = 'a\n```mermaid\ngraph TD\n```\n\n~~~ Mermaid x\ny\n~~~\n```js\n```\n   ```mermaid';
+  let state = EditorState.create({ doc, extensions: languageSupport('markdown') });
+  let fences = mermaidFences(state.doc);
+  assert.deepEqual(fences, [2, doc.indexOf('~~~ Mermaid'), doc.indexOf('   ```mermaid')]);
+  const edits = [
+    { from: 0, insert: 'new\n```mermaid\nx\n```\n' },
+    { from: 4, to: 5 },
+    { from: 0, to: 0, insert: '>' },
+    { from: 1, to: 2 },
+    { from: doc.length - 5, insert: '\n```MERMAID\n' },
+    { from: 3, to: 4 },
+    { from: 0, to: 40 },
+    { from: 0, insert: '```mermaid' },
+  ];
+  for (const changes of edits) {
+    const tr = state.update({ changes });
+    fences = mapFences(fences, tr.changes, tr.newDoc);
+    state = tr.state;
+    assert.deepEqual(fences, mermaidFences(state.doc), JSON.stringify(changes));
+  }
 });
 
 test('mermaid blocks inside quotes or lists and other code stay code', () => {

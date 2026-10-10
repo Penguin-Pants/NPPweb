@@ -1,4 +1,5 @@
 // Builds the Fastify app. The caller owns listen and close.
+import { resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import fastifyCookie from '@fastify/cookie';
 import fastifyStatic from '@fastify/static';
@@ -55,7 +56,16 @@ export async function buildApp({ config, db, clock = Date.now, logger, webRoot =
   addSecurityHeaders(app, config);
   addAuthGate(app, { db, clock });
 
-  app.register(fastifyStatic, { root: webRoot });
+  // Chunk names hold a content hash, so a chunk never changes. The browser
+  // keeps it, which saves a check per chunk on each page load. Only the
+  // browser, because chunks need a session.
+  const chunks = resolve(webRoot, 'chunks') + sep;
+  app.register(fastifyStatic, {
+    root: webRoot,
+    setHeaders: (reply, path) => {
+      if (path.startsWith(chunks)) reply.header('cache-control', 'private, max-age=31536000, immutable');
+    },
+  });
   app.get('/login', (request, reply) => reply.sendFile('login.html'));
   app.register(healthRoutes);
   app.register(authRoutes, { db, config, clock });

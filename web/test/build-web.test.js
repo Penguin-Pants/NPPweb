@@ -19,6 +19,7 @@ after(() => rm(outDir, { recursive: true, force: true }));
 
 test('build writes each entry bundle with a sourcemap and copies the static files', async () => {
   assert.deepEqual((await readdir(outDir)).sort(), [
+    'THIRD-PARTY-NOTICES.txt',
     'chunks',
     'icons',
     'index.html',
@@ -28,6 +29,8 @@ test('build writes each entry bundle with a sourcemap and copies the static file
     'main.js',
     'main.js.map',
     'manifest.webmanifest',
+    'mermaid-frame.js',
+    'mermaid-frame.js.map',
     'styles.css',
     'theme-init.js',
     'theme-init.js.map',
@@ -53,19 +56,50 @@ test('the theme-init bundle runs as a classic script, sets the theme and outline
   }
 });
 
-test('main.js loads Mermaid only through a chunk, and the login page loads no chunk (MDV-13, NFR-4)', async () => {
+test('Mermaid is only in the diagram frame, and the login page loads no chunk (MDV-13, NFR-4)', async () => {
   const main = await readFile(join(outDir, 'main.js'), 'utf8');
+  const frame = await readFile(join(outDir, 'mermaid-frame.js'), 'utf8');
   const login = await readFile(join(outDir, 'login.js'), 'utf8');
-  assert.match(main, /import\("\.\/chunks\//);
-  assert.doesNotMatch(main, /mermaid-js|flowchart-v2/i);
+  assert.match(main, /mermaid-frame\.js/);
+  assert.doesNotMatch(main, /mermaid-js|flowchart-v2|dompurify/i);
+  assert.match(frame + (await readAllChunks()), /flowchart-v2/);
   assert.doesNotMatch(login, /chunks\//);
 });
 
-test('no chunk holds the ELK layout, which is EPL-2.0 (MDV-13, C6)', async () => {
+async function readAllChunks() {
+  const names = (await readdir(join(outDir, 'chunks'))).filter((file) => file.endsWith('.js'));
+  return (await Promise.all(names.map((name) => readFile(join(outDir, 'chunks', name), 'utf8')))).join('\n');
+}
+
+// C6 names MIT, BSD-3-Clause, Apache-2.0 and AGPL-3.0. ISC and Unlicense
+// come with Mermaid and wait for an owner decision (PLAN_REVIEW.md section
+// 12, M13 row 17). khroma states MIT in its license file only.
+const ALLOWED = new Set(['MIT', 'BSD-3-Clause', 'Apache-2.0', 'AGPL-3.0', 'ISC', 'Unlicense']);
+const LICENSE_FILE_ONLY = new Map([['khroma', 'MIT']]);
+
+test('the notices file holds the license of each bundled package, and each license is allowed (C6)', async () => {
+  const text = await readFile(join(outDir, 'THIRD-PARTY-NOTICES.txt'), 'utf8');
+  const sections = text.split(/\n-{72}\n/);
+  const names = sections.map((section) => section.split(' ', 1)[0].trim());
+  for (const name of ['@codemirror/state', '@lezer/markdown', 'character-entities', 'mermaid', 'dompurify', 'd3-shape']) {
+    assert.ok(names.includes(name), name);
+  }
+  assert.ok(!names.includes('elkjs'));
+  for (const section of sections) {
+    const name = section.split(' ', 1)[0].trim();
+    const license = /^License: (.+)$/m.exec(section)?.[1];
+    const options = (LICENSE_FILE_ONLY.get(name) ?? license ?? '').replace(/[()]/g, '').split(' OR ');
+    assert.ok(options.some((option) => ALLOWED.has(option)), `${name}: ${license}`);
+    const body = section.slice(section.indexOf('\n\n') + 2);
+    assert.match(body, /copyright|public domain/i, `${name} has its license text`);
+  }
+});
+
+test('no bundle holds the ELK layout, which is EPL-2.0 (MDV-13, C6)', async () => {
   const chunks = await readdir(join(outDir, 'chunks'));
   assert.ok(chunks.some((name) => name.endsWith('.js')));
-  for (const name of chunks.filter((file) => file.endsWith('.js'))) {
-    const code = await readFile(join(outDir, 'chunks', name), 'utf8');
+  for (const name of [...chunks.filter((file) => file.endsWith('.js')).map((file) => join('chunks', file)), 'mermaid-frame.js']) {
+    const code = await readFile(join(outDir, name), 'utf8');
     assert.doesNotMatch(code, /org\.eclipse\.elk/, name);
   }
 });

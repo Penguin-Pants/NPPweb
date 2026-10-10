@@ -659,10 +659,24 @@ button.danger {
   cursor: pointer;
 }
 
-.cm-md-mermaid svg {
+.cm-md-mermaid img {
   display: block;
   max-width: 100%;
   height: auto;
+  /* A click goes to the box, which puts the cursor in the block. */
+  pointer-events: none;
+}
+
+/* The hidden frame that draws diagrams (mermaid-render.js). It needs a size
+   for Mermaid to measure text, and stays off screen. */
+.mermaid-frame {
+  position: fixed;
+  left: -10000px;
+  top: 0;
+  width: 1200px;
+  height: 900px;
+  border: 0;
+  visibility: hidden;
 }
 
 .cm-md-mermaid-error {

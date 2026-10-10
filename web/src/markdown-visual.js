@@ -3,11 +3,11 @@
 // document text never changes. Lines that the cursor or selection touch show
 // their marks (MDV-5). Raw HTML stays source text (MDV-8).
 import { syntaxTree } from '@codemirror/language';
-import { Facet, StateEffect, StateField } from '@codemirror/state';
-import { Decoration, EditorView, ViewPlugin, WidgetType } from '@codemirror/view';
+import { Facet, MapMode, Prec, StateEffect, StateField } from '@codemirror/state';
+import { Decoration, EditorView, keymap, ViewPlugin, WidgetType } from '@codemirror/view';
 import { languageId } from './languages.js';
 import { linkTarget, normalizeLabel, referenceDefinitions } from './markdown-syntax.js';
-import { renderMermaid } from './mermaid-render.js';
+import { mermaidRenderer } from './mermaid-render.js';
 import { isMac } from './shortcuts.js';
 
 /**
@@ -34,32 +34,75 @@ export const diagramTheme = Facet.define({ combine: (values) => values[0] ?? 'da
 const shownRanges = (state) => state.selection.ranges.map((range) => [state.doc.lineAt(range.from).from, state.doc.lineAt(range.to).to]);
 
 /**
- * A fenced block tagged mermaid at the top level, which Visual mode draws as
- * a diagram. Blocks in quotes or lists stay code.
+ * A closed fenced block tagged mermaid at the top level, which Visual mode
+ * draws as a diagram. Blocks in quotes or lists stay code. An unclosed block
+ * stays code, so it never hides the rest of the document.
  */
-function isTopMermaid(node, doc) {
-  if (node.name !== 'FencedCode' || node.parent?.name !== 'Document') return false;
+function isDrawnMermaid(node, doc) {
+  if (node.name !== 'FencedCode' || node.parent?.name !== 'Document' || node.getChildren('CodeMark').length < 2) return false;
   const info = node.getChild('CodeInfo');
   return info !== null && doc.sliceString(info.from, info.to).trim().split(/\s+/, 1)[0].toLowerCase() === 'mermaid';
+}
+
+/** A line that can open a mermaid block. The syntax tree decides. */
+const MERMAID_FENCE = /^ {0,3}(?:`{3,}|~{3,})[ \t]*mermaid/i;
+
+/** The start of each line in `from` to `to` that can open a mermaid block. */
+function fenceLines(doc, from = 0, to = doc.length) {
+  const starts = [];
+  for (let line = doc.lineAt(from); ; line = doc.line(line.number + 1)) {
+    if (MERMAID_FENCE.test(line.text)) starts.push(line.from);
+    if (line.to >= to || line.number === doc.lines) return starts;
+  }
+}
+
+/**
+ * The start of each line that can open a mermaid block, in the order of the
+ * document.
+ * @param {import('@codemirror/state').Text} doc
+ */
+export const mermaidFences = (doc) => fenceLines(doc);
+
+/**
+ * The fence lines after a change, without a scan of the whole document
+ * (NFR-2): old lines move with the change, and changed lines are read again.
+ * @param {number[]} fences From mermaidFences or mapFences.
+ * @param {import('@codemirror/state').ChangeSet} changes
+ * @param {import('@codemirror/state').Text} doc The new document.
+ */
+export function mapFences(fences, changes, doc) {
+  /** @type {[number, number][]} Changed lines in the new document. */
+  const changed = [];
+  changes.iterChangedRanges((_fromA, _toA, fromB, toB) => changed.push([doc.lineAt(fromB).from, doc.lineAt(toB).to]));
+  const inChanged = (pos) => changed.some(([from, to]) => pos >= from && pos <= to);
+  const next = [];
+  for (const pos of fences) {
+    const mapped = changes.mapPos(pos, 1, MapMode.TrackDel);
+    if (mapped !== null && !inChanged(mapped)) next.push(mapped);
+  }
+  for (const [from, to] of changed) next.push(...fenceLines(doc, from, to));
+  return [...new Set(next)].sort((a, b) => a - b);
 }
 
 /**
  * The mermaid blocks that Visual mode draws (MDV-12): whole lines, with their
  * source. A block whose lines the selection touches shows its source instead.
  * @param {import('@codemirror/state').EditorState} state
+ * @param {number[]} [fences] From mermaidFences or mapFences.
  * @returns {{ from: number, to: number, source: string }[]}
  */
-export function collectMermaid(state) {
+export function collectMermaid(state, fences = mermaidFences(state.doc)) {
   const { doc } = state;
   const shown = shownRanges(state);
+  const top = syntaxTree(state).topNode;
   const blocks = [];
-  for (let node = syntaxTree(state).topNode.firstChild; node; node = node.nextSibling) {
-    if (!isTopMermaid(node, doc)) continue;
-    const from = doc.lineAt(node.from).from;
+  for (const start of fences) {
+    const node = top.childAfter(start);
+    if (!node || doc.lineAt(node.from).from !== start || !isDrawnMermaid(node, doc)) continue;
     const to = doc.lineAt(node.to).to;
-    if (shown.some(([a, b]) => a <= to && b >= from)) continue;
+    if (shown.some(([a, b]) => a <= to && b >= start)) continue;
     const code = node.getChild('CodeText');
-    blocks.push({ from, to, source: code ? doc.sliceString(code.from, code.to) : '' });
+    blocks.push({ from: start, to, source: code ? doc.sliceString(code.from, code.to) : '' });
   }
   return blocks;
 }
@@ -151,7 +194,7 @@ export function collectVisual(state, from, to) {
         case 'FencedCode':
         case 'CodeBlock': {
           // A drawn diagram covers the whole block (collectMermaid).
-          if (isTopMermaid(node, doc)) {
+          if (isDrawnMermaid(node, doc)) {
             const blockFrom = doc.lineAt(node.from).from;
             const blockTo = doc.lineAt(node.to).to;
             if (!shown.some(([a, b]) => a <= blockTo && b >= blockFrom)) return false;
@@ -346,15 +389,45 @@ class ImageWidget extends WidgetType {
   }
 }
 
+/** Diagram boxes that left the editor, so their render can be skipped. */
+const goneBoxes = new WeakSet();
+
+/**
+ * A diagram finished. The field then draws its widget again with the result,
+ * so the editor measures the new height.
+ */
+const diagramsDrawn = StateEffect.define();
+
+/** Shows a render result in a diagram box. */
+function showDiagram(box, result) {
+  if ('svg' in result) {
+    // As an image, the SVG can load nothing (MDV-14), and its ids stay its own.
+    // Width and height give the box its size before the image decodes.
+    const image = document.createElement('img');
+    image.alt = 'Diagram';
+    if (result.width > 0 && result.height > 0) {
+      image.width = Math.round(result.width);
+      image.height = Math.round(result.height);
+    }
+    image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(result.svg)}`;
+    box.replaceChildren(image);
+  } else {
+    box.classList.add('cm-md-mermaid-error'); // EDGE-15
+    box.textContent = result.error;
+  }
+}
+
 class MermaidWidget extends WidgetType {
-  constructor(source, theme) {
+  /** @param {object} [result] A result the widget had before this change. */
+  constructor(source, theme, result) {
     super();
     this.source = source;
     this.theme = theme;
+    this.result = result ?? mermaidRenderer.peek(source, theme);
   }
 
   eq(other) {
-    return other.source === this.source && other.theme === this.theme;
+    return other.source === this.source && other.theme === this.theme && other.result === this.result;
   }
 
   get estimatedHeight() {
@@ -364,17 +437,25 @@ class MermaidWidget extends WidgetType {
   toDOM(view) {
     const box = document.createElement('div');
     box.className = 'cm-md-mermaid';
+    if (this.result) {
+      showDiagram(box, this.result);
+      return box;
+    }
     box.textContent = 'Drawing the diagram...';
-    renderMermaid(this.source, this.theme).then(({ svg, error }) => {
-      if (svg !== undefined) {
-        box.innerHTML = svg; // Sanitized by Mermaid (strict) and without remote images.
+    mermaidRenderer.render(this.source, this.theme, () => !goneBoxes.has(box)).then((result) => {
+      if (!result || goneBoxes.has(box)) return;
+      if (mermaidRenderer.peek(this.source, this.theme)) {
+        view.dispatch({ effects: diagramsDrawn.of(null) });
       } else {
-        box.classList.add('cm-md-mermaid-error'); // EDGE-15
-        box.textContent = `Diagram error: ${error}`;
+        showDiagram(box, result); // A failed load is not kept. The next widget tries again.
+        view.requestMeasure();
       }
-      view.requestMeasure();
     });
     return box;
+  }
+
+  destroy(box) {
+    goneBoxes.add(box);
   }
 
   // A click on the diagram puts the cursor in the block, which shows its source.
@@ -385,25 +466,75 @@ class MermaidWidget extends WidgetType {
 
 const isMarkdown = (state) => state.facet(languageId) === 'markdown';
 
-function mermaidDecorations(state) {
+/**
+ * @param {import('@codemirror/state').EditorState} state
+ * @param {number[]} fences
+ * @param {import('@codemirror/view').DecorationSet} [previous] Its results carry over, so a
+ *   diagram in the document keeps its result when the renderer drops it.
+ */
+function mermaidDecorations(state, fences, previous = Decoration.none) {
   if (!isMarkdown(state)) return Decoration.none;
   const theme = state.facet(diagramTheme);
+  const known = new Map();
+  for (const iter = previous.iter(); iter.value; iter.next()) {
+    const { widget } = iter.value.spec;
+    if (widget.result) known.set(`${widget.theme}\n${widget.source}`, widget.result);
+  }
   return Decoration.set(
-    collectMermaid(state).map(({ from, to, source }) =>
-      Decoration.replace({ block: true, widget: new MermaidWidget(source, theme) }).range(from, to),
+    collectMermaid(state, fences).map(({ from, to, source }) =>
+      Decoration.replace({ block: true, widget: new MermaidWidget(source, theme, known.get(`${theme}\n${source}`)) }).range(from, to),
     ),
   );
 }
 
-// Diagrams replace whole lines, which only a state field may do.
+// Diagrams replace whole lines, which only a state field may do. The field
+// keeps the fence lines up to date, so an edit never scans the document.
 const mermaidField = StateField.define({
-  create: mermaidDecorations,
-  update(value, tr) {
-    const changed = tr.docChanged || tr.selection || tr.reconfigured || syntaxTree(tr.startState) !== syntaxTree(tr.state);
-    return changed ? mermaidDecorations(tr.state) : value;
+  create(state) {
+    const fences = mermaidFences(state.doc);
+    return { fences, decorations: mermaidDecorations(state, fences) };
   },
-  provide: (field) => EditorView.decorations.from(field),
+  update(value, tr) {
+    const fences = tr.docChanged ? mapFences(value.fences, tr.changes, tr.newDoc) : value.fences;
+    const changed =
+      tr.docChanged ||
+      tr.selection ||
+      tr.reconfigured ||
+      syntaxTree(tr.startState) !== syntaxTree(tr.state) ||
+      tr.effects.some((effect) => effect.is(diagramsDrawn));
+    return changed ? { fences, decorations: mermaidDecorations(tr.state, fences, value.decorations) } : value;
+  },
+  provide: (field) => EditorView.decorations.from(field, (value) => value.decorations),
 });
+
+/**
+ * ArrowDown on the line above a diagram, or ArrowUp on the line below it,
+ * moves into the block, so its source shows (MDV-12). Otherwise the cursor
+ * would jump over it.
+ * @param {1 | -1} dir
+ */
+const enterDiagram = (dir) => (view) => {
+  const { state } = view;
+  const range = state.selection.main;
+  if (state.selection.ranges.length > 1 || !range.empty) return false;
+  const line = state.doc.lineAt(range.head);
+  const edge = dir > 0 ? line.to + 1 : line.from - 1;
+  if (edge < 0 || edge > state.doc.length) return false;
+  let target = null;
+  state.field(mermaidField).decorations.between(edge, edge, (from, to) => {
+    if (dir > 0 ? from === edge : to === edge) target = dir > 0 ? from : state.doc.lineAt(to).from;
+  });
+  if (target === null) return false;
+  view.dispatch({ selection: { anchor: target }, scrollIntoView: true });
+  return true;
+};
+
+const diagramKeys = Prec.high(
+  keymap.of([
+    { key: 'ArrowDown', run: enterDiagram(1) },
+    { key: 'ArrowUp', run: enterDiagram(-1) },
+  ]),
+);
 
 /** Builds the decorations for the visible part of the document. */
 function buildDecorations(view) {
@@ -492,4 +623,4 @@ const visualContent = EditorView.contentAttributes.compute([languageId], (state)
 );
 
 /** The Visual mode extension. It only acts on Markdown documents. */
-export const visualMode = [visualPlugin, mermaidField, clickHandlers, visualContent];
+export const visualMode = [visualPlugin, mermaidField, diagramKeys, clickHandlers, visualContent];

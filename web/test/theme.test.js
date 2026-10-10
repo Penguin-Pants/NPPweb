@@ -110,3 +110,22 @@ test('without the View Transitions API, or with reduced motion, the theme switch
   assert.equal(animateThemeSwitch({ toggle: () => toggled.push(1), button, doc: withApi, win: fakeWindow({ reduce: true }) }), 'instant');
   assert.equal(toggled.length, 2);
 });
+
+test('a skipped transition switches the theme and leaves no unhandled rejection (THM-1)', async () => {
+  const rejections = [];
+  const onRejection = (err) => rejections.push(err);
+  process.on('unhandledRejection', onRejection);
+  let toggled = 0;
+  const doc = {
+    documentElement: { animate: () => {} },
+    startViewTransition(update) {
+      update();
+      return { ready: Promise.reject(new Error('Transition was skipped')) };
+    },
+  };
+  assert.equal(animateThemeSwitch({ toggle: () => (toggled += 1), button, doc, win: fakeWindow() }), 'animated');
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  process.off('unhandledRejection', onRejection);
+  assert.equal(toggled, 1);
+  assert.deepEqual(rejections, []);
+});

@@ -47,11 +47,15 @@ export function animateThemeSwitch({ toggle, button, doc = document, win = windo
   const y = rect.top + rect.height / 2;
   const radius = Math.hypot(Math.max(x, win.innerWidth - x), Math.max(y, win.innerHeight - y));
   const transition = doc.startViewTransition(toggle);
-  transition.ready.then(() =>
-    doc.documentElement.animate(
-      { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${radius}px at ${x}px ${y}px)`] },
-      { duration: 450, easing: 'ease-in-out', pseudoElement: '::view-transition-new(root)' },
-    ),
+  // A transition that the browser skips (for example a second quick switch)
+  // rejects `ready`. The theme has switched anyway, so there is nothing to do.
+  transition.ready.then(
+    () =>
+      doc.documentElement.animate(
+        { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${radius}px at ${x}px ${y}px)`] },
+        { duration: 450, easing: 'ease-in-out', pseudoElement: '::view-transition-new(root)' },
+      ),
+    () => {},
   );
   return 'animated';
 }

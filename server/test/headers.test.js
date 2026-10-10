@@ -47,6 +47,18 @@ test('every /api/ response has Cache-Control no-store', async () => {
   assert.notEqual(responses.staticFile.headers['cache-control'], 'no-store');
 });
 
+test('chunks, whose names hold a content hash, are cached for a year in the browser only', async () => {
+  ctx = await createTestApp();
+  const cookie = await login(ctx.app);
+  const chunk = await ctx.app.inject({ method: 'GET', url: '/chunks/flowchart-AB12CD34.js', headers: { cookie } });
+  assert.equal(chunk.statusCode, 200);
+  assert.equal(chunk.headers['cache-control'], 'private, max-age=31536000, immutable');
+  const main = await ctx.app.inject({ method: 'GET', url: '/main.js', headers: { cookie } });
+  assert.doesNotMatch(main.headers['cache-control'], /immutable/);
+  const noSession = await ctx.app.inject({ method: 'GET', url: '/chunks/flowchart-AB12CD34.js' });
+  assert.equal(noSession.statusCode, 401);
+});
+
 test('production adds HSTS and the Secure cookie flag', async () => {
   ctx = await createTestApp({ env: { NODE_ENV: 'production' } });
   const res = await ctx.app.inject({

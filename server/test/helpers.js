@@ -21,6 +21,7 @@ export const WEB_FILES = [
   'icons/icon-192.png',
   'icons/icon-512.png',
   'icons/icon-maskable-512.png',
+  'chunks/flowchart-AB12CD34.js',
 ];
 
 /**
@@ -32,6 +33,7 @@ export async function createTestApp({ env = {}, clock } = {}) {
   const dir = await mkdtemp(join(tmpdir(), 'pn-app-'));
   const webRoot = join(dir, 'web');
   await mkdir(join(webRoot, 'icons'), { recursive: true });
+  await mkdir(join(webRoot, 'chunks'), { recursive: true });
   for (const name of WEB_FILES) await writeFile(join(webRoot, name), `/* ${name} */`);
   const config = loadConfig({ DATA_DIR: join(dir, 'data'), OWNER_PASSWORD: PASSWORD, ...env });
   const db = openDatabase(config.dataDir);
