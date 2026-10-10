@@ -146,6 +146,10 @@ test('dropped files open as new documents in drop order, with free names, and re
   await expect(page.getByRole('tab', { name: 'page.html' })).toHaveAttribute('aria-selected', 'true');
   await expect(page.locator('.cm-content')).toHaveAttribute('data-language', 'html');
   await expect(page.locator('#status-message')).toHaveText('Not opened: report.pdf (only .md, .txt and .html files).');
+  // The message shows at the right end of the status bar, after the language list (STB-2).
+  const message = await page.locator('#status-message').boundingBox();
+  const language = await page.getByRole('combobox', { name: 'Language' }).boundingBox();
+  expect(message.x).toBeGreaterThan(language.x + language.width);
   const docs = (await (await api.get('/api/documents')).json()).map((doc) => doc.name).sort();
   expect(docs).toEqual(['README.MD', 'notes (2).md', 'notes.md', 'page.html']);
   const page2 = (await (await api.get('/api/documents')).json()).find((doc) => doc.name === 'page.html');

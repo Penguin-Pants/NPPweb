@@ -5,6 +5,7 @@
 **Inputs:** `REQUIREMENTS.md` (copy of `private-notepad-requirements.md`), `REQUIREMENTS_TRACEABILITY.md`, `PLAN_REVIEW.md`
 **Codebase:** None yet. This is a new project.
 **V2:** This file covers v1. V2 changes some v1 behavior (`REQUIREMENTS_V2.md` section 10), for example the autosave timing (SAV-1 to SAV-5 replace the 1-second debounce) and the document list (now a top-bar dropdown). V2 phase status is in `REQUIREMENTS_V2.md` section 9, V2 reviews in `PLAN_REVIEW.md` section 12.
+**V3:** Workspaces, the status bar layout and new-document defaults are planned in `BUILD_PLAN_V3.md` (T28 to T40) from `REQUIREMENTS_V3.md`. V3 reviews are in `PLAN_REVIEW.md` section 14.
 
 ---
 

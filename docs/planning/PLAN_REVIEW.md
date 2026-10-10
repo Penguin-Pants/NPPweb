@@ -201,6 +201,8 @@ Coding agents record deviations from the plan here.
 | 2026-10-09 | T22 | A held shortcut key is blocked from the browser but acts only once. | P5 review: holding Alt+N created many documents. | Agent, not yet approved |
 | 2026-10-09 | T23 | The conflict dialog focuses Save mine as a new document and styles Overwrite with mine as dangerous. The deleted dialog focuses Save mine as a new document. | The plan names no default. P6 review: Enter or Space while typing would otherwise overwrite the other device's text with no history. | Agent, not yet approved |
 | 2026-10-09 | T23 | Each choice runs while its dialog stays open (buttons disabled). A failed step shows its error in the dialog. After a 401, the sign-in dialog opens on top and the user chooses again. | P6 review: text typed during the request was lost, and a failed step looped over the sign-in dialog. | Agent, not yet approved |
+| 2026-10-10 | T28 | Status messages move to the right end of the status bar (D55). | Next to the save status, a long message pushed the counts to the right for 5 seconds. | Agent, not yet approved |
+| 2026-10-10 | T29 | The server picks no default language. New sends `markdown` in the create request. | The first PR #6 commit stored Markdown for every create without a name. Recovery copies have a name, so they did not match. Now a create stores the language it gets. | Agent, not yet approved |
 
 ## 10. Phase review log
 
@@ -446,3 +448,25 @@ Two-pass review of each V2 phase diff (`REQUIREMENTS_V2.md` section 9). Same met
 - The perf spec runs alone. Its 200-character typing time was 2790 to 3258 ms before any V2 change (limit 3000 ms), so this container is near the limit. After the size-check fix (section 12, M12 row 20) it was 1577 to 2100 ms. The Markdown perf case (CNT-7, OUT-2) failed once right after the full parallel suite. Reruns gave 181 to 216 ms for counts and 199 to 246 ms for the outline.
 - M16, without trace recording (section 12, M16 row 2), perf alone, 13 runs including the review's: Python typing 856 to 1448 ms and Ctrl+End 21 to 40 ms. Markdown notes typing 1966 to 2802 ms and Ctrl+End 49 to 93 ms. Dense Markdown typing 4043 to 6457 ms (logged only, M16 row 3), Ctrl+End 54 to 302 ms, counts 176 to 212 ms and outline 190 to 242 ms. The notes margin to 3000 ms is small here. One run right after the full parallel suite (load average 4.7) gave counts 332 ms, over CNT-7. The repo's `playwright.config.js` (v1) ran `perf.spec.js` next to the other specs. The M16 review moved it to a `perf` project that runs after the others, one test at a time (section 12, M16 row 8).
 - `api.notion.com` is not reachable from this container: the network policy denies it (proxy 403). No Notion token or parent page is set here either. M15 starts with the C10 test call, so M15 waits for both. The owner can allow the host under the environment's Network access setting and add the token as an environment secret.
+
+---
+
+## 14. V3 review log
+
+Two-pass review of each V3 phase and of `BUILD_PLAN_V3.md`. Same method and verdicts as section 10. Rows marked PR log the Codex review threads on PR #6.
+
+| Phase | # | Finding | Verdict | Action |
+|-------|---|---------|---------|--------|
+| M17 PR | 1 | A recovery copy of an "Untitled N" Markdown document opened as plain text. The copy has a name, so the server stored no language. | Confirmed | Fixed in 70239d0: `POST /api/documents` takes `language`. New sends `markdown`. Both copies send the language of their tab. E2E checks both copies. |
+| M17 PR | 2 | With the outline open, a 480 px window pushed the language list off screen. | Confirmed | Fixed in 10eac16: the status bar wraps to a second row. The narrow-window test checks the status-bar controls. It failed (490 px) before the fix. |
+| M17 PR | 3 | A conflict copy of `notes.py` opened as plain text. The " (conflict copy)" suffix hides the extension, and an auto tab sent no language. | Confirmed | Fixed in 10eac16: the conflict copy sends the resolved language. E2E test added. The suffix after the extension is v1 behavior and stays. |
+| M17 | 4 | STB-2 (message at the right end) had no test. | Confirmed | `e2e/export-drop.spec.js` checks that the message is after the language list. It failed on the old markup. |
+| Plan | 1 | The source requirements cite `server/src/db.js:15` and `web/styles.css:167`. On the PR #6 head they are lines 14 and 176. | Confirmed | Fixed in `REQUIREMENTS_V3.md`. |
+| Plan | 2 | The first draft numbered the workspace milestones M17 to M20, which clashes with the PR #6 milestone. | Confirmed | PR #6 work is M17. Workspaces are M18 to M21 (`REQUIREMENTS_V3.md` section 9). |
+| Plan | 3 | An `await` between the last save and the tab close of a switch would let a keystroke land in a tab that then closes. | Confirmed | TD-33 step 3 is synchronous. A unit test uses a fake flush that marks a document dirty again. |
+| Plan | 4 | A move that closes the tab after the request would lose text typed during the request. | Confirmed | TD-34: only a clean tab closes. A dirty one gets 404 at its next save and the EDGE-1 dialog. |
+| Plan | 5 | A switch from a workspace with a stored color to one without would keep the old inline color. | Confirmed | TD-36: the variables are removed when the active workspace has no stored color. |
+| Plan | 6 | EDGE-29: a switch could start while a conflict dialog is open. | Rejected | All dialogs use `showModal()` (`web/src/dialogs.js:46`, `:102`, `:153`, `:176`), so the switch button cannot be pressed. A conflict that appears during the flush is TD-33 step 2. |
+| Plan | 7 | MIG-2 might need a data migration for stored tabs. | Rejected | Personal keeps the key `pn.openTabs.v1` (TD-31). |
+| Plan | 8 | A custom Work color loads after first paint, so the preset shows for a moment. | Risk | `BUILD_PLAN_V3.md` R9. No cache is built (fewest parts). |
+| Plan | 9 | A move keeps `updated_at`, so a moved document can sort low in the target list. | Risk | Builder choice (TD-26). The owner can ask for the other order. |
