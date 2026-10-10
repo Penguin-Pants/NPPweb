@@ -2,9 +2,10 @@
 // when storage is blocked or holds an unknown value. Stored in localStorage
 // key pn.workspace and shown as data-workspace on <html>. theme-init.js
 // applies it and the window title before first paint (TD-29).
+import { WORKSPACES } from '../../shared/contract.js';
 
 /** @type {{ key: string, values: ['personal', 'work'] }} */
-export const WORKSPACE = { key: 'pn.workspace', values: ['personal', 'work'] };
+export const WORKSPACE = { key: 'pn.workspace', values: WORKSPACES };
 
 export const WORKSPACE_NAMES = { personal: 'Personal', work: 'Work' };
 

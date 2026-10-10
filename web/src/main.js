@@ -248,8 +248,8 @@ tabs = createTabs({
   showMessage,
 });
 
-// Save status label (DOC-3) for the active tab. Until T23, a conflict or a
-// remote delete only shows an error and keeps the text.
+// Save status label (DOC-3) for the active tab. A conflict or a remote
+// delete also opens a dialog (conflict.js).
 const ERROR_TEXT = {
   network: 'Save failed. Retrying.',
   conflict: 'Not saved: changed on another device.',

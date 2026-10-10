@@ -2,14 +2,15 @@
 // the document until the user chooses. Dialogs run one at a time. Each choice
 // runs while its dialog stays open, so nothing can be typed in between, and a
 // failed step shows its error in the dialog instead of losing text.
+import { NAME_MAX_LENGTH } from '../../shared/contract.js';
 import { choose } from './dialogs.js';
 import { on } from './events.js';
 
 const COPY_SUFFIX = ' (conflict copy)';
 
-/** "<name> (conflict copy)", shortened so it fits the 255-character name rule. */
+/** "<name> (conflict copy)", shortened so it fits the name length rule. */
 export function conflictCopyName(name) {
-  return [...name].slice(0, 255 - COPY_SUFFIX.length).join('') + COPY_SUFFIX;
+  return [...name].slice(0, NAME_MAX_LENGTH - COPY_SUFFIX.length).join('') + COPY_SUFFIX;
 }
 
 /** @param {number} status */

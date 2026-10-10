@@ -347,9 +347,9 @@ test('a 404 pauses that document and emits doc-deleted-remote', async () => {
   assert.equal(calls.length, 1);
 });
 
-test('a 413 emits doc-too-large and does not retry until the content changes', async () => {
+test('a 413 holds the document with no event and does not retry until the content changes', async () => {
   await failOnce(413, { error: 'too_large', limitBytes: 1048576 });
-  assert.deepEqual(events, [{ type: 'doc-too-large', id: 'a' }]);
+  assert.deepEqual(events, []); // The status label explains it. Events are for the dialogs.
   assert.equal(autosave.status('a'), 'error');
   assert.equal(autosave.reason('a'), 'too-large');
   mock.timers.tick(120000);
@@ -360,11 +360,12 @@ test('a 413 emits doc-too-large and does not retry until the content changes', a
   assert.equal(calls.length, 2);
 });
 
-test('a successful save emits doc-saved with the new version', async () => {
+test('a successful save keeps the new version and emits no event', async () => {
   autosave.edited('a');
   mock.timers.tick(1000);
   await reply(200, { version: 2, updatedAt: 1 });
-  assert.deepEqual(events, [{ type: 'doc-saved', id: 'a', version: 2 }]);
+  assert.equal(autosave.version('a'), 2);
+  assert.deepEqual(events, []);
 });
 
 test('hasUnsaved is true while any document is unsaved, saving or in error', async () => {

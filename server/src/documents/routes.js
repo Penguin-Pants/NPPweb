@@ -1,19 +1,9 @@
 // Document API (BUILD_PLAN.md section 2.7). Content travels as text/plain
 // with an exact byte limit (TD-7). Every route acts on the workspace that its
 // `workspace` query value names, Personal by default (v3 TD-23).
-import { parseWorkspace, WORKSPACES } from '../workspaces.js';
-import {
-  createDocument,
-  deleteDocument,
-  getDocument,
-  LANGUAGES,
-  listDocuments,
-  normalizeName,
-  saveContent,
-  updateMeta,
-} from './repo.js';
-
-export const CONTENT_LIMIT_BYTES = 1_048_576;
+import { CONTENT_LIMIT_BYTES, LANGUAGE_IDS, WORKSPACES } from '../../../shared/contract.js';
+import { parseWorkspace } from '../workspaces.js';
+import { createDocument, deleteDocument, getDocument, listDocuments, normalizeName, saveContent, updateMeta } from './repo.js';
 
 /**
  * @param {import('fastify').FastifyInstance} app
@@ -38,7 +28,7 @@ export async function documentRoutes(app, { db, clock }) {
       if (name === null) return reply.code(400).send({ error: 'invalid_name' });
     }
     const { language } = request.query;
-    if (language !== undefined && !LANGUAGES.includes(language)) {
+    if (language !== undefined && !LANGUAGE_IDS.includes(language)) {
       return reply.code(400).send({ error: 'invalid_language' });
     }
     return reply.code(201).send(createDocument(db, { workspace: request.workspace, name, content, language, now: clock() }));
@@ -81,7 +71,7 @@ export async function documentRoutes(app, { db, clock }) {
       if (changes.name === null) return reply.code(400).send({ error: 'invalid_name' });
     }
     if (Object.hasOwn(body, 'language')) {
-      if (body.language !== null && !LANGUAGES.includes(body.language)) {
+      if (body.language !== null && !LANGUAGE_IDS.includes(body.language)) {
         return reply.code(400).send({ error: 'invalid_language' });
       }
       changes.language = body.language;

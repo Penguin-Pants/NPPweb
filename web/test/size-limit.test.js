@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { EditorState } from '@codemirror/state';
-import { docBytes, LIMIT_BYTES, sizeLimit, utf8ByteLength } from '../src/size-limit.js';
+import { CONTENT_LIMIT_BYTES as LIMIT_BYTES } from '../../shared/contract.js';
+import { docBytes, sizeLimit, utf8ByteLength } from '../src/size-limit.js';
 
 test('utf8ByteLength matches Buffer.byteLength for ASCII, multi-byte and astral text', () => {
   for (const text of ['', 'a', 'hello\nworld', 'é', 'ÿĀ', '€', '中文字', '😀', 'a😀b€c\n\té', '\u0000\u007f\u0080߿ࠀ￿']) {

@@ -1,6 +1,6 @@
 // v3 workspaces (REQUIREMENTS_V3.md). Fixture API calls send no workspace,
 // so they act on Personal (MIG-3).
-import { drop, expect, login, newDocument, test } from './fixtures.js';
+import { closeButton, drop, expect, login, newDocument, test } from './fixtures.js';
 import { contrastRatio } from '../web/src/workspace-color.js';
 
 /** rgb(r, g, b) from getComputedStyle as #rrggbb. */
@@ -263,6 +263,27 @@ test('a language change whose reply arrives after the switch shows no message (T
   await reply;
   await afterReply(page);
   await expect(message(page)).toHaveText('');
+});
+
+test('a New whose reply arrives after the switch shows no message and opens no tab (TD-41, R14)', async ({ page }) => {
+  await login(page);
+  let release;
+  const held = new Promise((resolve) => (release = resolve));
+  const isCreate = (url) => url.pathname === '/api/documents';
+  await page.route(isCreate, async (route) => {
+    if (route.request().method() !== 'POST') return route.fallback();
+    await held;
+    await route.continue();
+  });
+  await page.getByRole('button', { name: 'New', exact: true }).click();
+  await switchTo(page, 'Work');
+  const reply = page.waitForResponse((res) => isCreate(new URL(res.url())) && res.request().method() === 'POST');
+  release();
+  await reply;
+  await afterReply(page);
+  // One read: the message clears itself after 5 seconds, so a retrying check would pass anyway.
+  expect(await message(page).textContent()).toBe('');
+  await expect(page.getByRole('tab')).toHaveCount(0);
 });
 
 test('a keyboard-only run switches the workspace (WS-2)', async ({ page }) => {
@@ -540,7 +561,7 @@ test('a hovered close button on an inactive Work tab stays readable in the light
   });
   await login(page);
   await storeTabs(page, { work: [w1, w2] });
-  const close = page.getByRole('button', { name: 'Close w2.md' });
+  const close = closeButton(page, 'w2.md');
   await close.hover();
   const [color, background] = [await css(close, 'color'), await css(close, 'backgroundColor')];
   expect(contrastRatio(hex(color), hex(background))).toBeGreaterThanOrEqual(4.5);
@@ -581,4 +602,51 @@ test('after a switch the Documents list never shows the other workspace\'s rows 
   await expect(page.getByRole('button', { name: 'Delete home.md' })).toHaveCount(0);
   release();
   await expect(moveButton(page, 'plan.md', 'Personal')).toBeVisible();
+});
+
+// A Delete or Rename dialog that opened before a switch applied acts on the
+// row's workspace when it is confirmed after the switch (audit C2).
+async function openRowDialogDuringSwitch(page, button, dialogName) {
+  let release;
+  const held = new Promise((resolve) => (release = resolve));
+  let arrived;
+  const holding = new Promise((resolve) => (arrived = resolve));
+  await page.route((url) => url.pathname === '/api/documents' && url.searchParams.get('workspace') === 'work', async (route) => {
+    arrived();
+    await held;
+    await route.continue();
+  }, { times: 1 });
+  await switchButton(page).click();
+  await holding;
+  await documentsButton(page).click();
+  await page.getByRole('button', { name: button }).click();
+  const dialog = page.getByRole('dialog', { name: dialogName });
+  await expect(dialog).toBeVisible();
+  release();
+  await expect(page).toHaveTitle('Work - Margin');
+  return dialog;
+}
+
+test('a Delete confirmed after a switch deletes the row\'s document in its own workspace (audit C2)', async ({ page, api }) => {
+  await create(api, 'personal', 'home.md', 'personal');
+  await create(api, 'work', 'home.md', 'work');
+  await login(page);
+  const dialog = await openRowDialogDuringSwitch(page, 'Delete home.md', 'Delete document');
+  await dialog.getByRole('button', { name: 'Delete permanently' }).click();
+  await expect(dialog).toBeHidden();
+  await expect.poll(() => names(api, 'personal')).toEqual([]);
+  expect(await names(api, 'work')).toEqual(['home.md']);
+  await afterReply(page);
+  expect(await message(page).textContent()).toBe('');
+});
+
+test('a Rename submitted after a switch renames the row\'s document in its own workspace (audit C2)', async ({ page, api }) => {
+  await create(api, 'personal', 'home.md', 'personal');
+  await login(page);
+  const dialog = await openRowDialogDuringSwitch(page, 'Rename home.md', 'Rename document');
+  await dialog.getByLabel('Name').fill('house.md');
+  await dialog.getByRole('button', { name: 'Rename' }).click();
+  await expect(dialog).toBeHidden();
+  expect(await names(api, 'personal')).toEqual(['house.md']);
+  expect(await names(api, 'work')).toEqual([]);
 });

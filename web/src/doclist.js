@@ -2,6 +2,7 @@
 // last modified date, newest first, of the active workspace (v3 WS-6). Open,
 // rename, move to the other workspace (MOV-1) and delete. Open closes the
 // dropdown. Delete is permanent and closes the tab.
+import { NAME_MAX_LENGTH } from '../../shared/contract.js';
 import { choose, formDialog } from './dialogs.js';
 import { createDropdown } from './dropdown.js';
 import { emit } from './events.js';
@@ -55,9 +56,12 @@ export function createDocList({ api, tabs, autosave, exclusive, root, button, pa
     rename.textContent = 'Rename';
     rename.dataset.action = 'rename';
     rename.setAttribute('aria-label', `Rename ${doc.name}`);
-    rename.addEventListener('click', () => renameDocument(doc));
-    // The label and the request use the same target, fixed when the row renders.
-    const target = otherWorkspace(api.workspace());
+    // The row's workspace and the Move target are fixed when the row renders.
+    // Rename and Delete act on the row's workspace, because their dialog can
+    // stay open while a switch ends (audit C2).
+    const source = api.workspace();
+    rename.addEventListener('click', () => renameDocument(doc, source));
+    const target = otherWorkspace(source);
     const moveTo = document.createElement('button');
     moveTo.type = 'button';
     moveTo.textContent = `Move to ${WORKSPACE_NAMES[target]}`;
@@ -70,7 +74,7 @@ export function createDocList({ api, tabs, autosave, exclusive, root, button, pa
     remove.textContent = 'Delete';
     remove.dataset.action = 'delete';
     remove.setAttribute('aria-label', `Delete ${doc.name}`);
-    remove.addEventListener('click', () => deleteDocument(doc));
+    remove.addEventListener('click', () => deleteDocument(doc, source));
     item.append(open, rename, moveTo, remove);
     return item;
   }
@@ -98,19 +102,18 @@ export function createDocList({ api, tabs, autosave, exclusive, root, button, pa
     }
   }
 
-  async function renameDocument(doc) {
+  async function renameDocument(doc, workspace) {
     const result = await formDialog({
       title: 'Rename document',
       fields: [{ name: 'name', label: 'Name', value: doc.name }],
       submitLabel: 'Rename',
       onSubmit: async ({ name }) => {
-        const { status, data, stale } = await api.updateDocument(doc.id, { name });
-        if (stale) return null;
+        const { status, data } = await api.updateDocument(doc.id, { name }, workspace);
         if (status === 200) {
           emit('doc-renamed', { id: doc.id, name: data.name });
           return null;
         }
-        if (data?.error === 'invalid_name') return 'Use 1 to 255 characters and no control characters.';
+        if (data?.error === 'invalid_name') return `Use 1 to ${NAME_MAX_LENGTH} characters and no control characters.`;
         if (status === 404) return 'This document no longer exists.';
         if (status === 0) return 'Cannot connect to the server. Try again.';
         return 'Rename failed. Try again.';
@@ -147,7 +150,7 @@ export function createDocList({ api, tabs, autosave, exclusive, root, button, pa
     });
   }
 
-  async function deleteDocument(doc) {
+  async function deleteDocument(doc, workspace) {
     const answer = await choose({
       title: 'Delete document',
       message: `Delete "${doc.name}" permanently? You cannot undo this.`,
@@ -161,8 +164,7 @@ export function createDocList({ api, tabs, autosave, exclusive, root, button, pa
     if (answer !== 'delete') return;
     // Close the tab first, so no pending save reaches the deleted document.
     tabs.removeTab(doc.id);
-    const { status, stale } = await api.deleteDocument(doc.id);
-    if (stale) return;
+    const { status } = await api.deleteDocument(doc.id, workspace);
     if (status !== 204 && status !== 404) showMessage('Delete failed. Try again.');
     await refresh();
   }

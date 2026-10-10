@@ -2,6 +2,7 @@
 // through CodeMirror with the app's own Markdown setup, code languages
 // included, as in the editor.
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import { test } from 'node:test';
 import { ensureSyntaxTree } from '@codemirror/language';
 import { EditorState } from '@codemirror/state';
@@ -83,4 +84,20 @@ test('an edit in 1 MB of dense Markdown parses again in a few milliseconds, at t
     const perKey = (performance.now() - start) / 50;
     assert.ok(perKey < 10, `${perKey.toFixed(1)} ms per key at ${at}`);
   }
+});
+
+test('package.json allows only the @lezer/markdown version that the postinstall patch is made for', async () => {
+  const pkg = JSON.parse(await readFile(new URL('../../package.json', import.meta.url), 'utf8'));
+  const script = await readFile(new URL('../../scripts/patch-lezer-markdown.js', import.meta.url), 'utf8');
+  const patched = /^const VERSION = '([^']+)';$/m.exec(script)?.[1];
+  assert.ok(patched);
+  // A range would let npm update install a version that the patch stops on.
+  assert.equal(pkg.dependencies['@lezer/markdown'], patched);
+});
+
+test('the lockfile holds one copy of @lezer/markdown, the one the patch changes', async () => {
+  const lock = JSON.parse(await readFile(new URL('../../package-lock.json', import.meta.url), 'utf8'));
+  // A dependency that needs another version would get its own copy, which no patch reaches.
+  const copies = Object.keys(lock.packages).filter((path) => path.endsWith('node_modules/@lezer/markdown'));
+  assert.deepEqual(copies, ['node_modules/@lezer/markdown']);
 });

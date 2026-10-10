@@ -1,11 +1,10 @@
 // Owner settings (SAV-2, SAV-3, v3 CLR-2 to CLR-4). One value for all
 // devices, stored in the settings table: the autosave delay and one color per
-// workspace. The client uses the same default delay (web/src/autosave.js)
+// workspace. The client uses the same default delay (shared/contract.js)
 // until it has read this value.
+import { AUTOSAVE_DEFAULT_SECONDS, WORKSPACES } from '../../../shared/contract.js';
 import { transaction } from '../db.js';
-import { WORKSPACES } from '../workspaces.js';
 
-const AUTOSAVE_DEFAULT_SECONDS = 5;
 const AUTOSAVE_KEY = 'autosave_seconds';
 const colorKey = (workspace) => `color_${workspace}`;
 

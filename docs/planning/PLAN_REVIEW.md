@@ -213,6 +213,8 @@ Coding agents record deviations from the plan here.
 | 2026-10-10 | T37 | `server/test/settings.test.js`: the v2 checks compare `autosaveSeconds` only, not the whole reply. A `workspaceColors` object that does not name exactly the two workspaces returns 400 `invalid_request`. | The reply also holds `workspaceColors` (TD-27, a named change to SAV-3). TD-27 says the object has both keys, but not what a partial one does. | User (chat, 2026-10-10) |
 | 2026-10-10 | T38 | A third CSS variable, `--ws-strip-mark`, colors the unsaved dot on inactive tabs. Its default is `var(--accent)`. The Work preset and a stored color set it to the strip text color. | TD-38 gives that dot `--ws-strip-fg`, whose Personal default is `var(--muted)`. That would turn today's accent dot grey and break CLR-6 (Personal keeps today's look). REQUIREMENTS_V3 wins over the plan. | User (chat, 2026-10-10) |
 | 2026-10-10 | T34 | The `hasUnsaved()` check after the second `saveAll()` (TD-33 step 4) is gone. | It cannot be true: `saveAll` returns ok only after its own `hasUnsaved()` check, and only microtasks run from there to the tab close (PR #10 review 7). | User (chat, 2026-10-10) |
+| 2026-10-10 | Audit C2 | Rename and Delete in the Documents list name the workspace of their row, like the switch prefetch (TD-30), so they are never stale and no longer check `stale` (TD-41 lists `doclist.js`). `api.updateDocument` and `api.deleteDocument` take an optional workspace. | Their dialog can stay open while a switch ends. A stale check would drop the reply, and the active workspace would get the request and answer 404. The owner confirmed the action on that row. | Agent, not yet approved |
+| 2026-10-10 | Audit C6 | Autosave no longer emits `doc-saved` and `doc-too-large`. `BUILD_PLAN.md` section 2.8 lists both. | No module listened to them. The save status label shows both states. An event can come back with its first listener. | Agent, not yet approved |
 
 ## 10. Phase review log
 
@@ -285,6 +287,11 @@ Not built. Each one needs a user decision.
 |---|------|----------|--------|
 | 1 | P1 review 11 | Count wrong current passwords on `POST /api/password` in the login limiter. | A stolen session cookie would otherwise allow unlimited password guessing. Approved and built 2026-10-10 (section 9). |
 | 2 | P5 review 2 | Match the Mod shortcuts (N, W, S, F, H) by `event.key` and keep `event.code` for Alt+N and Alt+W. | On AZERTY and other layouts, `event.code` maps Ctrl+Z to KeyW, so undo opens the close dialog, and Ctrl+W can reach the browser and close the installed window. T22 specifies `event.code`. Approved and built 2026-10-10 (section 9). |
+| 3 | Audit baseline (section 15) | `e2e/workspaces.spec.js:530`: replace the one-time `getComputedStyle` read with `await expect(dot).toHaveCSS('background-color', 'rgb(94, 161, 255)')`. | Flaky on `main` (2 of 3 runs failed): the click on `p2.md` starts a list refresh, and its reply renders the tab strip again (`tabs.render` makes new nodes). A read of a node that was replaced gives `""`. A web-first assertion reads the current node again. A copy with the change passed 6 of 6 runs. |
+| 4 | Audit baseline (section 15) | `e2e/export-drop.spec.js:127`: wait for the counts (`await expect(page.locator('#counts')).not.toBeEmpty()`) before the drop. | Flaky on `main` (2 of 3 runs failed): the counts show 100 ms after a tab opens (`web/src/main.js:358`). Before that, the first status-bar row has room for the message, so it does not wrap and the row check fails (579 < 598). A copy with the wait passed 6 of 6 runs. |
+| 5 | Audit task C1 (section 15) | `e2e/workspaces.spec.js:265`: read the message once after the reply (`expect(await message(page).textContent()).toBe('')`), as the C1 stale test does. | `toHaveText('')` retries for 5 seconds, and the status message clears itself after 5 seconds (`web/src/main.js:73`), so the check passes even when the message shows. With the `stale` check in `tabs.setLanguage` removed, the test still passed. |
+| 6 | Audit task C4 (section 15) | Announce the unsaved state of a tab to assistive technology, for example in its accessible name ("notes.md, unsaved") or with `aria-describedby`. | Only the dot shows it. The dot's `aria-label` was inside a tab, whose content is presentational, so it was never read. C4 removed that dead label. Tests that find tabs by exact name would change. |
+| 7 | Audit task C6 (section 15) | `e2e/layout.spec.js:143`: after Enter opens `one.txt`, wait for the editor to have the focus before the next step. | Failed once in a full run, then passed 10 of 10 alone (not reproduced). `tabs.activate` sets `aria-selected` before it loads the document, and calls `editor.focus()` after the load (`web/src/tabs.js`). Under load, that focus can come after the test has moved the focus into the Documents dropdown. Confidence: medium. |
 
 ## 12. V2 phase review log
 
@@ -541,3 +548,86 @@ Two-pass review of each V3 phase and of `BUILD_PLAN_V3.md`. Same method and verd
 - Chromium e2e only, on the preinstalled Chromium build 1194 through a temporary config with `executablePath`. Playwright 1.64 expects build 1248, which is not installed. Firefox and WebKit are not installed, so the `@smoke` runs there stay with the owner, the new switch round trip too.
 - Each task: `npm test` and the full Chromium suite green before its commit. Each new test failed first on an assertion (against a stub or the code before the task).
 - The perf spec, run alone at the end: all timings within the targets (1 MB Python open 163 ms, 200 characters 919 ms, Ctrl+End 22 ms; dense Markdown 200 characters 903 ms, counts 145 ms, outline 213 ms). Its "no console errors" check fails here, the same on `main`: the full Chromium build asks for `/favicon.ico`, which the gate answers with 401 before sign-in and the server with 404 after. Playwright's headless shell does not ask for it. A fix outside v3 is proposed to the owner.
+
+---
+
+## 15. Codebase audit
+
+**Scope:** the whole codebase at 8f6c968: `server/src`, `web/src`, `scripts` and the HTML pages. Server checks ran through `app.inject`.
+**Date:** 2026-10-10
+**Method:** section 1. Pass 1 lists findings. Pass 2 classifies each one as Confirmed, Risk or Rejected.
+**Severity:** the repo defines no scale, so the agent used this one (not yet approved): Critical (data loss or a security breach), High (a common path is broken), Medium (a likely path gets worse, with no data loss) and Low (an edge case or an engineering cost only).
+
+| # | Finding | Severity | Verdict | Action |
+|---|---------|----------|---------|--------|
+| C1 | `tabs.newDocument` returns false on a failed create, and its three callers ignore it (`web/src/tabs.js:297`, `web/src/main.js:537`, `:538`, `:545`). A New during the redeploy downtime does nothing and shows no message. The other create paths (drop, recovery copies) show one. | Medium | Confirmed | Task C1. |
+| C2 | A Delete confirmed in a dialog that opened before a switch applied went to the new workspace. The server answered 404, which counts as done, so nothing was deleted and no message showed (`web/src/doclist.js:164`, `:166`). A rename on the same path showed "This document no longer exists" (`:114`). | Low | Confirmed | Task C2. PR #10 row 1 (section 14) covered rows that stayed after a switch, not a dialog that was already open. |
+| C3 | Unknown routes answer with the Fastify 404 body (`message`, `error: "Not Found"`, `statusCode`), not `{ "error": "<code>" }` (`BUILD_PLAN.md:215`). Probe: `GET /api/nope` with a session. Static misses are the same. | Low | Confirmed | Task C3. |
+| C4 | Each tab is a `div role="tab"` with a click listener only: no `tabindex` and no keys (`web/src/tabs.js:139`, `:161`). The close button is inside the tab element. Documents > Open was the only keyboard path to another tab. | Low | Confirmed | Task C4. NFR-5 does not list the tab strip. |
+| C5 | Four contract values are written twice, once in `server/src` and once in `web/src`: the language ids, the 1 MiB limit, the workspace ids and the 5-second autosave default. Each copy has its own pin test, so a change on one side passes its tests. | Low | Confirmed | Task C5. |
+| C6 | `doc-saved` and `doc-too-large` are emitted with no listener (`web/src/autosave.js:94`, `:120`). `editor.content()` has no caller (`web/src/editor.js:114`). The comment at `web/src/main.js:251` says "Until T23", but T23 is done. | Low | Confirmed | Task C6. |
+| C7 | `package.json` allows `^1.8.0` for `@lezer/markdown`, but the postinstall patch stops on any version other than 1.8.0 (`scripts/patch-lezer-markdown.js:13`, `:89`). After a 1.8.1 release, `npm update` would break every install. | Low | Confirmed | Task C7. |
+| K1 | A request with no timeout can hold a workspace switch and its lock. | n/a | Risk | Already R10 and PR #10 row 5 (section 14): no timeout is built. Also, a timeout after a save that the server committed would retry with the old version and get a false conflict. Not built. |
+| K2 | An "Untitled N" whose saved text the owner cleared closes and is deleted with no prompt (`web/src/tabs.js:350`). DOC-6 allows it. | n/a | Risk | Owner decision. Option: skip the prompt only at version 1, when the document never held saved text. |
+| X1 | A move can give two documents in the target workspace the same name. | n/a | Rejected | MOV-2 allows it (`REQUIREMENTS_V3.md:79`). |
+| X2 | Expired sessions are deleted only at startup. | n/a | Rejected | An expired session cannot sign in (`server/src/auth/sessions.js:41`). Rows come only from successful sign-ins. |
+| X3 | The diagram frame has no `sandbox` attribute. | n/a | Rejected | The page CSP blocks inline script, and Mermaid runs with `securityLevel: 'strict'` (`web/src/mermaid-render.js:15`). |
+| X4 | The diagram cache keeps the `isWanted` callbacks of each entry. | n/a | Rejected | At most 32 entries (`web/src/mermaid-render.js:35`). A widget calls `render` only while no result exists. |
+| X5 | `scripts/build-web.js` does not empty `dist/web` first. | n/a | Rejected | Railway builds from a clean checkout. Old local chunks do no harm. |
+| X6 | A new `X-Real-IP` value on each request gets past the per-IP limit (probe: 7 wrong passwords, no 429). | n/a | Rejected | Already R2. The global limit holds. |
+
+### Audit fix log
+
+Two-pass review of each fix task. Same method and verdicts as section 10.
+
+| Task | # | Finding | Verdict | Action |
+|------|---|---------|---------|--------|
+| C1 | 1 | The new `stale` check in `newDocument` had no test. A New whose reply arrives after a switch must show no message (R14). | Confirmed | E2E test with a held create. With the check removed, it failed: the message showed. |
+| C1 | 2 | `toHaveText('')` retries for 5 seconds, and the status message clears itself after 5 seconds, so a check for "no message" passes anyway. | Confirmed | The new test reads the message once. The TD-41 language test has the same gap: section 11, row 5. |
+| C1 | 3 | A 401 now shows the message too, under the sign-in dialog. | Rejected | The drop and the recovery copies also show a message on 401. After the sign-in, "Try again" is the right advice. |
+| C1 | 4 | Section 9 (T33) says `newDocument` has no explicit `stale` check. | Confirmed | It has one now: a stale reply has status 0, which would show the message. This row records the change. |
+| C1 | 5 | `newDocument` returned true or false, and no caller read the value. | Confirmed | It returns nothing now. |
+| C2 | 1 | TD-41 names `doclist.js` as a caller that checks `stale`. Rename and Delete now name their workspace, so they cannot be stale. | Confirmed | Section 9 row "Audit C2". |
+| C2 | 2 | Move still acts on the active workspace. | Rejected | Move has no dialog and runs through `exclusive`, and a switch drops the rows (`doclist.reset`), so a Move click always comes from the active workspace. |
+| C2 | 3 | After a switch, the Rename reply emits `doc-renamed` and the Delete removes a tab, both in the new workspace. | Rejected | A document is in one workspace only, so the new workspace has no tab with that id. Both are no-ops. |
+| C2 | 4 | After a Delete in the old workspace, its stored tab list can still name the deleted document. | Rejected | `boot` drops stored ids that are not in the list, so the switch back opens no tab for it. |
+| C2 | 5 | A failure message ("Delete failed" or a rename error) can now show after the switch. | Rejected | It is true for the row the owner chose. Before, the request went to the wrong workspace. |
+| C2 | 6 | `listDocuments(target)` had its own code for a named workspace. | Confirmed | One `docCall` with an optional workspace serves the list read, Rename and Delete. |
+| C4 | 1 | The audit proposed the close button as a sibling of the tab. axe 4.10 flags that as `aria-required-children` (a tab list holds only tabs), and a button inside a tab as `nested-interactive`, also with `tabindex="-1"`. | Confirmed | The close mark is a `span` with `aria-hidden="true"`. The keyboard closes the focused tab with Delete (or Backspace), and each tab has `aria-keyshortcuts="Delete"`. axe on the tab strip of the running app: 3 violations before, 0 after. |
+| C4 | 2 | `render` makes new tab nodes, so a re-render (after a list refresh or a save status change) dropped the keyboard focus on the page body. | Confirmed | `render` gives the focus back to the same tab. The e2e test refreshes the list while a tab has the focus. |
+| C4 | 3 | A close cancelled from the keyboard must leave the focus on the tab. | Confirmed | After a cancelled close, the focus goes back to the tab when it is on the page body. E2E step. |
+| C4 | 4 | The dot's `aria-label` ("Unsaved changes") is inside a tab, whose content is presentational, so it was never read. | Confirmed | The dead label is gone. Announcing the unsaved state is a new feature: section 11, row 6. |
+| C4 | 5 | Backspace also closes, so a stray Backspace on a focused tab opens the close dialog. | Rejected | The dialog focuses Keep. An empty "Untitled N" closes with no prompt (DOC-6), but it holds no text. macOS keyboards have no Delete key. |
+| C4 | 6 | The ARIA tabs pattern also links each tab to a tab panel (`aria-controls`). | Rejected | One editor view serves every tab. axe needs no `aria-controls`, and NFR-5 asks for names and keys. |
+| C4 | 7 | 12 e2e steps clicked the close button by its role and name. | Confirmed | `closeButton(page, name)` in `e2e/fixtures.js` finds the mark in the named tab. |
+| C3 | 1 | The not-found handler could answer before the gate, so a request without a session would learn which paths exist. | Rejected | Root `onRequest` hooks also run for the not-found handler. `gate.test.js` (unknown paths without a session get 401) passes. |
+| C3 | 2 | A signed-in browser that opens an unknown page gets JSON, not HTML. | Rejected | Fastify's own 404 was JSON too. The app has one page, and every link it makes is known. |
+| C3 | 3 | The handler adds routes that the route sweep (`registeredRoutes`) would have to list. | Rejected | The gate tests pass unchanged. |
+| C5 | 1 | Two more contract values are written on both sides: the 255-character name limit (`web/src/conflict.js:12`, `web/src/doclist.js:115`) and the "Untitled N" pattern (`web/src/tabs.js`, close without a prompt). | Confirmed | Both are in `shared/contract.js` with the 4 values of the audit. |
+| C5 | 2 | The languages had two pin tests, one per side. | Confirmed | `web/test/languages.test.js` pins the list (D5). The server test reads the shared list and checks that the API accepts each id. |
+| C5 | 3 | Migration 2 still writes the workspace list in its CHECK. | Rejected | A released migration never changes. The contract file says so. |
+| C5 | 4 | UI texts still name rules: "1 to 60" seconds, "12 to 256" characters, "1 MB". | Rejected | They are wording. The code that compares values uses the shared constants or the server's check. |
+| C5 | 5 | The server imports `shared/` through relative paths (`../../../shared/contract.js`). | Rejected | Node subpath imports would add a `package.json` field. A relative path needs nothing more. |
+| C5 | 6 | Railway must ship `shared/` with the server. | Risk | Railway builds from the whole repo and runs `npm start` there, so the folder is in the image (not checked on a deploy). If it were missing, the server would not start, the health check would fail and Railway would keep the old deployment. |
+| C5 | 7 | A refactor with no new behavior has no failing test first. | Confirmed | The existing tests guard each value. `npm test` and the e2e suite pass unchanged, except for the import lines. |
+| C6 | 1 | `BUILD_PLAN.md` section 2.8 lists `doc-saved` and `doc-too-large`. | Confirmed | Section 9 row "Audit C6". |
+| C6 | 2 | Notion sync (M15) could want an event after each save. | Rejected | M15 is blocked (C17). An event comes back in one line together with its first listener. |
+| C6 | 3 | Something outside `web/src` could call `editor.content()`. | Rejected | No reference in `web/src`, `web/test`, `e2e` or `scripts`. |
+| C6 | 4 | The conflict and deleted dialogs still need their events. | Rejected | `doc-conflict` and `doc-deleted-remote` stay. Their unit tests and `e2e/conflict.spec.js` pass. |
+| C7 | 1 | With an exact pin, a dependency that needs a newer `@lezer/markdown` gets its own copy, which the patch never reaches, and the install shows no error. With `^1.8.0`, npm upgraded the patched copy and the postinstall stopped. | Confirmed | Test: the lockfile holds one copy of `@lezer/markdown`. It failed with a second copy added by hand. |
+| C7 | 2 | A version change now needs two edits: `package.json` and `VERSION` in the patch script. | Rejected | That is the check: the new test fails until both agree, and the script asks whether the new version still needs the patch. |
+| C7 | 3 | npm 11.19 in this container skips the esbuild install script and warns. | Rejected | Not from C7. The build and all tests pass. |
+
+### Audit validation environment
+
+- Node.js 24.21.0 through nvm, outside the repo. The container default is Node 22.
+- Chromium e2e only, on the preinstalled Chromium build 1194 through a temporary config with `executablePath`, as in v3. Firefox and WebKit are not installed.
+- Baseline on 8f6c968: `npm test` 424 of 424. Chromium e2e 169 passed and 2 failed. Both failures are flaky on `main` (section 11, rows 3 and 4). When they fail during a task, they run again alone.
+- C1: `npm test` 424 of 424. Chromium e2e 170 passed, plus the 2 known flakes. Alone, the STB-2 test passed and the CLR-6 test failed 5 of 5 retries. The CLR-6 rate is the same without C1 (3 of 6 failed) and with C1 (4 of 6 failed). The 2 new tests failed first on an assertion.
+- C2: `npm test` 425 of 425. Chromium e2e 174 passed, plus the CLR-6 flake, which passed on its first retry. The new unit test and both new e2e tests failed first on an assertion.
+- C4: `npm test` 425 of 425. Chromium e2e 174 passed, plus the 2 known flakes. Alone, STB-2 passed on a retry. CLR-6 failed 9 of 10 runs without C4 and 7 of 10 with C4. The new test failed first on an assertion (3 buttons in the tab list).
+- C3: `npm test` 426 of 426. Chromium e2e 175 passed, plus the CLR-6 flake. The new test failed first on an assertion (the Fastify 404 body).
+- C5: `npm test` 426 of 426. Chromium e2e 174 passed, plus the 2 known flakes. Alone, STB-2 passed on a retry and CLR-6 failed 5 of 5.
+- C6: `npm test` 426 of 426. Chromium e2e 173 passed, plus the 2 known flakes and one failure of `layout.spec.js:124` (section 11, row 7), which then passed 10 of 10 alone. The 2 changed tests failed first on an assertion (the events were still emitted).
+- C7: `npm ci` applied the patch to both builds of `@lezer/markdown`. `npm test` 428 of 428. Chromium e2e 174 passed, plus the 2 known flakes. The pin test failed first on an assertion (`^1.8.0`).
+- Final: the perf spec, run alone, passed all targets (1 MB Python open 135 ms, 200 characters 924 ms, Ctrl+End 356 ms; Markdown notes 200 characters 758 ms; dense Markdown 200 characters 761 ms, counts 158 ms, outline 198 ms). A scan of the branch diff found one Oxford comma, in the new close tooltip (`AGENTS.md` rule 12). Fixed.

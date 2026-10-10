@@ -111,7 +111,6 @@ export function createEditor(parent, { theme, markdownMode, onUpdate, onTooLarge
     setLanguage(language) {
       view.dispatch({ effects: languageSlot.reconfigure(language) });
     },
-    content: () => view.state.doc.toString(),
     focus: () => view.focus(),
   };
 }

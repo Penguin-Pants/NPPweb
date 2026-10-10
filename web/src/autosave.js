@@ -3,6 +3,7 @@
 // setTimeout and Date.now, so tests can mock them.
 // Status per document: 'saved', 'unsaved', 'saving' or 'error'.
 // Reason for 'error': 'network', 'conflict', 'deleted' or 'too-large'.
+import { AUTOSAVE_DEFAULT_SECONDS } from '../../shared/contract.js';
 
 const RETRY_DELAYS_MS = [2000, 4000, 8000, 16000, 30000];
 
@@ -15,11 +16,11 @@ const RETRY_DELAYS_MS = [2000, 4000, 8000, 16000, 30000];
  * @param {object} options
  * @param {SaveFn} options.save
  * @param {(id: string, status: string) => void} [options.onStatus]
- * @param {(type: string, detail: object) => void} [options.onEvent] doc-saved, doc-conflict,
- *   doc-deleted-remote and doc-too-large.
+ * @param {(type: string, detail: object) => void} [options.onEvent] doc-conflict and
+ *   doc-deleted-remote, which open a dialog. The status label shows the rest.
  * @param {number} [options.delayMs] The autosave delay N (SAV-1). setDelay changes it later.
  */
-export function createAutosave({ save, onStatus = () => {}, onEvent = () => {}, delayMs = 5000 }) {
+export function createAutosave({ save, onStatus = () => {}, onEvent = () => {}, delayMs = AUTOSAVE_DEFAULT_SECONDS * 1000 }) {
   let delay = delayMs;
   /** @type {Map<string, any>} */
   const docs = new Map();
@@ -91,7 +92,6 @@ export function createAutosave({ save, onStatus = () => {}, onEvent = () => {}, 
     if (status === 200) {
       doc.version = data.version;
       doc.failures = 0;
-      onEvent('doc-saved', { id: doc.id, version: doc.version });
       if (!doc.dirty) {
         setStatus(doc, 'saved');
         settle(doc, true);
@@ -117,7 +117,6 @@ export function createAutosave({ save, onStatus = () => {}, onEvent = () => {}, 
       onEvent('doc-deleted-remote', { id: doc.id });
     } else if (status === 413) {
       fail(doc, 'too-large', 'too-large');
-      onEvent('doc-too-large', { id: doc.id });
     } else {
       // Network failure, 5xx or anything unexpected: retry with backoff. An
       // edit during the save may have set an earlier deadline, which stays.

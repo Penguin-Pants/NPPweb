@@ -2,12 +2,11 @@
 // transaction filter rejects a change that would make the document larger
 // than 1,048,576 bytes of UTF-8.
 import { EditorState } from '@codemirror/state';
-
-export const LIMIT_BYTES = 1_048_576;
+import { CONTENT_LIMIT_BYTES } from '../../shared/contract.js';
 
 // A UTF-16 code unit is at most 3 UTF-8 bytes, so a document with at most
 // this many code units cannot pass the limit and needs no measuring.
-const SAFE_LENGTH = Math.floor(LIMIT_BYTES / 3);
+const SAFE_LENGTH = Math.floor(CONTENT_LIMIT_BYTES / 3);
 
 /**
  * UTF-8 size of a string. A lone surrogate counts as U+FFFD (3 bytes), as
@@ -66,7 +65,7 @@ export function sizeLimit(onReject) {
     if (!tr.docChanged || tr.newDoc.length <= SAFE_LENGTH) return tr;
     const bytes = docBytes(tr.newDoc);
     // A change that makes an oversized document smaller is still allowed.
-    if (bytes <= LIMIT_BYTES || bytes <= docBytes(tr.startState.doc)) return tr;
+    if (bytes <= CONTENT_LIMIT_BYTES || bytes <= docBytes(tr.startState.doc)) return tr;
     onReject();
     return [];
   });

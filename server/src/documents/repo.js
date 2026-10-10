@@ -1,28 +1,14 @@
 // Document storage (BUILD_PLAN.md section 2.6). Every query names the
 // workspace (v3 TD-24): a document of the other workspace reads as missing.
 import { randomUUID } from 'node:crypto';
+import { NAME_MAX_LENGTH, UNTITLED_NAME } from '../../../shared/contract.js';
 import { transaction } from '../db.js';
-
-export const LANGUAGES = [
-  'plain',
-  'markdown',
-  'json',
-  'html',
-  'css',
-  'javascript',
-  'typescript',
-  'python',
-  'sql',
-  'yaml',
-  'shell',
-];
 
 // node:sqlite (seen in Node 24.13) cuts a bound TEXT value at its first NUL
 // character, so content is stored as UTF-8 bytes (a BLOB in the TEXT column).
 const encodeContent = (text) => Buffer.from(text, 'utf8');
 const decodeContent = (value) => (typeof value === 'string' ? value : Buffer.from(value).toString('utf8'));
 
-const UNTITLED = /^Untitled (\d+)$/;
 const CONTROL_CHARS = /[\u0000-\u001f\u007f-\u009f]/;
 
 /**
@@ -45,14 +31,14 @@ const toMeta = (row) => ({
 
 /**
  * Returns the trimmed name, or null when it breaks the name rule:
- * 1 to 255 characters after trimming and no control characters.
+ * 1 to NAME_MAX_LENGTH characters after trimming and no control characters.
  * @param {unknown} value
  */
 export function normalizeName(value) {
   if (typeof value !== 'string') return null;
   const name = value.trim();
   const length = [...name].length;
-  return length >= 1 && length <= 255 && !CONTROL_CHARS.test(name) ? name : null;
+  return length >= 1 && length <= NAME_MAX_LENGTH && !CONTROL_CHARS.test(name) ? name : null;
 }
 
 /**
@@ -92,7 +78,7 @@ function nextUntitledName(db, workspace) {
   let highest = 0;
   const rows = db.prepare("SELECT name FROM documents WHERE workspace = ? AND name LIKE 'Untitled %'").all(workspace);
   for (const { name } of rows) {
-    const n = Number(UNTITLED.exec(name)?.[1]);
+    const n = Number(UNTITLED_NAME.exec(name)?.[1]);
     if (Number.isSafeInteger(n) && n > highest) highest = n;
   }
   return `Untitled ${highest + 1}`;

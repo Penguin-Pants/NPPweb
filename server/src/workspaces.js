@@ -1,6 +1,6 @@
-// The two fixed workspaces (v3 WS-1, TD-20). No route creates, renames or
-// deletes one. The documents table CHECK holds the same list (migration 2).
-export const WORKSPACES = ['personal', 'work'];
+// The two fixed workspaces (v3 WS-1, TD-20, shared/contract.js). No route
+// creates, renames or deletes one.
+import { WORKSPACES } from '../../shared/contract.js';
 
 /**
  * The workspace that a request names in its `workspace` query value (TD-23).
