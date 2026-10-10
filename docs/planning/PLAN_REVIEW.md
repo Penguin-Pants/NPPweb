@@ -614,6 +614,9 @@ Two-pass review of each fix task. Same method and verdicts as section 10.
 | C6 | 2 | Notion sync (M15) could want an event after each save. | Rejected | M15 is blocked (C17). An event comes back in one line together with its first listener. |
 | C6 | 3 | Something outside `web/src` could call `editor.content()`. | Rejected | No reference in `web/src`, `web/test`, `e2e` or `scripts`. |
 | C6 | 4 | The conflict and deleted dialogs still need their events. | Rejected | `doc-conflict` and `doc-deleted-remote` stay. Their unit tests and `e2e/conflict.spec.js` pass. |
+| C7 | 1 | With an exact pin, a dependency that needs a newer `@lezer/markdown` gets its own copy, which the patch never reaches, and the install shows no error. With `^1.8.0`, npm upgraded the patched copy and the postinstall stopped. | Confirmed | Test: the lockfile holds one copy of `@lezer/markdown`. It failed with a second copy added by hand. |
+| C7 | 2 | A version change now needs two edits: `package.json` and `VERSION` in the patch script. | Rejected | That is the check: the new test fails until both agree, and the script asks whether the new version still needs the patch. |
+| C7 | 3 | npm 11.19 in this container skips the esbuild install script and warns. | Rejected | Not from C7. The build and all tests pass. |
 
 ### Audit validation environment
 
@@ -626,3 +629,4 @@ Two-pass review of each fix task. Same method and verdicts as section 10.
 - C3: `npm test` 426 of 426. Chromium e2e 175 passed, plus the CLR-6 flake. The new test failed first on an assertion (the Fastify 404 body).
 - C5: `npm test` 426 of 426. Chromium e2e 174 passed, plus the 2 known flakes. Alone, STB-2 passed on a retry and CLR-6 failed 5 of 5.
 - C6: `npm test` 426 of 426. Chromium e2e 173 passed, plus the 2 known flakes and one failure of `layout.spec.js:124` (section 11, row 7), which then passed 10 of 10 alone. The 2 changed tests failed first on an assertion (the events were still emitted).
+- C7: `npm ci` applied the patch to both builds of `@lezer/markdown`. `npm test` 428 of 428. Chromium e2e 174 passed, plus the 2 known flakes. The pin test failed first on an assertion (`^1.8.0`).
