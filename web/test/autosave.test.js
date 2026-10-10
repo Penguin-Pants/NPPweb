@@ -410,3 +410,9 @@ test('a reply for a document that was tracked again is ignored', async () => {
   assert.equal(autosave.status('a'), 'saved');
   assert.deepEqual(events, []);
 });
+
+test('ids lists the tracked documents, for the save before a workspace switch (v3 TD-33)', () => {
+  assert.deepEqual(autosave.ids(), ['a', 'b']);
+  autosave.untrack('a');
+  assert.deepEqual(autosave.ids(), ['b']);
+});

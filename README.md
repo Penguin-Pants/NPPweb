@@ -105,9 +105,21 @@ In a Markdown tab, Ctrl+B (Cmd+B) makes text bold, Ctrl+I (Cmd+I) italic and Ctr
 - **Export menu:** exports the active tab with its current text, also unsaved edits. Markdown offers `.md`, `.txt` (Markdown marks removed), `.html` (one self-contained page, light theme, no scripts) and PDF (opens the print dialog; choose Save as PDF). Other documents offer their original source, when the name has an extension other than `.txt`, and `.txt`.
 - **Drop files:** drop `.md`, `.markdown`, `.txt`, `.html` or `.htm` files on the page. Each becomes a new document with the file name, and opens in a tab. A taken name gets ` (2)`, ` (3)` and so on. Files over 1 MB, other types and text that is not UTF-8 are not opened, and a message names them. While a dialog is open, dropped files are not opened.
 
+## Workspaces
+
+- **Personal and Work:** each workspace has its own documents, open tabs and "Untitled N" numbers. Documents from before workspaces are in Personal. There are always exactly these two.
+- **Switch:** the button left of the theme button shows the active workspace. Click it, or press Enter or Space on it, to switch. All text saves first. If a save fails, the workspace stays the same and a message says why. The window title starts with the workspace name, for example "Work - Margin". Each browser opens its last workspace.
+- **Shared by both:** the password, sessions, theme, Visual or Raw mode, the outline panel, the count mode and the autosave delay.
+- **Move:** in the Documents list, "Move to Work" or "Move to Personal" moves a document with its name, text and date. An open tab saves first, then closes.
+- **Colors:** the tab strip and the switch show the workspace color. Personal keeps the theme look. Work starts teal (`#0f766e`). Inactive tabs get black or white text, whichever is easier to read.
+- **Rollback:** the upgrade adds a `workspace` column to the documents table. A build from before workspaces still starts on the upgraded database, but its list shows Personal and Work documents together. No data is lost. Prefer a fix in a new build.
+- **With Notion sync (not built yet):** one Notion token for both workspaces and one parent page per workspace, planned as `NOTION_PARENT_PAGE_PERSONAL` and `NOTION_PARENT_PAGE_WORK`. A workspace without its parent page cannot sync. The names are final when Notion sync is built.
+
 ## Settings
 
 Account > Settings sets the autosave delay: a whole number of seconds from 1 to 60, default 5. A document saves that many seconds after the last edit, and during nonstop typing no later than that many seconds after the first unsaved edit. The server stores the value, so it applies on every device after a reload.
+
+The same dialog sets one color per workspace: `#RGB` or `#RRGGBB`, in any letter case. Leave a field empty for the default color. The server stores the colors, so other devices show a change after a reload. Right after a page load, a custom color can show the workspace's default color for a moment.
 
 ## Known limits
 
@@ -121,6 +133,7 @@ Account > Settings sets the autosave delay: a whole number of seconds from 1 to 
 - Visual mode shows diagrams as images, so diagram text cannot be selected there. The Mermaid ELK layout is not included; diagrams use the dagre layout.
 - In PDF export, `http:` images do not load. `https:` images do.
 - Notion sync is not built yet.
+- No keyboard shortcut switches the workspace. Use the switch button (Tab reaches it).
 
 ## Backups
 

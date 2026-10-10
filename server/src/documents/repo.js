@@ -1,4 +1,5 @@
-// Document storage (BUILD_PLAN.md section 2.6).
+// Document storage (BUILD_PLAN.md section 2.6). Every query names the
+// workspace (v3 TD-24): a document of the other workspace reads as missing.
 import { randomUUID } from 'node:crypto';
 import { transaction } from '../db.js';
 
@@ -57,35 +58,40 @@ export function normalizeName(value) {
 /**
  * Newest first. No content.
  * @param {import('node:sqlite').DatabaseSync} db
+ * @param {string} workspace
  */
-export function listDocuments(db) {
+export function listDocuments(db, workspace) {
   return db
-    .prepare('SELECT id, name, version, language, updated_at FROM documents ORDER BY updated_at DESC, rowid DESC')
-    .all()
+    .prepare(
+      'SELECT id, name, version, language, updated_at FROM documents WHERE workspace = ? ORDER BY updated_at DESC, rowid DESC',
+    )
+    .all(workspace)
     .map(toMeta);
 }
 
 /**
  * @param {import('node:sqlite').DatabaseSync} db
- * @param {{ name?: string, content: string, language?: string | null, now: number }} input
+ * @param {{ workspace: string, name?: string, content: string, language?: string | null, now: number }} input
  *   name must already be normalized and language validated. No language = auto.
  * @returns {DocumentMeta}
  */
-export function createDocument(db, { name, content, language = null, now }) {
+export function createDocument(db, { workspace, name, content, language = null, now }) {
   return transaction(db, () => {
     const id = randomUUID();
-    const finalName = name ?? nextUntitledName(db);
+    const finalName = name ?? nextUntitledName(db, workspace);
     db.prepare(
-      'INSERT INTO documents (id, name, content, language, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
-    ).run(id, finalName, encodeContent(content), language, now, now);
+      'INSERT INTO documents (id, workspace, name, content, language, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    ).run(id, workspace, finalName, encodeContent(content), language, now, now);
     return { id, name: finalName, version: 1, language, updatedAt: now };
   });
 }
 
-// N = 1 + the highest N among names "Untitled N". Runs inside the insert transaction.
-function nextUntitledName(db) {
+// N = 1 + the highest N among names "Untitled N" in the workspace (TD-25).
+// Runs inside the insert transaction.
+function nextUntitledName(db, workspace) {
   let highest = 0;
-  for (const { name } of db.prepare("SELECT name FROM documents WHERE name LIKE 'Untitled %'").all()) {
+  const rows = db.prepare("SELECT name FROM documents WHERE workspace = ? AND name LIKE 'Untitled %'").all(workspace);
+  for (const { name } of rows) {
     const n = Number(UNTITLED.exec(name)?.[1]);
     if (Number.isSafeInteger(n) && n > highest) highest = n;
   }
@@ -94,45 +100,53 @@ function nextUntitledName(db) {
 
 /**
  * @param {import('node:sqlite').DatabaseSync} db
+ * @param {string} workspace
  * @param {string} id
  * @returns {(DocumentMeta & { content: string }) | undefined}
  */
-export function getDocument(db, id) {
+export function getDocument(db, workspace, id) {
   const row = db
-    .prepare('SELECT id, name, content, version, language, updated_at FROM documents WHERE id = ?')
-    .get(id);
+    .prepare('SELECT id, name, content, version, language, updated_at FROM documents WHERE id = ? AND workspace = ?')
+    .get(id, workspace);
   return row && { ...toMeta(row), content: decodeContent(row.content) };
 }
 
 /**
  * Saves content only when the stored version still equals expectedVersion.
  * @param {import('node:sqlite').DatabaseSync} db
- * @param {{ id: string, content: string, expectedVersion: number, now: number }} input
+ * @param {{ workspace: string, id: string, content: string, expectedVersion: number, now: number }} input
  * @returns {{ ok: true, version: number, updatedAt: number } | { ok: false, currentVersion: number | null }}
- *   currentVersion is null when the document does not exist.
+ *   currentVersion is null when the document does not exist in the workspace.
  */
-export function saveContent(db, { id, content, expectedVersion, now }) {
+export function saveContent(db, { workspace, id, content, expectedVersion, now }) {
   const { changes } = db
-    .prepare('UPDATE documents SET content = ?, version = version + 1, updated_at = ? WHERE id = ? AND version = ?')
-    .run(encodeContent(content), now, id, expectedVersion);
+    .prepare(
+      'UPDATE documents SET content = ?, version = version + 1, updated_at = ? WHERE id = ? AND workspace = ? AND version = ?',
+    )
+    .run(encodeContent(content), now, id, workspace, expectedVersion);
   if (changes === 1) return { ok: true, version: expectedVersion + 1, updatedAt: now };
-  const row = db.prepare('SELECT version FROM documents WHERE id = ?').get(id);
+  const row = db.prepare('SELECT version FROM documents WHERE id = ? AND workspace = ?').get(id, workspace);
   return { ok: false, currentVersion: row?.version ?? null };
 }
 
 /**
- * Applies a rename and/or a language override. Only a rename changes
- * updated_at (section 2.6). Neither changes version (TD-6).
+ * Applies a rename, a language override and/or a move to the other
+ * workspace. Only a rename changes updated_at (section 2.6), so a move keeps
+ * the sort position (v3 TD-26). None changes version (TD-6).
  * @param {import('node:sqlite').DatabaseSync} db
+ * @param {string} workspace The document's workspace now.
  * @param {string} id
- * @param {{ name?: string, language?: string | null }} changes Already validated.
+ * @param {{ name?: string, language?: string | null, workspace?: string }} changes Already validated.
  * @param {number} now
- * @returns {DocumentMeta | undefined} undefined when the document does not exist.
+ * @returns {DocumentMeta | undefined} undefined when the document does not exist in the workspace.
  */
-export function updateMeta(db, id, { name, language }, now) {
+export function updateMeta(db, workspace, id, { name, language, workspace: target }, now) {
   return transaction(db, () => {
+    if (!db.prepare('SELECT 1 FROM documents WHERE id = ? AND workspace = ?').get(id, workspace)) return undefined;
     if (name !== undefined) db.prepare('UPDATE documents SET name = ?, updated_at = ? WHERE id = ?').run(name, now, id);
     if (language !== undefined) db.prepare('UPDATE documents SET language = ? WHERE id = ?').run(language, id);
+    if (target !== undefined) db.prepare('UPDATE documents SET workspace = ? WHERE id = ?').run(target, id);
+    // By id only: a moved row is in the target workspace now.
     const row = db.prepare('SELECT id, name, version, language, updated_at FROM documents WHERE id = ?').get(id);
     return row && toMeta(row);
   });
@@ -140,9 +154,10 @@ export function updateMeta(db, id, { name, language }, now) {
 
 /**
  * @param {import('node:sqlite').DatabaseSync} db
+ * @param {string} workspace
  * @param {string} id
- * @returns {boolean} false when the document does not exist.
+ * @returns {boolean} false when the document does not exist in the workspace.
  */
-export function deleteDocument(db, id) {
-  return db.prepare('DELETE FROM documents WHERE id = ?').run(id).changes === 1;
+export function deleteDocument(db, workspace, id) {
+  return db.prepare('DELETE FROM documents WHERE id = ? AND workspace = ?').run(id, workspace).changes === 1;
 }

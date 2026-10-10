@@ -69,6 +69,8 @@ const CANNOT_REACH = 'Could not open the dropped files. Check the connection or 
  */
 export async function openDropped({ files, api, open, showMessage }) {
   const list = await api.listDocuments();
+  // A stale reply: the workspace changed, so nothing opens (v3 TD-41).
+  if (list.stale) return;
   if (list.status !== 200) {
     showMessage(CANNOT_REACH);
     return;
@@ -82,7 +84,8 @@ export async function openDropped({ files, api, open, showMessage }) {
       continue;
     }
     const name = uniqueName(file.name, taken);
-    const { status, data } = await api.createDocument(read.text, name);
+    const { status, data, stale } = await api.createDocument(read.text, name);
+    if (stale) return;
     if (status === 0 || status === 401) {
       showMessage(CANNOT_REACH);
       return;

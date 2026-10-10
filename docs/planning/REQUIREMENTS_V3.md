@@ -1,6 +1,6 @@
 # Margin v3 Workspaces: Requirements
 
-**Status:** Decision-complete. Open questions: none. M17 (status bar and new-document defaults, section 3.6) is built in PR #6. The workspace milestones (M18 to M21) are not built.
+**Status:** Decision-complete. Open questions: none. M17 (status bar and new-document defaults, section 3.6) is built in PR #6. The workspace milestones (M18 to M21) are built in PR #10. M15 (Notion) is still blocked.
 **Date:** 2026-10-10
 **Purpose:** Single source of truth for v3. The build plan is `docs/planning/BUILD_PLAN_V3.md`. This file does not include an implementation.
 **Location:** `docs/planning/REQUIREMENTS_V3.md`
@@ -141,7 +141,7 @@ Numbering continues from v2 (EDGE-10 to EDGE-27).
 ## 5. Constraints
 
 - **C13:** One SQLite file holds all data (`server/src/db.js:14`). Migrations are append-only (C9, `server/src/migrations.js:2`).
-- **C14:** The CSS class `.workspace` already names the main layout area (`web/index.html:38`, `web/styles.css:176`). New code must not mix the two meanings. The builder can rename the CSS class.
+- **C14:** Before v3, the CSS class `.workspace` named the main layout area. New code must not mix the two meanings. T32 renamed the class to `.main-area` (`BUILD_PLAN_V3.md` TD-21).
 - **C15:** CLR-5 is always reachable. With the WCAG 2.x relative luminance formula, black or white text on any sRGB color reaches at least 4.58:1. Confidence: high (computed from the formula). Source: https://www.w3.org/TR/WCAG21/#dfn-contrast-ratio
 - **C16:** C5 from v2 still applies: vanilla JavaScript, CodeMirror 6, esbuild, Fastify 5, `node:sqlite` and Node.js 24.
 - **C17:** M15 is still blocked. Network access to `api.notion.com` and a Notion token are missing (`docs/planning/REQUIREMENTS_V2.md:298`). NOT-14 to NOT-16 wait for M15.
@@ -209,10 +209,10 @@ The task-level plan is `docs/planning/BUILD_PLAN_V3.md` (tasks T28 to T40). Each
 | Milestone | Work | Covers | Status |
 |-----------|------|--------|--------|
 | M17 | Status bar layout and new-document defaults | STB-1 to STB-3, NEW-1, NEW-2 | Done in PR #6 |
-| M18 | Schema migration, workspace-scoped API, old-request compatibility | WS-1, WS-5, WS-6 (server part), MIG-1, MIG-3 | Planned |
-| M19 | Switch, per-workspace tabs, title, start workspace, switch safety | WS-2 to WS-4, WS-6 (client part), WS-7 to WS-9, MIG-2, EDGE-28 to EDGE-30, EDGE-34 | Planned |
-| M20 | Move between workspaces | MOV-1 to MOV-3, EDGE-31, EDGE-32 | Planned |
-| M21 | Workspace colors in Settings | CLR-1 to CLR-6 | Planned |
+| M18 | Schema migration, workspace-scoped API, old-request compatibility | WS-1, WS-5, WS-6 (server part), MIG-1, MIG-3 | Done in PR #10 |
+| M19 | Switch, per-workspace tabs, title, start workspace, switch safety | WS-2 to WS-4, WS-6 (client part), WS-7 to WS-9, MIG-2, EDGE-28 to EDGE-30, EDGE-34 | Done in PR #10. Owner check: the installed app window title changes on a switch (Chrome, Edge). |
+| M20 | Move between workspaces | MOV-1 to MOV-3, EDGE-31, EDGE-32 | Done in PR #10 |
+| M21 | Workspace colors in Settings | CLR-1 to CLR-6 | Done in PR #10. Owner check: the look of both workspaces in both themes (screenshots in PR #10). |
 | M15 (resumed) | Notion with the workspace rules | NOT-14 to NOT-16, EDGE-33 | Blocked (C17) |
 
 ### Definition of done
