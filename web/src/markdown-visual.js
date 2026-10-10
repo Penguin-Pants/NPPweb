@@ -6,7 +6,8 @@ import { syntaxTree } from '@codemirror/language';
 import { Facet, MapMode, Prec, StateEffect, StateField } from '@codemirror/state';
 import { Decoration, EditorView, keymap, ViewPlugin, WidgetType } from '@codemirror/view';
 import { languageId } from './languages.js';
-import { linkTarget, normalizeLabel, referenceDefinitions } from './markdown-syntax.js';
+import { decodeEntity, linkTarget, normalizeLabel, referenceDefinitions } from './markdown-syntax.js';
+import { renderedText } from './markdown-text.js';
 import { mermaidRenderer } from './mermaid-render.js';
 import { isMac } from './shortcuts.js';
 
@@ -16,7 +17,8 @@ import { isMac } from './shortcuts.js';
  *   | { kind: 'mark', from: number, to: number, cls: string, href?: string }
  *   | { kind: 'bullet', from: number, to: number }
  *   | { kind: 'task', from: number, to: number, checked: boolean }
- *   | { kind: 'image', from: number, to: number, alt: string, url: string }} VisualSpec
+ *   | { kind: 'image', from: number, to: number, alt: string, url: string }
+ *   | { kind: 'text', from: number, to: number, value: string }} VisualSpec
  */
 
 const INLINE_STYLES = {
@@ -191,6 +193,11 @@ export function collectVisual(state, from, to) {
         case 'Escape':
           hide(node.from, node.from + 1);
           return;
+        case 'Entity': {
+          const value = decodeEntity(text(node.from, node.to));
+          if (value !== null) widget({ kind: 'text', from: node.from, to: node.to, value });
+          return;
+        }
         case 'FencedCode':
         case 'CodeBlock': {
           // A drawn diagram covers the whole block (collectMermaid).
@@ -243,7 +250,9 @@ export function collectVisual(state, from, to) {
         case 'Image': {
           const marks = node.getChildren('LinkMark');
           if (marks.length >= 2) {
-            widget({ kind: 'image', from: node.from, to: node.to, alt: text(marks[0].to, marks[1].from), url: target(node, marks) ?? '' });
+            // The description shows as plain text, as in .txt export.
+            const alt = renderedText(doc, tree, marks[0].to, marks[1].from);
+            widget({ kind: 'image', from: node.from, to: node.to, alt, url: target(node, marks) ?? '' });
           }
           return false;
         }
@@ -292,7 +301,8 @@ export function collectVisual(state, from, to) {
   return specs;
 }
 
-// Remote images loaded with a click, until the page reloads (MDV-14).
+// Remote images loaded with a click, until the page reloads (MDV-14). An
+// image that fails to load leaves the set, so it needs another click.
 const loadedImages = new Set();
 const imagesLoaded = StateEffect.define();
 
@@ -325,10 +335,34 @@ class TaskWidget extends WidgetType {
     box.className = 'cm-md-task';
     box.checked = this.checked;
     box.setAttribute('aria-label', this.checked ? 'Done task' : 'Open task');
+    // Out of the tab order: from the keyboard, the task text [ ] or [x] is edited.
+    box.tabIndex = -1;
     return box;
   }
 
   // The editor's mousedown handler toggles the task in the text.
+  ignoreEvent() {
+    return false;
+  }
+}
+
+/** Text in place of source, such as the character of an entity. */
+class TextWidget extends WidgetType {
+  constructor(value) {
+    super();
+    this.value = value;
+  }
+
+  eq(other) {
+    return other.value === this.value;
+  }
+
+  toDOM() {
+    const span = document.createElement('span');
+    span.textContent = this.value;
+    return span;
+  }
+
   ignoreEvent() {
     return false;
   }
@@ -373,7 +407,10 @@ class ImageWidget extends WidgetType {
       const img = document.createElement('img');
       img.alt = this.alt;
       img.src = this.url;
-      img.addEventListener('error', () => img.replaceWith(imagePlaceholder(this.alt))); // EDGE-25
+      img.addEventListener('error', () => {
+        loadedImages.delete(this.url);
+        img.replaceWith(imagePlaceholder(this.alt)); // EDGE-25
+      });
       wrap.append(img);
     } else if (isRemote) {
       wrap.append(
@@ -559,7 +596,9 @@ function buildDecorations(view) {
             ? new BulletWidget()
             : spec.kind === 'task'
               ? new TaskWidget(spec.checked)
-              : new ImageWidget(spec.alt, spec.url);
+              : spec.kind === 'text'
+                ? new TextWidget(spec.value)
+                : new ImageWidget(spec.alt, spec.url);
         ranges.push(Decoration.replace({ widget }).range(spec.from, spec.to));
       }
     }

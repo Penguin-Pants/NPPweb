@@ -16,39 +16,60 @@ function lineEndOf(text, pos) {
 }
 
 /**
+ * Reads a string or a CodeMirror Text with the same calls, so Visual mode can
+ * use these rules on the editor's document without a copy of it.
+ * @param {string | import('@codemirror/state').Text} text
+ */
+function reader(text) {
+  if (typeof text === 'string') {
+    return {
+      slice: (a, b) => text.slice(a, b),
+      char: (pos) => text[pos],
+      lineStart: (pos) => lineStartOf(text, pos),
+      lineEnd: (pos) => lineEndOf(text, pos),
+    };
+  }
+  return {
+    slice: (a, b) => text.sliceString(a, b),
+    char: (pos) => (pos >= 0 && pos < text.length ? text.sliceString(pos, pos + 1) : undefined),
+    lineStart: (pos) => text.lineAt(pos).from,
+    lineEnd: (pos) => text.lineAt(pos).to,
+  };
+}
+
+/**
  * The edits that turn Markdown into plain text, for the nodes that touch
  * `from` to `to`, sorted by position. Each edit stays inside the lines of
  * its top-level block, so blocks can be rendered one at a time.
- * @param {string} text
+ * @param {ReturnType<typeof reader>} read
  * @param {import('@lezer/common').Tree} tree
  * @returns {Edit[]}
  */
-function syntaxEdits(text, tree, from = 0, to = text.length) {
+function syntaxEdits(read, tree, from, to) {
   /** @type {Edit[]} */
   const edits = [];
   const remove = (a, b) => a < b && edits.push({ from: a, to: b, insert: '' });
-  const lineStart = (pos) => lineStartOf(text, pos);
-  const lineEnd = (pos) => lineEndOf(text, pos);
-  const isSpace = (char) => char === ' ' || char === '\t';
+  const { lineStart, lineEnd, char } = read;
+  const isSpace = (c) => c === ' ' || c === '\t';
   const spacesAfter = (pos) => {
-    while (isSpace(text[pos])) pos += 1;
+    while (isSpace(char(pos))) pos += 1;
     return pos;
   };
   const spacesBefore = (pos) => {
-    while (pos > 0 && isSpace(text[pos - 1])) pos -= 1;
+    while (pos > 0 && isSpace(char(pos - 1))) pos -= 1;
     return pos;
   };
   // Indentation before a mark at the start of a line goes with the mark.
   // After a list or quote mark, the space stays.
   const indentBefore = (pos) => (spacesBefore(pos) === lineStart(pos) ? lineStart(pos) : pos);
   // A quote mark takes one space or tab after it.
-  const removeQuoteMark = (mark) => remove(mark.from, mark.to + (isSpace(text[mark.to]) ? 1 : 0));
+  const removeQuoteMark = (mark) => remove(mark.from, mark.to + (isSpace(char(mark.to)) ? 1 : 0));
   // A [text] with no URL and no matching definition is plain text, as in Visual mode.
   const isLink = (node, marks) => {
     if (node.getChild('URL')) return true;
     const label = node.getChild('LinkLabel');
-    const key = label && label.to - label.from > 2 ? text.slice(label.from, label.to) : text.slice(marks[0].to, marks[1].from);
-    return referenceDefinitions(tree, (a, b) => text.slice(a, b)).has(normalizeLabel(key));
+    const key = label && label.to - label.from > 2 ? read.slice(label.from, label.to) : read.slice(marks[0].to, marks[1].from);
+    return referenceDefinitions(tree, read.slice).has(normalizeLabel(key));
   };
 
   tree.iterate({
@@ -70,7 +91,7 @@ function syntaxEdits(text, tree, from = 0, to = text.length) {
         case 'InlineCode': {
           const [open, close] = node.getChildren('CodeMark');
           if (!close) return false;
-          const code = text.slice(open.to, close.from);
+          const code = read.slice(open.to, close.from);
           // One space on each side is padding, unless the code is only spaces (CommonMark 6.1).
           const pad = code.length > 1 && code[0] === ' ' && code.at(-1) === ' ' && code.trim() !== '' ? 1 : 0;
           remove(open.from, open.to + pad);
@@ -84,8 +105,8 @@ function syntaxEdits(text, tree, from = 0, to = text.length) {
           remove(node.from, node.to - 1); // The spaces or the backslash. The line break stays.
           return;
         case 'Entity': {
-          const char = decodeEntity(text.slice(node.from, node.to));
-          if (char !== null) edits.push({ from: node.from, to: node.to, insert: char });
+          const decoded = decodeEntity(read.slice(node.from, node.to));
+          if (decoded !== null) edits.push({ from: node.from, to: node.to, insert: decoded });
           return;
         }
         case 'QuoteMark':
@@ -104,7 +125,7 @@ function syntaxEdits(text, tree, from = 0, to = text.length) {
           let end = Math.min(openEnd + 1, node.to);
           if (indentBefore(open.from) === open.from && open.from > lineStart(open.from)) {
             const column = open.from - lineStart(open.from);
-            while (end < node.to && end - openEnd - 1 < column && text[end] === ' ') end += 1;
+            while (end < node.to && end - openEnd - 1 < column && char(end) === ' ') end += 1;
           }
           remove(indentBefore(open.from), end);
           // An unclosed fence has no closing mark, so its last line stays.
@@ -165,21 +186,22 @@ function syntaxEdits(text, tree, from = 0, to = text.length) {
 /**
  * The plain text of `from` to `to` (EXP-3). An edit cut by the range is
  * dropped for its part inside the range, so a cut mark disappears.
- * @param {string} text
+ * @param {string | import('@codemirror/state').Text} text
  * @param {import('@lezer/common').Tree} tree
  */
 export function renderedText(text, tree, from = 0, to = text.length) {
+  const read = reader(text);
   let out = '';
   let pos = from;
-  for (const edit of syntaxEdits(text, tree, from, to)) {
+  for (const edit of syntaxEdits(read, tree, from, to)) {
     const start = Math.max(edit.from, from);
     const end = Math.min(edit.to, to);
     if (end < pos || start > to || (start === end && edit.insert === '')) continue;
-    out += text.slice(pos, Math.max(start, pos));
+    out += read.slice(pos, Math.max(start, pos));
     if (edit.from >= from && edit.to <= to) out += edit.insert;
     pos = Math.max(pos, end);
   }
-  return out + text.slice(pos, to);
+  return out + read.slice(pos, to);
 }
 
 const WORDS = new Intl.Segmenter(undefined, { granularity: 'word' });

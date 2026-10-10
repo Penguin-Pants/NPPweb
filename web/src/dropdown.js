@@ -1,9 +1,9 @@
 // Dropdown menus (LAY-4): a button opens a panel under it. One dropdown is
-// open at a time. The panel closes on Escape, on a press outside and through
-// close(). Arrow keys move the focus between its items. Presses and keys in a
-// modal dialog (for example a rename dialog opened from the panel) leave it
-// open. Outside presses are read on pointerdown in the capture phase, before
-// any click handler opens the panel or re-renders the target.
+// open at a time. The panel closes on Escape, on a press or click outside
+// and through close(). Arrow keys move the focus between its items. Presses
+// and keys in a modal dialog (for example a rename dialog opened from the
+// panel) leave it open. Outside presses and clicks are read in the capture
+// phase, before any click handler opens the panel or re-renders the target.
 
 const FOLLOWING = 4; // Node.DOCUMENT_POSITION_FOLLOWING
 
@@ -58,13 +58,13 @@ export function createDropdown({ root, button, panel, items, onOpen, doc = docum
 
   button.addEventListener('click', () => (isOpen() ? close() : open()));
 
-  doc.addEventListener(
-    'pointerdown',
-    (event) => {
-      if (isOpen() && !root.contains(event.target) && !inDialog(event.target)) close();
-    },
-    true,
-  );
+  // A click without a press comes from the Enter or Space key on a control
+  // outside, so clicks close it too.
+  const closeOutside = (event) => {
+    if (isOpen() && !root.contains(event.target) && !inDialog(event.target)) close();
+  };
+  doc.addEventListener('pointerdown', closeOutside, true);
+  doc.addEventListener('click', closeOutside, true);
 
   // Escape works wherever the focus is, because a list refresh or a delete
   // can move it out of the panel. The focus returns to the button only when
@@ -80,7 +80,10 @@ export function createDropdown({ root, button, panel, items, onOpen, doc = docum
   root.addEventListener('keydown', async (event) => {
     if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
     event.preventDefault();
-    if (!isOpen()) await open();
+    if (!isOpen()) {
+      await open();
+      if (!isOpen()) return; // Escape or another menu closed it while the list loaded.
+    }
     moveFocus(event.key === 'ArrowDown' ? 1 : -1);
   });
 

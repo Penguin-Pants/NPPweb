@@ -110,6 +110,8 @@ test('fenced code uses the language named by its info string (MDV-11)', () => {
     ['css', 'a { color: red }', 'RuleSet'],
     ['ts', 'interface A {}', 'InterfaceDeclaration'],
     ['yaml', 'key: value', 'Pair'],
+    ['markdown', '# Title', 'ATXHeading1'],
+    ['md', '**b**', 'StrongEmphasis'],
   ]) {
     const doc = `\`\`\`${info}\n${code}\n\`\`\`\n`;
     assert.ok(namesAt(doc, doc.indexOf(code) + 1).includes(inner), `${info}: ${namesAt(doc, doc.indexOf(code) + 1)}`);
@@ -117,7 +119,7 @@ test('fenced code uses the language named by its info string (MDV-11)', () => {
 });
 
 test('fenced code with an unknown or missing info string stays plain code text (MDV-11)', () => {
-  for (const info of ['rust', '', 'markdown']) {
+  for (const info of ['rust', '', 'text']) {
     const doc = `\`\`\`${info}\nfn main() {}\n\`\`\`\n`;
     assert.equal(namesAt(doc, doc.indexOf('fn') + 1)[0], 'CodeText', info);
   }

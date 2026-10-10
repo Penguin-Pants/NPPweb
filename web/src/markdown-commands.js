@@ -6,14 +6,19 @@
 import { syntaxTree } from '@codemirror/language';
 import { EditorSelection } from '@codemirror/state';
 
-const BULLET = /^(\s*)[-*+][ \t]+/;
-const NUMBER = /^(\s*)\d+[.)][ \t]+/;
-const QUOTE = /^(\s*)>[ \t]?/;
+// List marks after any quote marks, and quote marks after any list marks.
+// Group 1 is the part before the mark.
+const BULLET = /^((?:[ \t]*>[ \t]?)*[ \t]*)[-*+][ \t]+/;
+const NUMBER = /^((?:[ \t]*>[ \t]?)*[ \t]*)\d+[.)][ \t]+/;
+const QUOTE = /^((?:[ \t]*(?:[-*+]|\d+[.)])[ \t]+)*[ \t]*)>[ \t]?/;
+// Where a new list mark goes: after the quote marks and the indent.
+const LIST_START = /^((?:[ \t]*>[ \t]?)*[ \t]*)/;
 // Quote and list marks that a heading goes after, then an old heading mark.
 const CONTAINER = /^\s*(?:>[ \t]?)*(?:[-*+][ \t]+|\d+[.)][ \t]+)?/;
 const HEADING = /^#{1,6}[ \t]+/;
 
 const NODE_FOR = { '**': 'StrongEmphasis', '*': 'Emphasis', '`': 'InlineCode' };
+const MARK_OF = { '**': 'EmphasisMark', '*': 'EmphasisMark', '`': 'CodeMark' };
 const MARK_FOR = { StrongEmphasis: 'EmphasisMark', Emphasis: 'EmphasisMark', InlineCode: 'CodeMark', Link: 'LinkMark' };
 
 /** The innermost node named `name` that holds from..to, or null. */
@@ -37,6 +42,13 @@ function exactNode(state, from, to, name) {
     if ((from === open.to && to === close.from) || (from === node.from && to === node.to)) return { node, open, close };
   }
   return null;
+}
+
+const CODE = new Set(['InlineCode', 'FencedCode', 'CodeBlock', 'HTMLBlock', 'HTMLTag']);
+/** Whether `pos` is in code or raw HTML, where stars and backticks are text. */
+function inCode(tree, pos) {
+  for (let node = tree.resolveInner(pos, -1); node; node = node.parent) if (CODE.has(node.name)) return true;
+  return false;
 }
 
 /** The run of `char` that ends at `pos` (dir -1) or starts at it (dir 1). */
@@ -67,15 +79,34 @@ function unwrap({ node, open, close }, from) {
   };
 }
 
+/**
+ * The marks to put around `text`. Code needs a backtick run longer than any
+ * in the text, and a space inside when the text starts or ends with one.
+ */
+function wrapMarks(marker, text) {
+  if (marker !== '`') return [marker, marker];
+  const longest = Math.max(0, ...(text.match(/`+/g) ?? []).map((run) => run.length));
+  const fence = '`'.repeat(longest + 1);
+  const pad = text.startsWith('`') || text.endsWith('`') ? ' ' : '';
+  return [fence + pad, pad + fence];
+}
+
 /** Wraps each selection in `marker`, or removes it when it is there. */
 function toggleInline(state, marker) {
   const size = marker.length;
   const doc = state.doc.toString();
+  const tree = syntaxTree(state);
   return state.changeByRange((range) => {
     const { from, to } = range;
     const exact = exactNode(state, from, to, NODE_FOR[marker]);
     if (exact) return unwrap(exact, from);
-    if (hasMarker(runLength(doc, from, -1, marker[0]), runLength(doc, to, 1, marker[0]), marker)) {
+    // Marks right beside the selection go only when the syntax tree says they
+    // are marks, so stars or backticks in code stay. An empty pair such as
+    // **|** is no node, so outside code a cursor between marks unwraps too.
+    const marks =
+      (tree.resolveInner(from, -1).name === MARK_OF[marker] && tree.resolveInner(to, 1).name === MARK_OF[marker]) ||
+      (from === to && !inCode(tree, from));
+    if (marks && hasMarker(runLength(doc, from, -1, marker[0]), runLength(doc, to, 1, marker[0]), marker)) {
       return {
         changes: [
           { from: from - size, to: from },
@@ -84,12 +115,13 @@ function toggleInline(state, marker) {
         range: EditorSelection.range(from - size, to - size),
       };
     }
+    const [open, close] = wrapMarks(marker, doc.slice(from, to));
     return {
       changes: [
-        { from, insert: marker },
-        { from: to, insert: marker },
+        { from, insert: open },
+        { from: to, insert: close },
       ],
-      range: EditorSelection.range(from + size, to + size),
+      range: EditorSelection.range(from + open.length, to + open.length),
     };
   });
 }
@@ -125,19 +157,44 @@ function contentLines(state) {
   return filled.length > 0 ? filled : lines;
 }
 
+/** The heading that holds `pos`, or null. */
+function headingAt(state, pos) {
+  for (let node = syntaxTree(state).resolveInner(pos, 1); node; node = node.parent) {
+    if (/^(?:ATX|Setext)Heading/.test(node.name)) return node;
+  }
+  return null;
+}
+
 /**
  * Sets the heading level (1 to 6) of each selected line, after its quote or
- * list marks. 0 makes it a normal line.
+ * list marks. 0 makes it a normal line. A setext heading loses its underline
+ * and becomes ATX. Plain text also loses closing hashes.
  * @param {import('@codemirror/state').EditorState} state
  * @param {number} level
  */
 export function setHeading(state, level) {
+  const { doc } = state;
   const prefix = level > 0 ? `${'#'.repeat(level)} ` : '';
-  return editLines(contentLines(state), (line) => {
+  const changes = [];
+  const setext = new Set();
+  for (const line of contentLines(state)) {
     const start = CONTAINER.exec(line.text)[0].length;
+    const heading = headingAt(state, line.from + start);
+    if (heading?.name.startsWith('Setext')) {
+      if (setext.has(heading.from)) continue;
+      setext.add(heading.from);
+      const underline = doc.lineAt(heading.getChild('HeaderMark').from);
+      if (prefix) changes.push({ from: heading.from, insert: prefix });
+      changes.push({ from: underline.from - 1, to: underline.to });
+      continue;
+    }
     const old = HEADING.exec(line.text.slice(start))?.[0] ?? '';
-    return old === prefix ? null : { from: line.from + start, to: line.from + start + old.length, insert: prefix };
-  });
+    if (old === prefix) continue;
+    changes.push({ from: line.from + start, to: line.from + start + old.length, insert: prefix });
+    const close = heading?.getChildren('HeaderMark')[1];
+    if (!prefix && close) changes.push({ from: line.from + line.text.slice(0, close.from - line.from).trimEnd().length, to: line.to });
+  }
+  return changes.length === 0 ? null : { changes };
 }
 
 /** Replaces the part of `line` that `pattern` matches after the indent. */
@@ -155,7 +212,7 @@ export function toggleBulletList(state) {
   if (lines.every((line) => BULLET.test(line.text))) return editLines(lines, (line) => replaceMarker(line, BULLET, ''));
   return editLines(lines, (line) => {
     if (BULLET.test(line.text)) return null;
-    return replaceMarker(line, NUMBER.test(line.text) ? NUMBER : /^(\s*)/, '- ');
+    return replaceMarker(line, NUMBER.test(line.text) ? NUMBER : LIST_START, '- ');
   });
 }
 
@@ -163,7 +220,7 @@ export function toggleNumberedList(state) {
   const lines = contentLines(state);
   if (lines.every((line) => NUMBER.test(line.text))) return editLines(lines, (line) => replaceMarker(line, NUMBER, ''));
   return editLines(lines, (line, index) => {
-    const pattern = NUMBER.test(line.text) ? NUMBER : BULLET.test(line.text) ? BULLET : /^(\s*)/;
+    const pattern = NUMBER.test(line.text) ? NUMBER : BULLET.test(line.text) ? BULLET : LIST_START;
     return replaceMarker(line, pattern, `${index + 1}. `);
   });
 }
@@ -205,24 +262,36 @@ export function insertLink(state) {
 }
 
 /**
- * Removes the fences of the code block that holds the selection. Otherwise
- * puts fences around the selected lines and keeps the selection inside.
+ * Removes the fences of the code block that holds the selection, or whose
+ * fences are the first and last selected lines. Otherwise puts fences around
+ * the selected lines and keeps the selection inside.
  */
 export function toggleCodeBlock(state) {
+  const { doc } = state;
   const { from, to, anchor, head } = state.selection.main;
-  const block = enclosing(state, from, to, 'FencedCode');
-  if (block) {
-    const doc = state.doc;
-    const open = doc.lineAt(block.from);
-    const close = doc.lineAt(block.to);
-    const closed = close.number > open.number && /^\s*(```|~~~)/.test(close.text);
-    const changes = [{ from: open.from, to: Math.min(open.to + 1, doc.length) }];
-    if (closed) changes.push({ from: close.from - 1, to: close.to });
-    return { changes };
-  }
   const lines = selectedLines(state);
   const first = lines[0];
   const last = lines.at(-1);
+  const around = enclosing(state, first.to, first.to, 'FencedCode');
+  const block =
+    enclosing(state, from, to, 'FencedCode') ??
+    (around && doc.lineAt(around.from).number === first.number && doc.lineAt(around.to).number === last.number ? around : null);
+  if (block) {
+    const open = doc.lineAt(block.from);
+    const openEnd = Math.min(open.to + 1, doc.length);
+    // The closing fence is the last mark of a closed block. Its line can start with quote marks.
+    const marks = block.getChildren('CodeMark');
+    if (marks.length < 2) return { changes: { from: open.from, to: openEnd } };
+    const close = doc.lineAt(marks.at(-1).from);
+    // An empty block: both fence lines go, with one line break.
+    if (close.number === open.number + 1) return { changes: { from: open.from, to: Math.min(close.to + 1, doc.length) } };
+    return {
+      changes: [
+        { from: open.from, to: openEnd },
+        { from: close.from - 1, to: close.to },
+      ],
+    };
+  }
   return {
     changes: [
       { from: first.from, insert: '```\n' },

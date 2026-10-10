@@ -275,3 +275,13 @@ test('mermaid blocks inside quotes or lists and other code stay code', () => {
   const { blocks } = mermaidFor('> ```mermaid\n> graph TD\n> ```\n\n- item\n\n  ```mermaid\n  graph TD\n  ```\n\n```js\nx\n```');
   assert.deepEqual(blocks, []);
 });
+
+test('entities show as their characters, except on the cursor line (MDV-4)', () => {
+  assert.deepEqual(specsFor('Fish &amp; chips &bogus;').widgets, [{ kind: 'text', text: '&amp;', value: '&' }]);
+  assert.deepEqual(specsFor('Fish &amp; chips', { selection: EditorSelection.cursor(2) }).widgets, []);
+});
+
+test('an image shows its description as plain text (MDV-14)', () => {
+  const { widgets } = specsFor('![a *cat* &amp;](https://x.y/c.png)');
+  assert.deepEqual(widgets.map((w) => w.alt), ['a cat &']);
+});

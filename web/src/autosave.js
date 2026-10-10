@@ -66,6 +66,8 @@ export function createAutosave({ save, onStatus = () => {}, onEvent = () => {}, 
       return;
     }
     if (!canSave(doc)) {
+      // The deadline is used up. An edit after the hold ends sets a new one.
+      doc.dueAt = null;
       settle(doc, false);
       return;
     }
@@ -117,9 +119,11 @@ export function createAutosave({ save, onStatus = () => {}, onEvent = () => {}, 
       fail(doc, 'too-large', 'too-large');
       onEvent('doc-too-large', { id: doc.id });
     } else {
-      // Network failure, 5xx or anything unexpected: retry with backoff.
+      // Network failure, 5xx or anything unexpected: retry with backoff. An
+      // edit during the save may have set an earlier deadline, which stays.
       fail(doc, 'network', null);
-      schedule(doc, RETRY_DELAYS_MS[Math.min(doc.failures, RETRY_DELAYS_MS.length - 1)]);
+      const retry = RETRY_DELAYS_MS[Math.min(doc.failures, RETRY_DELAYS_MS.length - 1)];
+      if (doc.dueAt === null || doc.dueAt > Date.now() + retry) schedule(doc, retry);
       doc.failures += 1;
     }
   }
@@ -179,12 +183,15 @@ export function createAutosave({ save, onStatus = () => {}, onEvent = () => {}, 
     },
 
     /**
-     * Sets the autosave delay for deadlines set from now on. The next edit
-     * also moves a later pending deadline earlier (SAV-4).
+     * Sets the autosave delay (SAV-4). A pending save that is due later than
+     * the new delay moves to it. Retries keep their backoff.
      * @param {number} ms
      */
     setDelay(ms) {
       delay = ms;
+      for (const doc of docs.values()) {
+        if (doc.timer !== null && doc.status !== 'error' && doc.dueAt > Date.now() + ms) schedule(doc, ms);
+      }
     },
 
     /**

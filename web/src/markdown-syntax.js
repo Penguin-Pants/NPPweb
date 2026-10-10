@@ -24,7 +24,7 @@ export function decodeEntity(entity) {
 
 /**
  * The URL a link opens: without angle brackets, backslash escapes and
- * entities. A bare e-mail address gets mailto: and a www. address https://.
+ * entities. A bare e-mail address gets mailto:, and a www. or // address https:.
  * @param {string} raw
  */
 export function linkTarget(raw) {
@@ -33,12 +33,18 @@ export function linkTarget(raw) {
   url = url.replace(/\\([!-/:-@[-`{-~])/g, '$1');
   url = url.replace(/&(#x[0-9a-f]+|#\d+|[a-z][a-z0-9]*);/gi, (entity) => decodeEntity(entity) ?? entity);
   if (/^www\./i.test(url)) return `https://${url}`;
+  if (url.startsWith('//')) return `https:${url}`;
   if (!/^[a-z][a-z0-9+.-]*:/i.test(url) && /^[^\s@]+@[^\s@]+$/.test(url)) return `mailto:${url}`;
   return url;
 }
 
-/** A reference label as CommonMark compares them: no case, one space. */
-export const normalizeLabel = (label) => label.replace(/^\[|\]$/g, '').trim().replace(/\s+/g, ' ').toLowerCase();
+/**
+ * A reference label as CommonMark compares them: one space, and case folded.
+ * Lower then upper case folds like Unicode case folding, so ẞ matches SS, as
+ * the CommonMark reference code does.
+ */
+export const normalizeLabel = (label) =>
+  label.replace(/^\[|\]$/g, '').trim().replace(/\s+/g, ' ').toLowerCase().toUpperCase();
 
 const CONTAINERS = new Set(['Document', 'Blockquote', 'BulletList', 'OrderedList', 'ListItem']);
 /** @type {WeakMap<import('@lezer/common').Tree, Map<string, string>>} */

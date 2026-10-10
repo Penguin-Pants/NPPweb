@@ -69,9 +69,10 @@ const codeLanguages = new Map();
 function codeLanguage(info) {
   const word = info.trim().split(/\s+/, 1)[0].toLowerCase();
   const id = IDS.has(word) ? word : BY_EXTENSION.get(word);
-  if (!id || id === 'plain' || id === 'markdown') return null;
+  if (!id || id === 'plain') return null;
   if (!codeLanguages.has(id)) {
-    const support = PARSERS[id]();
+    // Markdown in a fence gets GFM without the editor keys. Its own fences stay plain.
+    const support = id === 'markdown' ? markdown({ extensions: GFM }) : PARSERS[id]();
     codeLanguages.set(id, 'language' in support ? support.language : support);
   }
   return codeLanguages.get(id);

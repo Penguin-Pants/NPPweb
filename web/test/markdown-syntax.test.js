@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import { ensureSyntaxTree } from '@codemirror/language';
 import { EditorState } from '@codemirror/state';
 import { languageSupport } from '../src/languages.js';
-import { decodeEntity, linkTarget, referenceDefinitions } from '../src/markdown-syntax.js';
+import { decodeEntity, linkTarget, normalizeLabel, referenceDefinitions } from '../src/markdown-syntax.js';
 
 test('decodeEntity knows named and numeric entities and returns null for others', () => {
   assert.equal(decodeEntity('&amp;'), '&');
@@ -29,6 +29,7 @@ test('linkTarget strips angle brackets, escapes and entities, and adds mailto an
   assert.equal(linkTarget('me@x.y'), 'mailto:me@x.y');
   assert.equal(linkTarget('www.x.y'), 'https://www.x.y');
   assert.equal(linkTarget('mailto:me@x.y'), 'mailto:me@x.y');
+  assert.equal(linkTarget('//x.y/a'), 'https://x.y/a', 'a protocol-relative URL opens with https');
 });
 
 test('referenceDefinitions maps normalized labels to URLs, first one wins, also in quotes and lists', () => {
@@ -37,8 +38,14 @@ test('referenceDefinitions maps normalized labels to URLs, first one wins, also 
   const tree = ensureSyntaxTree(state, text.length, 5000);
   const slice = (from, to) => text.slice(from, to);
   const defs = referenceDefinitions(tree, slice);
-  assert.equal(defs.get('a b'), 'https://one');
-  assert.equal(defs.get('q'), 'https://q.example');
-  assert.equal(defs.get('l'), 'https://l.example');
+  assert.equal(defs.get(normalizeLabel('a b')), 'https://one');
+  assert.equal(defs.get(normalizeLabel('q')), 'https://q.example');
+  assert.equal(defs.get(normalizeLabel('L')), 'https://l.example');
   assert.equal(referenceDefinitions(tree, slice), defs);
+});
+
+test('normalizeLabel folds case as CommonMark does, so [ẞ] matches [SS]', () => {
+  assert.equal(normalizeLabel('[ẞ]'), normalizeLabel('[SS]'));
+  assert.equal(normalizeLabel('[  Foo\n bar ]'), normalizeLabel('[FOO BAR]'));
+  assert.notEqual(normalizeLabel('[a]'), normalizeLabel('[b]'));
 });

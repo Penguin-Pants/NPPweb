@@ -276,7 +276,7 @@ Not built. Each one needs a user decision.
 
 ## 12. V2 phase review log
 
-Two-pass review of each V2 phase diff (`REQUIREMENTS_V2.md` section 9). Same method and verdicts as section 10.
+Two-pass review of each V2 phase diff (`REQUIREMENTS_V2.md` section 9). Same method and verdicts as section 10. Rows marked PR log the Codex review threads on PR #4, one row per thread.
 
 | Phase | # | Finding | Verdict | Action |
 |-------|---|---------|---------|--------|
@@ -368,9 +368,41 @@ Two-pass review of each V2 phase diff (`REQUIREMENTS_V2.md` section 9). Same met
 | M13 | 14 | Two quick theme switches gave an unhandled rejection ("Transition was skipped"). | Confirmed | The rejection is handled. Unit and E2E tests added. |
 | M13 | 15 | An unclosed mermaid fence hid the rest of the document behind one diagram. | Confirmed | Only closed blocks are drawn. Unit test added. |
 | M13 | 16 | One SVG shown twice gave duplicate ids. The result cache had no limit. | Confirmed | Each diagram is its own image, so its ids stay inside it. The cache keeps the last 32 results. Unit test added. |
-| M13 | 17 | Licenses (C6): the bundles shipped about 100 npm packages without their notices. Mermaid brings 33 ISC packages (d3 and others) and `robust-predicates` (Unlicense). C6 names neither license. | Confirmed (notices), Blocker (ISC, Unlicense) | The build writes `THIRD-PARTY-NOTICES.txt` with the license text of each bundled package. A build test checks each license. ISC and Unlicense need an owner decision: add them to C6, or remove Mermaid (MDV-12). |
+| M13 | 17 | Licenses (C6): the bundles shipped about 100 npm packages without their notices. Mermaid brings 33 ISC packages (d3 and others) and `robust-predicates` (Unlicense). The server already runs ISC and BlueOak-1.0.0 packages from v1 (Fastify, `@fastify/static`). C6 names none of these licenses. | Confirmed (notices), Blocker (ISC, Unlicense, BlueOak-1.0.0) | The build writes `THIRD-PARTY-NOTICES.txt` with the license text of each bundled package. A build test checks each license. The owner decides: add ISC, Unlicense and BlueOak-1.0.0 to C6, or remove Mermaid (MDV-12). |
 | M13 | 18 | Minor: a diagram's own `layout: elk` gave an error. The image URL regex changed plain text. Each page load checked the hashed chunks again (`public, max-age=0`). | Confirmed | `layout` is a secure key, so dagre stays. The regex is deleted. Chunks are served with `private, max-age=31536000, immutable`. Server test added. |
 | M13 | 19 | Test gaps: one MDV-14 vector, unit tests of a filter that cannot meet MDV-14, no tests for a theme switch with a diagram, keyboard entry, stray page elements or a failed load. | Confirmed | All added. |
+| PR | 1 | Codex review of PR #4 (rows 1 to 32, one per thread). Documents panel past the right edge in a narrow window. | Confirmed | Below 600 px the panel hangs from the top bar. E2E test at 480 px. |
+| PR | 2 | Keyboard activation outside an open dropdown (a click without a press) left it open. | Confirmed | Outside clicks close it too, also in the capture phase. Unit test. |
+| PR | 3 | EDGE-26 had a fourth table cell, which GFM drops. | Confirmed | Merged into the Behavior cell. |
+| PR | 4 | `setDelay` left a pending save on the old deadline (SAV-4). | Confirmed | A pending save due later than the new delay moves to it. Retries keep their backoff. Unit tests; the old test encoded the bug. |
+| PR | 5 | A failed save replaced an earlier edit deadline with the retry delay (SAV-1). | Confirmed | The earlier deadline stays. Unit test. |
+| PR | 6 | Two Settings dialogs could open while the first read was slow. | Confirmed | One Settings dialog at a time. E2E test. |
+| PR | 7 | Cancel or Escape during a slow save closed the dialog, and the save still applied. | Confirmed | `formDialog` ignores cancel while a submit runs, also for Change password. E2E test. |
+| PR | 8 | Reference links were not styled in Visual mode. | Rejected | Fixed before, in M11 review (`7e1b40e`): links resolve their definition. |
+| PR | 9 | Relative links did not open with Ctrl+click (MDV-7). | Confirmed (`//host`), Rejected (anchors and paths) | `//host` opens with https. A document has no base URL, so `#x` or `a.html` would open app routes. |
+| PR | 10 | Setext headings could not be changed or removed from the toolbar. | Confirmed | The underline goes and the heading becomes ATX or plain text. Unit tests. |
+| PR | 11 | A remote image that failed to load loaded again in a later widget without a click. | Confirmed | A failed image needs another click. |
+| PR | 12 | A selection that holds the fences added a second pair. A quoted block kept its closing fence. | Confirmed | Fences on the first and last selected lines count. The closing fence comes from the tree. Unit tests. |
+| PR | 13 | Plain text kept closing hashes (`## T ##`). | Confirmed | Removed with the heading. Unit test. |
+| PR | 14 | Space on a focused task box changed only the box. | Confirmed | The box is out of the tab order. From the keyboard, the task text is edited. |
+| PR | 15 | After a 413 hold, a passed deadline blocked every later save. | Confirmed | A held start clears the deadline. Unit test. |
+| PR | 16 | An arrow-key open that Escape closed during the list load still moved the focus. | Confirmed | The focus moves only while the panel is open. Unit test. |
+| PR | 17 | Top-bar controls were cut off in a narrow window. | Confirmed | The top bar wraps. E2E test at 480 px. Phone layouts stay a non-goal. |
+| PR | 18 | Only 22 named entities were decoded. | Rejected | Fixed before, in M12 review (`f1ea3ca`). |
+| PR | 19 | Inline code with a backtick in the selection closed early. | Confirmed | A longer backtick run and padding. Unit tests; an old test encoded the bug. |
+| PR | 20 | `markdown` fences had no highlighting (MDV-11). | Confirmed | GFM Markdown parses inside them. Unit test. |
+| PR | 21 | An image whose description spans lines shows as source in Visual mode. | Risk | A widget cannot replace a line break. The source stays and nothing loads (MDV-14). Rare. |
+| PR | 22 | Raw counts waited for the Markdown parse. | Confirmed | Raw counts show at once, the outline waits for the tree. |
+| PR | 23 | Mermaid packages under ISC, BlueOak-1.0.0 and Unlicense. | Confirmed | As M13 row 17: notices added, owner decision open. `lru-cache` (BlueOak) is a server package from v1, not in the bundles. |
+| PR | 24 | Stars or backticks in code were removed as marks. | Confirmed | Only marks in the syntax tree go. Unit tests. |
+| PR | 25 | List and quote marks were not found after other container marks (`> - item`). | Confirmed | Unit tests. |
+| PR | 26 | A failed Mermaid load was kept until reload. | Rejected | Fixed before, in M13 review (`02f434a`). |
+| PR | 27 | Quote marks stayed in fenced code in plain text. | Rejected | Fixed before, in M12 review (`f1ea3ca`). |
+| PR | 28 | A skipped view transition rejected unhandled. | Rejected | Fixed before, in M13 review (`02f434a`). |
+| PR | 29 | Removing the fences of an empty block was said to throw. | Confirmed (in part) | It did not throw here, but it left a blank line. One deletion now. Unit test. |
+| PR | 30 | Reference labels used `toLowerCase`, so `[ẞ]` did not match `[SS]`. | Confirmed | Lower then upper case, as the CommonMark reference code. Unit tests. |
+| PR | 31 | Image descriptions showed their Markdown marks. | Confirmed | The plain-text rules render them (`renderedText` reads the editor's Text). Unit test. |
+| PR | 32 | Entities showed as source in Visual mode. | Confirmed | Shown as their characters, except on the cursor line. Unit test. |
 
 ## 13. V2 validation environment
 

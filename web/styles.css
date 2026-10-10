@@ -145,6 +145,8 @@ select {
 }
 
 .topbar {
+  position: relative;
+  flex-wrap: wrap; /* A narrow window gets a second row, never a hidden control. */
   padding: 6px 8px;
   border-bottom-width: 1px;
 }
@@ -351,6 +353,17 @@ button.danger {
   width: min(360px, calc(100vw - 16px));
   max-height: min(60vh, 480px);
   overflow-y: auto;
+}
+
+/* In a narrow window the panel hangs from the top bar, so it fits. */
+@media (max-width: 600px) {
+  #doclist-menu {
+    position: static;
+  }
+
+  .doclist {
+    left: 8px;
+  }
 }
 
 /* Outline panel (LAY-2) */

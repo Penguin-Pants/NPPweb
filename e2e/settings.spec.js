@@ -103,3 +103,38 @@ test('the Settings dialog reports load and save failures, and Cancel keeps the d
   await expect(dialog).toBeHidden();
   expect((await (await api.get('/api/settings')).json()).autosaveSeconds).toBe(5);
 });
+
+test('Cancel and Escape wait while a save runs, and Settings opens once at a time', async ({ page, api }) => {
+  await login(page);
+  let release;
+  await page.route('**/api/settings', async (route) => {
+    if (route.request().method() !== 'PUT') return route.continue();
+    await new Promise((resolve) => (release = resolve));
+    return route.continue();
+  });
+  const dialog = await openSettings(page);
+  await dialog.getByLabel('Autosave delay in seconds (1 to 60)').fill('7');
+  await dialog.getByRole('button', { name: 'Save' }).click();
+  await expect(dialog.getByRole('button', { name: 'Cancel' })).toBeDisabled();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeVisible();
+  release();
+  await expect(dialog).toBeHidden();
+  expect((await (await api.get('/api/settings')).json()).autosaveSeconds).toBe(7);
+
+  const waiting = [];
+  await page.unroute('**/api/settings');
+  await page.route('**/api/settings', async (route) => {
+    if (route.request().method() === 'GET') await new Promise((resolve) => waiting.push(resolve));
+    return route.continue();
+  });
+  await page.getByRole('button', { name: 'Account' }).click();
+  await page.getByRole('button', { name: 'Settings' }).click();
+  await page.getByRole('button', { name: 'Account' }).click();
+  await page.getByRole('button', { name: 'Settings' }).click();
+  await page.waitForTimeout(200);
+  for (const resolve of waiting) resolve();
+  await expect(page.getByRole('dialog', { name: 'Settings' })).toHaveCount(1);
+  await page.waitForTimeout(300);
+  await expect(page.getByRole('dialog', { name: 'Settings' })).toHaveCount(1);
+});

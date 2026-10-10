@@ -183,3 +183,27 @@ test('opening one dropdown closes the other', () => {
   assert.equal(first.button.attrs['aria-expanded'], 'false');
   assert.equal(second.dropdown.isOpen(), true);
 });
+
+test('a click outside closes it too, as the Enter key on another button makes one without a press (LAY-4)', () => {
+  const { doc, items, dropdown } = setup();
+  open.push(dropdown);
+  dropdown.open();
+  doc.dispatch('click', { target: items[0] });
+  doc.dispatch('click', { target: fakeEl(doc, 'dialog button', { inDialog: true }) });
+  assert.equal(dropdown.isOpen(), true);
+  doc.dispatch('click', { target: fakeEl(doc, 'New') });
+  assert.equal(dropdown.isOpen(), false);
+});
+
+test('an arrow-key open that Escape closes before the list arrives leaves the focus alone', async () => {
+  let finish;
+  const { doc, root, button, dropdown, key } = setup({ onOpen: () => new Promise((resolve) => (finish = resolve)) });
+  open.push(dropdown);
+  button.focus();
+  const opening = root.fire('keydown', key(button, 'ArrowDown'));
+  doc.dispatch('keydown', key(button, 'Escape'));
+  finish();
+  await opening;
+  assert.equal(dropdown.isOpen(), false);
+  assert.equal(doc.activeElement, button);
+});

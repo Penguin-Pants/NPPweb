@@ -124,16 +124,54 @@ test('after a smaller delay, the next edit moves a later pending save earlier (S
   assert.equal(calls.length, 1);
 });
 
-test('setDelay leaves a pending save alone until the next edit (SAV-4)', async () => {
+test('a new delay applies to the pending save: a smaller one moves it earlier, a larger one keeps it (SAV-4)', async () => {
+  autosave.setDelay(60000);
   autosave.edited('a');
-  autosave.setDelay(3000);
   mock.timers.tick(1000);
+  autosave.setDelay(2000);
+  mock.timers.tick(1999);
+  assert.equal(calls.length, 0);
+  mock.timers.tick(1);
   assert.equal(calls.length, 1);
   await reply(200, { version: 2, updatedAt: 1 });
   autosave.edited('a');
-  mock.timers.tick(2999);
+  autosave.setDelay(60000);
+  mock.timers.tick(2000);
+  assert.equal(calls.length, 2);
+});
+
+test('a new delay leaves a retry on its backoff (SAV-5)', async () => {
+  autosave.edited('a');
+  mock.timers.tick(1000);
+  await reply(500);
+  autosave.setDelay(100);
+  mock.timers.tick(1999);
   assert.equal(calls.length, 1);
   mock.timers.tick(1);
+  assert.equal(calls.length, 2);
+});
+
+test('a failed save keeps an earlier deadline from an edit made during it (SAV-1)', async () => {
+  autosave.edited('a');
+  mock.timers.tick(1000);
+  autosave.edited('a');
+  mock.timers.tick(500);
+  await reply(500);
+  mock.timers.tick(499);
+  assert.equal(calls.length, 1);
+  mock.timers.tick(1);
+  assert.equal(calls.length, 2);
+});
+
+test('an edit after a 413 saves again, also when a deadline passed while it was held', async () => {
+  autosave.edited('a');
+  mock.timers.tick(1000);
+  autosave.edited('a');
+  await reply(413);
+  mock.timers.tick(1000);
+  assert.equal(calls.length, 1);
+  autosave.edited('a');
+  mock.timers.tick(1000);
   assert.equal(calls.length, 2);
 });
 

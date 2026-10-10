@@ -163,3 +163,17 @@ test('the account menu closes on Escape and on a click outside', async ({ page }
   await page.locator('.statusbar').click();
   await expect(menu).toBeHidden();
 });
+
+test('in a narrow window every top-bar control and the Documents panel stay inside the window', async ({ page, api }) => {
+  await page.setViewportSize({ width: 480, height: 700 });
+  await openDocs(page, api, [['notes.md', '# Notes']]);
+  await expect(page.getByRole('button', { name: 'Visual' })).toBeVisible();
+  for (const name of ['New', 'Outline', 'Documents', 'Find', 'Visual', 'Light theme', 'Account']) {
+    const box = await page.getByRole('button', { name, exact: true }).boundingBox();
+    expect(box.x + box.width, name).toBeLessThanOrEqual(480);
+  }
+  await page.getByRole('button', { name: 'Documents' }).click();
+  const panel = await page.locator('#doclist').boundingBox();
+  expect(panel.x).toBeGreaterThanOrEqual(0);
+  expect(panel.x + panel.width).toBeLessThanOrEqual(480);
+});

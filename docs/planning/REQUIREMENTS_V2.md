@@ -196,7 +196,7 @@ Numbering continues from v1 (EDGE-1 to EDGE-9).
 | EDGE-23 | Notion changes some formatting on push. | Accepted. Headings 5 and 6 become heading 4. Mermaid shows as a code block. Raw HTML can change. |
 | EDGE-24 | The user cancels the print dialog. | Nothing happens. No error. |
 | EDGE-25 | An image cannot load (relative path, `http:` URL or broken link). | Show its alt text in a placeholder box. No Load button for relative or `http:` URLs. |
-| EDGE-26 | A Notion page create times out or returns 500, 502, 503 or 504. The page can exist even though the call failed. | Do not repeat the create blindly. If the error names the committed page ID (C10), store that page and continue. Else do not create again on its own: set status error "Notion page may exist. Check Notion, then retry." A lookup by title cannot identify the page, because names are not unique (`server/src/documents/repo.js:46-54`). Retry now from the owner creates the page again. | No automatic retry creates a second page. |
+| EDGE-26 | A Notion page create times out or returns 500, 502, 503 or 504. The page can exist even though the call failed. | Do not repeat the create blindly. If the error names the committed page ID (C10), store that page and continue. Else do not create again on its own: set status error "Notion page may exist. Check Notion, then retry." A lookup by title cannot identify the page, because names are not unique (`server/src/documents/repo.js:46-54`). Retry now from the owner creates the page again. No automatic retry creates a second page. |
 | EDGE-27 | The synced Notion page has a child page or database that was added in Notion. | The push stops. Status error "Remove the child page or database in Notion to resume sync." Nothing is deleted (D38). |
 
 ---

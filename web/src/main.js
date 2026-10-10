@@ -77,8 +77,19 @@ async function loadSettings() {
   if (result.status === 200 && request === delayRequest) autosave.setDelay(result.data.autosaveSeconds * 1000);
   return result;
 }
+// One Settings dialog at a time, also while its first read is slow.
+let settingsOpen = false;
 $('settings').addEventListener('click', async () => {
   account.close();
+  if (settingsOpen) return;
+  settingsOpen = true;
+  try {
+    await showSettings();
+  } finally {
+    settingsOpen = false;
+  }
+});
+async function showSettings() {
   const current = await loadSettings();
   if (current.status !== 200) {
     showMessage('Could not load the settings. Try again.');
@@ -102,7 +113,7 @@ $('settings').addEventListener('click', async () => {
       return 'Saving the settings failed. Try again.';
     },
   });
-});
+}
 
 $('change-password').addEventListener('click', async () => {
   account.close();
@@ -292,16 +303,17 @@ function shownInfo() {
 
 let totalsTimer;
 let selectionTimer;
-function scheduleTotals(delay = 100) {
+function scheduleTotals() {
   clearTimeout(totalsTimer);
-  totalsTimer = setTimeout(refreshTotals, delay);
+  totalsTimer = setTimeout(refreshTotals, 100);
 }
 function scheduleSelection(delay = 100) {
   clearTimeout(selectionTimer);
   selectionTimer = setTimeout(refreshSelection, delay);
 }
 
-function refreshTotals() {
+/** @param {boolean} [parsing] True for a next step while the tree still parses. */
+function refreshTotals(parsing = false) {
   const info = shownInfo();
   countButton.hidden = !info?.markdown; // CNT-4
   countButton.setAttribute('aria-pressed', String(countSyntax.get() === 'included'));
@@ -309,16 +321,18 @@ function refreshTotals() {
     clearSummary();
     return;
   }
+  // Raw counts need no syntax tree, so they never wait for the parse (CNT-7).
+  if (!info.exclude && !parsing) $('counts').textContent = formatCounts(countTotals(info.state.doc.toString()));
   if (info.markdown && !info.tree) {
-    scheduleTotals(0); // Still parsing: the next step continues the parse.
+    clearTimeout(totalsTimer);
+    totalsTimer = setTimeout(() => refreshTotals(true), 0); // The next step continues the parse.
     return;
   }
-  const text = info.state.doc.toString();
-  const markdown = info.markdown ? summary.all(text, info.tree) : null;
+  const markdown = info.markdown ? summary.all(info.state.doc.toString(), info.tree) : null;
   describedDoc = info.state.doc;
   outline.show(markdown?.headings ?? null);
   outline.setActive(info.state.selection.main.head);
-  $('counts').textContent = formatCounts(info.exclude ? markdown.counts : countTotals(text));
+  if (info.exclude) $('counts').textContent = formatCounts(markdown.counts);
 }
 
 function refreshSelection() {

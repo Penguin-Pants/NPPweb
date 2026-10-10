@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import { ensureSyntaxTree } from '@codemirror/language';
 import { EditorState } from '@codemirror/state';
 import { languageSupport } from '../src/languages.js';
+import { Text } from '@codemirror/state';
 import { countText, createCounter, createSummary, renderedText } from '../src/markdown-text.js';
 
 function treeOf(text) {
@@ -46,6 +47,7 @@ test('links become their text, images their alt text, and [text] without a targe
   assert.equal(render('[text](https://u "t"), [ref][r], <https://a.b> and https://c.d\n\n[r]: https://r'), 'text, ref, https://a.b and https://c.d\n\n[r]: https://r');
   assert.equal(render('see [sic] here'), 'see [sic] here');
   assert.equal(render('[r][] and [r]\n\n[r]: https://x'), 'r and r\n\n[r]: https://x');
+  assert.equal(render('[ẞ]\n\n[SS]: https://x'), 'ẞ\n\n[SS]: https://x', 'labels match with Unicode case folding');
   assert.equal(render('![a cat](cat.png)'), 'a cat');
 });
 
@@ -168,4 +170,13 @@ test('createCounter gives the same counts as countText, also after edits that re
     '',
   ];
   for (const text of texts) assert.deepEqual(count(text), countText(text), JSON.stringify(text));
+});
+
+test('renderedText reads a CodeMirror Text the same as a string', () => {
+  const text = SAMPLE;
+  const tree = treeOf(text);
+  const doc = Text.of(text.split('\n'));
+  for (const [from, to] of [[0, text.length], [7, 30], [text.indexOf('| a'), text.indexOf('<div>')]]) {
+    assert.equal(renderedText(doc, tree, from, to), renderedText(text, tree, from, to), `${from}-${to}`);
+  }
 });

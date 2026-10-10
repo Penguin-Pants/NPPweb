@@ -66,7 +66,7 @@ test('underscore emphasis unwraps too', () => {
 test('a selection over two separate emphases is wrapped, never stripped at its ends', () => {
   assert.equal(run(toggleItalic, '«*a* and *b*»'), '*«*a* and *b*»*');
   assert.equal(run(toggleBold, '«**a** and **b**»'), '**«**a** and **b**»**');
-  assert.equal(run(toggleInlineCode, '«`a` and `b`»'), '`«`a` and `b`»`');
+  assert.equal(run(toggleInlineCode, '«`a` and `b`»'), '`` «`a` and `b`» ``');
 });
 
 test('inline code wraps and unwraps with backticks', () => {
@@ -133,4 +133,37 @@ test('the code block removes the fences of the block that holds the cursor', () 
 
 test('the code block on a line between two blocks wraps that line only', () => {
   assert.equal(run(toggleCodeBlock, '```\na\n```\nmid|dle\n```\nb\n```'), '```\na\n```\n```\nmid|dle\n```\n```\nb\n```');
+});
+
+test('setHeading turns a setext heading into ATX or plain text, and drops closing hashes for plain text', () => {
+  assert.equal(run(setHeading, 'Ti|tle\n===\n\nnext', 0), 'Ti|tle\n\nnext');
+  assert.equal(run(setHeading, 'Ti|tle\n---', 3), '### Ti|tle');
+  assert.equal(run(setHeading, 'Title\n=|==', 2), '## Title|');
+  assert.equal(run(setHeading, '## Ti|tle ##', 0), 'Ti|tle');
+  assert.equal(run(setHeading, '## Ti|tle ##', 3), '### Ti|tle ##');
+});
+
+test('the code block removes fences that the selection includes, also in a quote and when empty', () => {
+  assert.equal(run(toggleCodeBlock, '«```\nx\n```\n»after'), '«x\n»after');
+  assert.equal(run(toggleCodeBlock, '> ```\n> |x\n> ```'), '> |x');
+  assert.equal(run(toggleCodeBlock, '`|``\n```\nafter'), '|after');
+  assert.equal(run(toggleCodeBlock, '```\n|x'), '|x', 'an unclosed block has no closing fence to remove');
+});
+
+test('inline code picks a delimiter longer than any backtick run in the selection', () => {
+  assert.equal(run(toggleInlineCode, '«a`b»'), '``«a`b»``');
+  assert.equal(run(toggleInlineCode, '«`a»'), '`` «`a» ``');
+});
+
+test('marks that are not formatting in the syntax tree are never removed', () => {
+  assert.equal(run(toggleBold, '`**«x»**`'), '`****«x»****`');
+  assert.equal(run(toggleBold, '`**|**`'), '`****|****`');
+  assert.equal(run(toggleInlineCode, '```\n`«x»`\n```'), '```\n``«x»``\n```');
+});
+
+test('list and quote commands find their marks after other container marks', () => {
+  assert.equal(run(toggleBulletList, '> - it|em'), '> it|em');
+  assert.equal(run(toggleNumberedList, '> - it|em'), '> 1. it|em');
+  assert.equal(run(toggleBulletList, '> it|em'), '> - it|em');
+  assert.equal(run(toggleQuote, '- > it|em'), '- it|em');
 });
