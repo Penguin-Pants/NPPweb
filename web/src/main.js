@@ -8,6 +8,8 @@ import { createDropdown } from './dropdown.js';
 import { createEditor } from './editor.js';
 import { emit, on } from './events.js';
 import { LANGUAGES } from './languages.js';
+import { createMarkdownMode } from './markdown-mode.js';
+import { createToolbar } from './markdown-toolbar.js';
 import { createOutlinePanel } from './outline-panel.js';
 import { openFind, openReplace } from './search-panel.js';
 import { modName, setupShortcuts } from './shortcuts.js';
@@ -124,8 +126,17 @@ $('change-password').addEventListener('click', async () => {
 // Editor, autosave and tabs.
 /** @type {ReturnType<typeof createTabs>} */
 let tabs;
+// Markdown mode (MDV-1, MDV-2): one mode for every Markdown tab, per browser.
+const markdownMode = createMarkdownMode({
+  getStorage: () => localStorage,
+  onChange: (next) => {
+    editor.setMarkdownMode(next);
+    renderMarkdownUi();
+  },
+});
 const editor = createEditor($('editor'), {
   theme: theme.get(),
+  markdownMode: markdownMode.get(),
   onChange: () => {
     const id = tabs.shownId();
     if (id) autosave.edited(id);
@@ -151,6 +162,7 @@ tabs = createTabs({
   onActiveChange: () => {
     renderSaveStatus();
     renderLanguage();
+    renderMarkdownUi();
   },
   showMessage,
 });
@@ -194,6 +206,23 @@ languageSelect.addEventListener('change', async () => {
     renderLanguage();
   }
 });
+// Mode toggle and formatting toolbar, on Markdown tabs only (MDV-1, MDV-9).
+const modeButton = $('mode-toggle');
+const toolbar = $('md-toolbar');
+createToolbar({ element: toolbar, getView: () => (tabs.shownId() ? editor.view : null), modName: modName() });
+function renderMarkdownUi() {
+  const tab = tabs.active();
+  const isMarkdown = tab !== null && tabs.languageOf(tab.id) === 'markdown';
+  modeButton.hidden = !isMarkdown;
+  toolbar.hidden = !isMarkdown;
+  modeButton.setAttribute('aria-pressed', String(markdownMode.get() === 'visual'));
+}
+// The editor keeps its cursor across a toggle (MDV-6), so the focus goes back to it.
+modeButton.addEventListener('click', () => {
+  markdownMode.toggle();
+  if (tabs.shownId()) editor.focus();
+});
+
 // CON-1 and EDGE-1: a 412 or 404 save opens a dialog with the choices.
 setupConflictHandling({ api, autosave, tabs });
 

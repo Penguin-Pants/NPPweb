@@ -19,6 +19,7 @@
       <div id="doclist" class="doclist" role="group" aria-label="Documents" hidden></div>
     </div>
     <button type="button" id="find">Find</button>
+    <button type="button" id="mode-toggle" aria-pressed="true" title="Switch Markdown between Visual and Raw" hidden>Visual</button>
     <span class="spacer"></span>
     <button type="button" id="theme-toggle"></button>
     <div class="menu">
@@ -37,6 +38,7 @@
     </aside>
     <main class="editor-pane">
       <div id="tabstrip" class="tabstrip" role="tablist" aria-label="Open documents"></div>
+      <div id="md-toolbar" class="md-toolbar" role="toolbar" aria-label="Formatting" hidden></div>
       <div id="editor" class="editor"></div>
       <div id="empty-state" class="empty-state" hidden>
         <p>No document is open.</p>

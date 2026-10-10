@@ -3,7 +3,8 @@
 const CSP = [
   "default-src 'self'",
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data:",
+  // https: for remote Markdown images, which load only after a click (MDV-14, C7).
+  "img-src 'self' data: https:",
   "connect-src 'self'",
   "base-uri 'none'",
   "form-action 'self'",

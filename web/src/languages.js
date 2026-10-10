@@ -1,5 +1,7 @@
 // Syntax highlighting languages (EDT-3, EDT-4, D5, T20). The language comes
 // from the name extension unless the document has a manual override.
+// Markdown uses GitHub Flavored Markdown (MDV-4), highlights fenced code with
+// the same 11 languages (MDV-11) and has the formatting keys (MDV-10).
 import { css } from '@codemirror/lang-css';
 import { html } from '@codemirror/lang-html';
 import { javascript } from '@codemirror/lang-javascript';
@@ -10,7 +12,10 @@ import { sql } from '@codemirror/lang-sql';
 import { yaml } from '@codemirror/lang-yaml';
 import { StreamLanguage } from '@codemirror/language';
 import { shell } from '@codemirror/legacy-modes/mode/shell';
-import { EditorView } from '@codemirror/view';
+import { Facet, Prec } from '@codemirror/state';
+import { EditorView, keymap } from '@codemirror/view';
+import { GFM } from '@lezer/markdown';
+import { markdownKeymap } from './markdown-commands.js';
 
 export const LANGUAGES = [
   { id: 'plain', label: 'Plain text' },
@@ -50,9 +55,31 @@ const BY_EXTENSION = new Map([
   ['zsh', 'shell'],
 ]);
 
+/** The resolved language id of an editor state. Visual mode reads it. */
+export const languageId = Facet.define({ combine: (values) => values[0] ?? 'plain' });
+
+/** @type {Map<string, import('@codemirror/language').Language>} */
+const codeLanguages = new Map();
+
+/**
+ * The parser for a fenced code block, from the first word of its info string:
+ * a language id or one of its extensions. Others stay plain code text.
+ * @param {string} info
+ */
+function codeLanguage(info) {
+  const word = info.trim().split(/\s+/, 1)[0].toLowerCase();
+  const id = IDS.has(word) ? word : BY_EXTENSION.get(word);
+  if (!id || id === 'plain' || id === 'markdown') return null;
+  if (!codeLanguages.has(id)) {
+    const support = PARSERS[id]();
+    codeLanguages.set(id, 'language' in support ? support.language : support);
+  }
+  return codeLanguages.get(id);
+}
+
 const PARSERS = {
   plain: () => [],
-  markdown: () => markdown(),
+  markdown: () => [markdown({ extensions: GFM, codeLanguages: codeLanguage }), Prec.high(keymap.of(markdownKeymap))],
   json: () => json(),
   html: () => html(),
   css: () => css(),
@@ -90,5 +117,5 @@ export function resolveLanguage(name, override) {
  */
 export function languageSupport(id) {
   const known = IDS.has(id) ? id : 'plain';
-  return [PARSERS[known](), EditorView.contentAttributes.of({ 'data-language': known })];
+  return [PARSERS[known](), languageId.of(known), EditorView.contentAttributes.of({ 'data-language': known })];
 }

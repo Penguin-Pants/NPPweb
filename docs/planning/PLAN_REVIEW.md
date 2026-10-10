@@ -314,6 +314,10 @@ Two-pass review of each V2 phase diff (`REQUIREMENTS_V2.md` section 9). Same met
 | M10 | 15 | The fixture signs in once more to set the delay. | Rejected | No test counts sessions. Each test has its own server. |
 | M10 | 16 | Perf typing was about 170 ms slower than `main` in 3 back-to-back runs. Cause: SAV-1 saves during nonstop typing, and with the 1-second test delay the 1 MB document saved 2 or 3 times inside the measured 3 seconds. The v1 debounce never saved during typing. | Confirmed | `perf.spec.js` now runs with the 5-second production default. Then 4 alternating runs gave 2771 to 2937 ms against 2625 to 3237 ms on `main`. Both stay near the 3000 ms limit in this container (section 13). |
 | M10 | 17 | Each save of a 1 MB document costs main-thread time while the user keeps typing (SAV-1 makes this happen every N seconds). | Risk | Unverified estimate: about 60 ms per save in this container, from M10 16. M16 measures typing during a save in Visual mode (NFR-2). |
+| M11 | 1 | A click on the mode toggle moved the focus to the button, so text typed right after a toggle was lost. MDV-6 keeps the cursor. | Confirmed | Fixed before commit: the toggle gives the focus back to the editor, as the toolbar does. E2E test (undo and cursor) covers it. |
+| M11 | 2 | No test proved that each toolbar button runs its own command. | Confirmed | E2E test applies all eight buttons. Unit tests for `createToolbar` and `run` with a fake document. A swapped Italic command fails a test. |
+| M11 | 3 | MDV-10 needs Ctrl+K to reach the page in Firefox and Safari. Only Chromium runs here. | Risk | Unverified assumption. Owner check in Firefox and Safari (section 13). |
+| M11 | 4 | Visual mode uses the interface font for prose, so line widths change on a toggle. | Rejected | Expected for a visual mode. Code, tables and inline code keep the mono font. |
 
 ## 13. V2 validation environment
 

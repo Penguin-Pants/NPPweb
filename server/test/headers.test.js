@@ -3,7 +3,7 @@ import { afterEach, test } from 'node:test';
 import { createTestApp, login, ORIGIN, PASSWORD } from './helpers.js';
 
 const CSP =
-  "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; " +
+  "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self'; " +
   "base-uri 'none'; form-action 'self'; frame-ancestors 'none'";
 let ctx;
 
