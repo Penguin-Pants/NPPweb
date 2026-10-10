@@ -287,6 +287,7 @@ Not built. Each one needs a user decision.
 | 2 | P5 review 2 | Match the Mod shortcuts (N, W, S, F, H) by `event.key` and keep `event.code` for Alt+N and Alt+W. | On AZERTY and other layouts, `event.code` maps Ctrl+Z to KeyW, so undo opens the close dialog, and Ctrl+W can reach the browser and close the installed window. T22 specifies `event.code`. Approved and built 2026-10-10 (section 9). |
 | 3 | Audit baseline (section 15) | `e2e/workspaces.spec.js:530`: replace the one-time `getComputedStyle` read with `await expect(dot).toHaveCSS('background-color', 'rgb(94, 161, 255)')`. | Flaky on `main` (2 of 3 runs failed): the click on `p2.md` starts a list refresh, and its reply renders the tab strip again (`tabs.render` makes new nodes). A read of a node that was replaced gives `""`. A web-first assertion reads the current node again. A copy with the change passed 6 of 6 runs. |
 | 4 | Audit baseline (section 15) | `e2e/export-drop.spec.js:127`: wait for the counts (`await expect(page.locator('#counts')).not.toBeEmpty()`) before the drop. | Flaky on `main` (2 of 3 runs failed): the counts show 100 ms after a tab opens (`web/src/main.js:358`). Before that, the first status-bar row has room for the message, so it does not wrap and the row check fails (579 < 598). A copy with the wait passed 6 of 6 runs. |
+| 5 | Audit task C1 (section 15) | `e2e/workspaces.spec.js:265`: read the message once after the reply (`expect(await message(page).textContent()).toBe('')`), as the C1 stale test does. | `toHaveText('')` retries for 5 seconds, and the status message clears itself after 5 seconds (`web/src/main.js:73`), so the check passes even when the message shows. With the `stale` check in `tabs.setLanguage` removed, the test still passed. |
 
 ## 12. V2 phase review log
 
@@ -577,9 +578,15 @@ Two-pass review of each fix task. Same method and verdicts as section 10.
 
 | Task | # | Finding | Verdict | Action |
 |------|---|---------|---------|--------|
+| C1 | 1 | The new `stale` check in `newDocument` had no test. A New whose reply arrives after a switch must show no message (R14). | Confirmed | E2E test with a held create. With the check removed, it failed: the message showed. |
+| C1 | 2 | `toHaveText('')` retries for 5 seconds, and the status message clears itself after 5 seconds, so a check for "no message" passes anyway. | Confirmed | The new test reads the message once. The TD-41 language test has the same gap: section 11, row 5. |
+| C1 | 3 | A 401 now shows the message too, under the sign-in dialog. | Rejected | The drop and the recovery copies also show a message on 401. After the sign-in, "Try again" is the right advice. |
+| C1 | 4 | Section 9 (T33) says `newDocument` has no explicit `stale` check. | Confirmed | It has one now: a stale reply has status 0, which would show the message. This row records the change. |
+| C1 | 5 | `newDocument` returned true or false, and no caller read the value. | Confirmed | It returns nothing now. |
 
 ### Audit validation environment
 
 - Node.js 24.21.0 through nvm, outside the repo. The container default is Node 22.
 - Chromium e2e only, on the preinstalled Chromium build 1194 through a temporary config with `executablePath`, as in v3. Firefox and WebKit are not installed.
 - Baseline on 8f6c968: `npm test` 424 of 424. Chromium e2e 169 passed and 2 failed. Both failures are flaky on `main` (section 11, rows 3 and 4). When they fail during a task, they run again alone.
+- C1: `npm test` 424 of 424. Chromium e2e 170 passed, plus the 2 known flakes. Alone, the STB-2 test passed and the CLR-6 test failed 5 of 5 retries. The CLR-6 rate is the same without C1 (3 of 6 failed) and with C1 (4 of 6 failed). The 2 new tests failed first on an assertion.

@@ -11,6 +11,23 @@ test('with no stored tabs the empty state offers New document', async ({ page })
   await expect(page.getByText('No document is open.')).toBeHidden();
 });
 
+test('a New that the server or the network fails shows a message and opens no tab', async ({ page }) => {
+  await login(page);
+  let fail = (route) => route.fulfill({ status: 500, contentType: 'application/json', body: '{"error":"internal_error"}' });
+  await page.route(
+    (url) => url.pathname === '/api/documents',
+    (route) => (route.request().method() === 'POST' ? fail(route) : route.continue()),
+  );
+  const message = page.locator('#status-message');
+  await page.getByRole('button', { name: 'New', exact: true }).click();
+  await expect(message).toHaveText('Could not create a document. Try again.');
+  await page.evaluate(() => (document.getElementById('status-message').textContent = ''));
+  fail = (route) => route.abort();
+  await page.getByRole('button', { name: 'New document' }).click();
+  await expect(message).toHaveText('Could not create a document. Try again.');
+  await expect(page.getByRole('tab')).toHaveCount(0);
+});
+
 test('three tabs keep separate content and undo history', async ({ page }) => {
   await login(page);
   for (const text of ['alpha', 'beta', 'gamma']) {

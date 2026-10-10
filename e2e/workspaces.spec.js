@@ -265,6 +265,27 @@ test('a language change whose reply arrives after the switch shows no message (T
   await expect(message(page)).toHaveText('');
 });
 
+test('a New whose reply arrives after the switch shows no message and opens no tab (TD-41, R14)', async ({ page }) => {
+  await login(page);
+  let release;
+  const held = new Promise((resolve) => (release = resolve));
+  const isCreate = (url) => url.pathname === '/api/documents';
+  await page.route(isCreate, async (route) => {
+    if (route.request().method() !== 'POST') return route.fallback();
+    await held;
+    await route.continue();
+  });
+  await page.getByRole('button', { name: 'New', exact: true }).click();
+  await switchTo(page, 'Work');
+  const reply = page.waitForResponse((res) => isCreate(new URL(res.url())) && res.request().method() === 'POST');
+  release();
+  await reply;
+  await afterReply(page);
+  // One read: the message clears itself after 5 seconds, so a retrying check would pass anyway.
+  expect(await message(page).textContent()).toBe('');
+  await expect(page.getByRole('tab')).toHaveCount(0);
+});
+
 test('a keyboard-only run switches the workspace (WS-2)', async ({ page }) => {
   await login(page);
   await page.locator('#theme-toggle').focus();

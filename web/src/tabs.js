@@ -293,10 +293,13 @@ export function createTabs({ editor, autosave, api, getStorage, elements, onActi
 
     /** Creates an "Untitled N" Markdown document and opens it. */
     async newDocument() {
-      const { status, data } = await api.createDocument('', undefined, 'markdown');
-      if (status !== 201) return false;
+      const { status, data, stale } = await api.createDocument('', undefined, 'markdown');
+      if (stale) return;
+      if (status !== 201) {
+        showMessage('Could not create a document. Try again.');
+        return;
+      }
       await controller.addDocument(data, '');
-      return true;
     },
 
     /**
