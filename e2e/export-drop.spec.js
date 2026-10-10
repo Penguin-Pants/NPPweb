@@ -117,7 +117,7 @@ test('PDF export prints the rendered page from a frame titled with the PDF name,
   await exportButton(page).click();
   await formats(page).filter({ hasText: 'PDF' }).click();
   await expect.poll(() => page.evaluate(() => window.__printed)).toEqual({ title: 'p', appTitle: 'p', heading: 'Printed' });
-  await expect(page).toHaveTitle('Notepad');
+  await expect(page).toHaveTitle('Personal - Notepad');
   await expect(page.locator('#print-frame')).toHaveCount(0);
 });
 

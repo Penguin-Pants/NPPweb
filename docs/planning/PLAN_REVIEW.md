@@ -206,6 +206,7 @@ Coding agents record deviations from the plan here.
 | 2026-10-10 | T28 | Status messages move to the right end of the status bar (D55). | Next to the save status, a long message pushed the counts to the right for 5 seconds. | User (chat, 2026-10-10) |
 | 2026-10-10 | T29 | The server picks no default language. New sends `markdown` in the create request. | The first PR #6 commit stored Markdown for every create without a name. Recovery copies have a name, so they did not match. Now a create stores the language it gets. | User (chat, 2026-10-10) |
 | 2026-10-10 | T30 | `server/test/db.test.js`: the fresh-database and reopen checks expect `migrations.length`, not 1. The two generic `migrate` tests append their test migrations after the real list. | A fixed version 1 fails with every appended migration, and a list shorter than the real one is skipped. | Agent, not yet approved |
+| 2026-10-10 | T32 | `e2e/export-drop.spec.js` expects the app title "Personal - Notepad" after a PDF export, not "Notepad". `BUILD_PLAN_V3.md` TD-29 and T32 now name the sign-in title "Sign in - Notepad" (`web/login.html:6`), not "Notepad". | WS-3 changes the app title. The sign-in page had its own title before v3, and TD-29 keeps it. | Agent, not yet approved |
 
 ## 10. Phase review log
 

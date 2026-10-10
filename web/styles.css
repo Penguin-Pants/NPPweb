@@ -178,7 +178,7 @@ select {
   min-width: calc(var(--outline-width) - 6px); /* minus the bar gap */
 }
 
-.workspace {
+.main-area {
   flex: 1;
   display: flex;
   min-height: 0;
