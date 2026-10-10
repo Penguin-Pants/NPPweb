@@ -96,7 +96,7 @@ test('the Documents dropdown closes on Escape, on a click outside and after Open
   await expect(page.getByRole('tab', { name: 'notes.txt' })).toHaveAttribute('aria-selected', 'true');
 });
 
-test('arrow keys move through the Documents dropdown', async ({ page, api }) => {
+test('arrow keys move through the Documents dropdown (LAY-4)', async ({ page, api }) => {
   for (const name of ['one.txt', 'two.txt', 'three.txt']) {
     await createDoc(api, name);
     await new Promise((resolve) => setTimeout(resolve, 5));
@@ -178,10 +178,22 @@ test('in a narrow window every top-bar control and the Documents panel stay insi
   expect(panel.x + panel.width).toBeLessThanOrEqual(480);
 });
 
-test('a keyboard-only run reaches each top-bar control, the outline, the toolbar and the status bar, and opens the menus (NFR-5)', async ({ page, api }) => {
+test('a keyboard-only run reaches each visible control of the top bar, the outline, the toolbar and the status bar, and works them (NFR-5)', async ({
+  page,
+  api,
+}) => {
   await openDocs(page, api, [['k.md', '# One\n\n## Two\n\ntext']]);
   await expect(page.locator('.outline-entry')).toHaveCount(2);
-  await page.getByRole('button', { name: 'New', exact: true }).focus();
+  // New is the first stop: Shift+Tab from the next control reaches it.
+  await page.getByRole('button', { name: 'Outline', exact: true }).focus();
+  await page.keyboard.press('Shift+Tab');
+  await expect(page.getByRole('button', { name: 'New', exact: true })).toBeFocused();
+  const expected = await page.evaluate(() =>
+    [...document.querySelectorAll(':is(.topbar, #md-toolbar, .statusbar) :is(button, select)')]
+      .filter((el) => el.checkVisibility() && !el.disabled)
+      .map((el) => el.getAttribute('aria-label') || el.textContent.trim()),
+  );
+  expect(expected.length).toBeGreaterThan(15);
   const describe = () =>
     page.evaluate(() => {
       const el = document.activeElement;
@@ -189,20 +201,34 @@ test('a keyboard-only run reaches each top-bar control, the outline, the toolbar
       if (el.classList.contains('cm-content')) return 'editor';
       return el.getAttribute('aria-label') || el.textContent.trim() || el.tagName;
     });
+  const visual = page.getByRole('button', { name: 'Visual' });
   const reached = ['New'];
   for (let i = 0; i < 60; i += 1) {
     await page.keyboard.press('Tab');
     const name = await describe();
     reached.push(name);
     if (name === 'editor') {
-      await page.keyboard.press('Escape'); // Leaves the editor's own Tab key (indent).
+      await page.keyboard.press('Escape'); // Then Tab leaves the editor, whose own Tab key indents.
       continue;
+    }
+    if (name === 'Visual') {
+      // The toggle switches the mode and sends the focus to the editor.
+      for (const pressed of ['false', 'true']) {
+        await page.keyboard.press('Space');
+        await expect(visual).toHaveAttribute('aria-pressed', pressed);
+        await expect(page.locator('.cm-content')).toBeFocused();
+        await visual.focus(); // Back to the same place in the Tab order.
+      }
+    }
+    if (name === 'Heading') {
+      await page.keyboard.press('ArrowDown');
+      await expect(page.locator(':focus')).toHaveText('Normal text');
+      await page.keyboard.press('Escape');
+      await expect(page.locator(':focus')).toHaveText('Heading');
     }
     if (name === 'Language') break;
   }
-  for (const name of ['New', 'Outline', 'Documents', 'Export', 'Find', 'Visual', 'Light theme', 'Account', 'One', 'Bold', 'Code block', 'editor', 'Count syntax', 'Language']) {
-    expect(reached, name).toContain(name);
-  }
+  for (const name of [...expected, 'One', 'editor']) expect(reached, name).toContain(name);
   expect(reached.filter((name) => name === 'One' || name === 'Two')).toEqual(['One']); // The outline is one tab stop.
 
   for (const [button, first] of [['Export', 'Markdown (.md)'], ['Documents', 'k.md']]) {

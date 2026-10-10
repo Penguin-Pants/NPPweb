@@ -20,7 +20,7 @@ Data goes to `./data/notepad.db` unless `DATA_DIR` is set.
 
 1. `npm test` runs the unit and API tests.
 2. `npx playwright install chromium firefox webkit` installs the test browsers (once per Playwright version).
-3. `npm run test:e2e` builds the frontend and runs the browser tests. Chromium runs every spec. Firefox and WebKit run the specs tagged `@smoke`. Each test starts its own server with a fresh data folder.
+3. `npm run test:e2e` builds the frontend and runs the browser tests. Chromium runs every spec. Firefox and WebKit run the specs tagged `@smoke`. The performance spec runs last and alone, after the others pass, because tests running beside it change its times. `npx playwright test --project=perf --no-deps` runs only the performance spec. Each test starts its own server with a fresh data folder.
 
 ## Configuration
 
@@ -89,7 +89,7 @@ Ctrl+N and Ctrl+W (Cmd+N and Cmd+W) work only in the installed app window. In a 
 
 In the find panel, Enter goes to the next match, Shift+Enter to the previous one and Escape closes the panel. Search is literal text and ignores case.
 
-In a Markdown tab, Ctrl+B (Cmd+B) makes text bold, Ctrl+I (Cmd+I) italic and Ctrl+K (Cmd+K) a link. The outline list is one Tab stop: the arrow keys, Home and End move in it and Enter goes to the heading. In menus, the arrow keys move between the items and Escape closes the menu.
+In a Markdown tab, Ctrl+B (Cmd+B) makes text bold, Ctrl+I (Cmd+I) italic and Ctrl+K (Cmd+K) a link. The outline list is one Tab stop: the arrow keys, Home and End move in it and Enter goes to the heading. In menus, the arrow keys move between the items and Escape closes the menu. In the editor, Tab indents: press Escape and then Tab to move the focus out of the editor.
 
 ## Markdown
 
@@ -102,7 +102,7 @@ In a Markdown tab, Ctrl+B (Cmd+B) makes text bold, Ctrl+I (Cmd+I) italic and Ctr
 
 ## Export and drag and drop
 
-- **Export menu:** exports the active tab with its current text, also unsaved edits. Markdown offers `.md`, `.txt` (Markdown marks removed), `.html` (one self-contained page, light theme, no scripts) and PDF (opens the print dialog; choose Save as PDF). Other documents offer their original source and `.txt`.
+- **Export menu:** exports the active tab with its current text, also unsaved edits. Markdown offers `.md`, `.txt` (Markdown marks removed), `.html` (one self-contained page, light theme, no scripts) and PDF (opens the print dialog; choose Save as PDF). Other documents offer their original source, when the name has an extension other than `.txt`, and `.txt`.
 - **Drop files:** drop `.md`, `.markdown`, `.txt`, `.html` or `.htm` files on the page. Each becomes a new document with the file name, and opens in a tab. A taken name gets ` (2)`, ` (3)` and so on. Files over 1 MB, other types and text that is not UTF-8 are not opened, and a message names them. While a dialog is open, dropped files are not opened.
 
 ## Settings
@@ -120,7 +120,7 @@ Account > Settings sets the autosave delay: a whole number of seconds from 1 to 
 - New documents are named "Untitled N". An empty "Untitled N" tab closes without a prompt and its document is deleted.
 - Visual mode shows diagrams as images, so diagram text cannot be selected there. The Mermaid ELK layout is not included; diagrams use the dagre layout.
 - In PDF export, `http:` images do not load. `https:` images do.
-- Typing in a 1 MB Markdown document of notes keeps the 3-second target for 200 characters. In very dense Markdown (a heading, list, table or code block every few lines, all the way through 1 MB) each key takes longer, because the Markdown parser's work grows with the number of blocks.
+- In the performance test, typing 200 characters in a 1 MB Markdown document of notes takes less than 3 seconds. In very dense Markdown (a heading, list, table or code block every few lines, all the way through 1 MB) each key takes longer, because the Markdown parser's work grows with the number of blocks.
 - Notion sync is not built yet.
 
 ## Backups

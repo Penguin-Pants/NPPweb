@@ -12,14 +12,20 @@ const TARGET_BYTES = 1_048_000;
 // which is test time, not app time.
 test.use({ autosaveSeconds: null, trace: 'off' });
 
-/** Repeats blocks up to just under 1 MB, then pads the last line to exactly TARGET_BYTES. */
+/**
+ * Repeats whole blocks while they fit in TARGET_BYTES less 200, then pads the
+ * last line to exactly TARGET_BYTES, so the last line has at least 199
+ * characters.
+ */
 function bigText(block, pad) {
   const parts = [];
   let bytes = 0;
-  for (let i = 0; bytes < TARGET_BYTES - 2000; i += 1) {
+  for (let i = 0; ; i += 1) {
     const part = block(i);
+    const size = Buffer.byteLength(part);
+    if (bytes + size > TARGET_BYTES - 200) break;
     parts.push(part);
-    bytes += Buffer.byteLength(part);
+    bytes += size;
   }
   const text = parts.join('');
   return text + pad.repeat(TARGET_BYTES - Buffer.byteLength(text) - 1) + '\n';
@@ -28,7 +34,7 @@ function bigText(block, pad) {
 const pythonText = () =>
   bigText((i) => `def function_${i}(value, other=None):\n    """Docstring ${i}."""\n    return value * ${i} + len(str(other))  # note\n\n`, '#');
 
-// Notes: prose paragraphs, headings, lists and some code. About 4,000
+// Notes: prose paragraphs, headings, lists and some code. About 4,900
 // top-level blocks.
 const notesText = () =>
   bigText(
@@ -113,7 +119,7 @@ test('a 1 MB Markdown document of notes in Visual mode opens, types and scrolls 
   expect(errors).toEqual([]);
 });
 
-test('a dense 1 MB Markdown document in Visual mode opens, scrolls and keeps counts and the outline in time (CNT-7, OUT-2)', async ({
+test('a dense 1 MB Markdown document in Visual mode opens, scrolls and keeps counts and the outline in time (NFR-2, CNT-7, OUT-2)', async ({
   page,
   api,
   browserName,

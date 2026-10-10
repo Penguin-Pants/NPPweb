@@ -12,7 +12,7 @@ test('a free name stays, a taken one gets (2), (3) and so on before the extensio
   assert.equal(uniqueName('a.tar.md', new Set(['a.tar.md'])), 'a.tar (2).md');
 });
 
-test('accepted files become text with LF line breaks and no byte order mark (DRP-1, DRP-3, DRP-6)', () => {
+test('accepted files become text with LF line breaks and no byte order mark, also when empty (DRP-1, DRP-3, DRP-6, EDGE-13)', () => {
   assert.deepEqual(droppedText({ name: 'README.MD', bytes: bytes('﻿# Hi\r\nthere\rnow') }), { text: '# Hi\nthere\nnow' });
   for (const name of ['a.md', 'a.markdown', 'a.txt', 'a.html', 'a.HTM']) assert.deepEqual(droppedText({ name, bytes: bytes('x') }), { text: 'x' }, name);
   assert.deepEqual(droppedText({ name: 'empty.txt', bytes: new Uint8Array() }), { text: '' }, 'EDGE-13');

@@ -37,7 +37,7 @@ test('the list refreshes when it opens', async ({ page, api }) => {
   await expect(rows(page).locator('.doc-name')).toHaveText(['later.txt']);
 });
 
-test('a click opens the document once and activates its tab', async ({ page, api }) => {
+test('a click opens the document once and activates its tab (LAY-3)', async ({ page, api }) => {
   await createDoc(api, 'notes.txt', 'some notes');
   await login(page);
   await openList(page);
@@ -51,7 +51,7 @@ test('a click opens the document once and activates its tab', async ({ page, api
   await expect(page.getByRole('tab', { name: 'notes.txt' })).toHaveAttribute('aria-selected', 'true');
 });
 
-test('rename updates the list, the open tab and the server', async ({ page, api }) => {
+test('rename updates the list, the open tab and the server (LAY-3)', async ({ page, api }) => {
   const doc = await createDoc(api, 'old-name.txt');
   await login(page);
   await openList(page);
@@ -70,7 +70,7 @@ test('rename updates the list, the open tab and the server', async ({ page, api 
   expect((await (await api.get(`/api/documents/${doc.id}`)).json()).name).toBe('new-name.md');
 });
 
-test('delete asks once, says it is permanent, removes the document and closes its tab', async ({ page, api }) => {
+test('delete asks once, says it is permanent, removes the document and closes its tab (LAY-3)', async ({ page, api }) => {
   const doc = await createDoc(api, 'doomed.txt', 'bye');
   await createDoc(api, 'stays.txt');
   await login(page);
