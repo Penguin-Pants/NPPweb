@@ -1,13 +1,43 @@
 // Markdown formatting commands for the toolbar and keys (MDV-9, MDV-10). Each
 // command takes an editor state and returns a transaction spec, or null when
-// it changes nothing. `run` turns one into a CodeMirror command.
+// it changes nothing. `run` turns one into a CodeMirror command. The commands
+// read the Markdown syntax tree, so they only remove marks that belong to one
+// node (one emphasis, code span, link or code block).
+import { syntaxTree } from '@codemirror/language';
 import { EditorSelection } from '@codemirror/state';
 
 const BULLET = /^(\s*)[-*+][ \t]+/;
 const NUMBER = /^(\s*)\d+[.)][ \t]+/;
 const QUOTE = /^(\s*)>[ \t]?/;
+// Quote and list marks that a heading goes after, then an old heading mark.
+const CONTAINER = /^\s*(?:>[ \t]?)*(?:[-*+][ \t]+|\d+[.)][ \t]+)?/;
 const HEADING = /^#{1,6}[ \t]+/;
-const FENCE = /^\s*(```|~~~)/;
+
+const NODE_FOR = { '**': 'StrongEmphasis', '*': 'Emphasis', '`': 'InlineCode' };
+const MARK_FOR = { StrongEmphasis: 'EmphasisMark', Emphasis: 'EmphasisMark', InlineCode: 'CodeMark', Link: 'LinkMark' };
+
+/** The innermost node named `name` that holds from..to, or null. */
+function enclosing(state, from, to, name) {
+  for (let node = syntaxTree(state).resolveInner(from, 1); node; node = node.parent) {
+    if (node.name === name && node.from <= from && node.to >= to) return node;
+  }
+  return null;
+}
+
+/**
+ * The node named `name` whose content (between its first and last mark) or
+ * whole range is exactly from..to, with its first and last mark.
+ */
+function exactNode(state, from, to, name) {
+  for (let node = syntaxTree(state).resolveInner(from, 1); node; node = node.parent) {
+    if (node.name !== name) continue;
+    const marks = node.getChildren(MARK_FOR[name]);
+    if (marks.length < 2) continue;
+    const [open, close] = [marks[0], marks.at(-1)];
+    if ((from === open.to && to === close.from) || (from === node.from && to === node.to)) return { node, open, close };
+  }
+  return null;
+}
 
 /** The run of `char` that ends at `pos` (dir -1) or starts at it (dir 1). */
 function runLength(text, pos, dir, char) {
@@ -16,38 +46,42 @@ function runLength(text, pos, dir, char) {
   return length;
 }
 
-// For stars, bold needs at least two on each side and italic an odd count,
-// so ***x*** is both and **x** is only bold.
+// For stars right beside the selection, bold needs at least two on each side
+// and italic an odd count, so ***x*** is both and **x** is only bold.
 function hasMarker(left, right, marker) {
   if (marker === '**') return left >= 2 && right >= 2;
   if (marker === '*') return left % 2 === 1 && right % 2 === 1;
   return left >= marker.length && right >= marker.length;
 }
 
+/** Removes the marks of one node and keeps the text between them selected. */
+function unwrap({ node, open, close }, from) {
+  const removed = open.to - open.from;
+  const start = from === node.from ? node.from : from - removed;
+  return {
+    changes: [
+      { from: open.from, to: open.to },
+      { from: close.from, to: close.to },
+    ],
+    range: EditorSelection.range(start, start + (close.from - open.to)),
+  };
+}
+
 /** Wraps each selection in `marker`, or removes it when it is there. */
 function toggleInline(state, marker) {
   const size = marker.length;
-  const char = marker[0];
   const doc = state.doc.toString();
   return state.changeByRange((range) => {
     const { from, to } = range;
-    if (hasMarker(runLength(doc, from, -1, char), runLength(doc, to, 1, char), marker)) {
+    const exact = exactNode(state, from, to, NODE_FOR[marker]);
+    if (exact) return unwrap(exact, from);
+    if (hasMarker(runLength(doc, from, -1, marker[0]), runLength(doc, to, 1, marker[0]), marker)) {
       return {
         changes: [
           { from: from - size, to: from },
           { from: to, to: to + size },
         ],
         range: EditorSelection.range(from - size, to - size),
-      };
-    }
-    const text = doc.slice(from, to);
-    if (text.length >= 2 * size && hasMarker(runLength(text, 0, 1, char), runLength(text, text.length, -1, char), marker)) {
-      return {
-        changes: [
-          { from, to: from + size },
-          { from: to - size, to },
-        ],
-        range: EditorSelection.range(from, to - 2 * size),
       };
     }
     return {
@@ -64,11 +98,15 @@ export const toggleBold = (state) => toggleInline(state, '**');
 export const toggleItalic = (state) => toggleInline(state, '*');
 export const toggleInlineCode = (state) => toggleInline(state, '`');
 
-/** The lines that the selection touches, in order, without repeats. */
+/**
+ * The lines that the selection touches, in order, without repeats. A
+ * selection that ends at the start of a line leaves that line out.
+ */
 function selectedLines(state) {
   const seen = new Map();
   for (const range of state.selection.ranges) {
-    const last = state.doc.lineAt(range.to).number;
+    const end = !range.empty && state.doc.lineAt(range.to).from === range.to ? range.to - 1 : range.to;
+    const last = state.doc.lineAt(end).number;
     for (let n = state.doc.lineAt(range.from).number; n <= last; n += 1) seen.set(n, state.doc.line(n));
   }
   return [...seen.values()].sort((a, b) => a.number - b.number);
@@ -80,25 +118,26 @@ function editLines(lines, edit) {
   return changes.length === 0 ? null : { changes };
 }
 
+// Commands on lines skip blank lines, unless every selected line is blank.
+function contentLines(state) {
+  const lines = selectedLines(state);
+  const filled = lines.filter((line) => line.text.trim() !== '');
+  return filled.length > 0 ? filled : lines;
+}
+
 /**
- * Sets the heading level (1 to 6) of each selected line. 0 makes it a normal line.
+ * Sets the heading level (1 to 6) of each selected line, after its quote or
+ * list marks. 0 makes it a normal line.
  * @param {import('@codemirror/state').EditorState} state
  * @param {number} level
  */
 export function setHeading(state, level) {
   const prefix = level > 0 ? `${'#'.repeat(level)} ` : '';
-  return editLines(selectedLines(state), (line) => {
-    const old = HEADING.exec(line.text)?.[0] ?? '';
-    return old === prefix ? null : { from: line.from, to: line.from + old.length, insert: prefix };
+  return editLines(contentLines(state), (line) => {
+    const start = CONTAINER.exec(line.text)[0].length;
+    const old = HEADING.exec(line.text.slice(start))?.[0] ?? '';
+    return old === prefix ? null : { from: line.from + start, to: line.from + start + old.length, insert: prefix };
   });
-}
-
-// List and quote toggles skip blank lines. When every other line already has
-// the marker, they remove it. Otherwise they add it where it is missing.
-function contentLines(state) {
-  const lines = selectedLines(state);
-  const filled = lines.filter((line) => line.text.trim() !== '');
-  return filled.length > 0 ? filled : lines;
 }
 
 /** Replaces the part of `line` that `pattern` matches after the indent. */
@@ -109,6 +148,8 @@ function replaceMarker(line, pattern, insert) {
   return { from: line.from + indent, to: line.from + end, insert };
 }
 
+// When every selected line already has the marker, it goes. Otherwise it is
+// added where it is missing.
 export function toggleBulletList(state) {
   const lines = contentLines(state);
   if (lines.every((line) => BULLET.test(line.text))) return editLines(lines, (line) => replaceMarker(line, BULLET, ''));
@@ -133,10 +174,24 @@ export function toggleQuote(state) {
   return editLines(lines, (line) => (QUOTE.test(line.text) ? null : { from: line.from, insert: '> ' }));
 }
 
-/** Turns each selection into a link and selects the URL to type over. */
+/**
+ * Turns each selection into a link and selects the URL to type over. Inside
+ * a link, it removes the link and keeps its text selected (MDV-9).
+ */
 export function insertLink(state) {
   const url = 'https://';
   return state.changeByRange(({ from, to }) => {
+    const link = enclosing(state, from, to, 'Link');
+    const marks = link?.getChildren('LinkMark') ?? [];
+    if (link && marks.length >= 2) {
+      return {
+        changes: [
+          { from: link.from, to: marks[0].to },
+          { from: marks[1].from, to: link.to },
+        ],
+        range: EditorSelection.range(link.from, link.from + (marks[1].from - marks[0].to)),
+      };
+    }
     const text = from === to ? 'link' : '';
     const start = to + text.length + 3;
     return {
@@ -149,26 +204,31 @@ export function insertLink(state) {
   });
 }
 
-/** Puts fences around the selected lines, or removes the fences around them. */
+/**
+ * Removes the fences of the code block that holds the selection. Otherwise
+ * puts fences around the selected lines and keeps the selection inside.
+ */
 export function toggleCodeBlock(state) {
-  const { from, to } = state.selection.main;
-  const first = state.doc.lineAt(from);
-  const last = state.doc.lineAt(to);
-  const before = first.number > 1 ? state.doc.line(first.number - 1) : null;
-  const after = last.number < state.doc.lines ? state.doc.line(last.number + 1) : null;
-  if (before && after && FENCE.test(before.text) && FENCE.test(after.text)) {
-    return {
-      changes: [
-        { from: before.from, to: first.from },
-        { from: last.to, to: after.to },
-      ],
-    };
+  const { from, to, anchor, head } = state.selection.main;
+  const block = enclosing(state, from, to, 'FencedCode');
+  if (block) {
+    const doc = state.doc;
+    const open = doc.lineAt(block.from);
+    const close = doc.lineAt(block.to);
+    const closed = close.number > open.number && /^\s*(```|~~~)/.test(close.text);
+    const changes = [{ from: open.from, to: Math.min(open.to + 1, doc.length) }];
+    if (closed) changes.push({ from: close.from - 1, to: close.to });
+    return { changes };
   }
+  const lines = selectedLines(state);
+  const first = lines[0];
+  const last = lines.at(-1);
   return {
     changes: [
       { from: first.from, insert: '```\n' },
       { from: last.to, insert: '\n```' },
     ],
+    selection: EditorSelection.single(anchor + 4, head + 4),
   };
 }
 

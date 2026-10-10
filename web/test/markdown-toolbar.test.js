@@ -6,6 +6,9 @@ import { createToolbar } from '../src/markdown-toolbar.js';
 
 function fakeDoc() {
   return {
+    activeElement: null,
+    body: {},
+    addEventListener() {},
     createElement(tag) {
       const listeners = {};
       const node = {
@@ -20,6 +23,7 @@ function fakeDoc() {
         setAttribute: (key, value) => (node.attrs[key] = value),
         addEventListener: (type, handler) => (listeners[type] = handler),
         fire: (type, event = { preventDefault() {} }) => listeners[type]?.(event),
+        focus() {},
       };
       return node;
     },
@@ -42,16 +46,20 @@ function setup(view) {
   const element = doc.createElement('div');
   createToolbar({ element, getView: () => view, modName: 'Ctrl', doc });
   const [heading, ...buttons] = element.children;
+  const [headingButton, headingMenu] = heading.children;
   const button = (name) => buttons.find((b) => b.attrs['aria-label'] === name);
-  return { heading, buttons, button };
+  const level = (label) => headingMenu.children.find((item) => item.textContent === label);
+  return { headingButton, headingMenu, buttons, button, level };
 }
 
-test('the toolbar has a heading select and the eight format buttons with names and tooltips', () => {
-  const { heading, buttons, button } = setup(null);
-  assert.equal(heading.attrs['aria-label'], 'Heading level');
+test('the toolbar has a heading menu and the eight format buttons with names and tooltips', () => {
+  const { headingButton, headingMenu, buttons, button } = setup(null);
+  assert.equal(headingButton.textContent, 'Heading');
+  assert.equal(headingMenu.attrs['aria-label'], 'Heading level');
+  assert.equal(headingMenu.hidden, true);
   assert.deepEqual(
-    heading.children.map((o) => [o.textContent, o.value]),
-    [['Heading', ''], ['Normal text', '0'], ...[1, 2, 3, 4, 5, 6].map((n) => [`Heading ${n}`, String(n)])],
+    headingMenu.children.map((item) => item.textContent),
+    ['Normal text', ...[1, 2, 3, 4, 5, 6].map((n) => `Heading ${n}`)],
   );
   assert.deepEqual(
     buttons.map((b) => b.attrs['aria-label']),
@@ -78,13 +86,17 @@ test('a button press keeps the editor focus, and does nothing with no view', () 
   button('Bold').fire('click');
 });
 
-test('the heading select sets the level, then shows its placeholder again', () => {
-  const view = fakeView('Title', 0, 0);
-  const { heading } = setup(view);
-  heading.value = '3';
-  heading.fire('change');
+test('a heading menu item sets the level and closes the menu', () => {
+  const view = fakeView('## Title', 0, 0);
+  const { headingButton, headingMenu, level } = setup(view);
+  headingButton.fire('click');
+  assert.equal(headingMenu.hidden, false);
+  level('Heading 3').fire('click');
   assert.equal(view.state.doc.toString(), '### Title');
-  assert.equal(heading.value, '');
+  assert.equal(headingMenu.hidden, true);
+  assert.equal(view.focused, true);
+  level('Normal text').fire('click');
+  assert.equal(view.state.doc.toString(), 'Title');
 });
 
 test('run dispatches a command and returns false when it changes nothing', () => {

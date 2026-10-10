@@ -1,5 +1,7 @@
 // Formatting toolbar for Markdown tabs (MDV-9). It shows in both modes. Each
-// button adds or removes Markdown marks through markdown-commands.js.
+// button adds or removes Markdown marks through markdown-commands.js. The
+// heading level is a dropdown menu, so it works from the keyboard (NFR-5).
+import { createDropdown } from './dropdown.js';
 import {
   insertLink,
   run,
@@ -39,20 +41,34 @@ export function createToolbar({ element, getView, modName, doc = document }) {
     view.focus();
   };
 
-  const option = (label, value) => {
-    const node = doc.createElement('option');
-    node.textContent = label;
-    node.value = value;
-    return node;
-  };
-  const heading = doc.createElement('select');
-  heading.setAttribute('aria-label', 'Heading level');
-  heading.append(option('Heading', ''), option('Normal text', '0'));
-  for (let level = 1; level <= 6; level += 1) heading.append(option(`Heading ${level}`, String(level)));
-  heading.addEventListener('change', () => {
-    if (heading.value !== '') apply(setHeading, Number(heading.value));
-    heading.value = '';
+  // Keep the editor's focus and selection while a mouse button is down.
+  const keepFocus = (button) => button.addEventListener('mousedown', (event) => event.preventDefault());
+
+  const headingRoot = doc.createElement('span');
+  headingRoot.className = 'menu';
+  const headingButton = doc.createElement('button');
+  headingButton.type = 'button';
+  headingButton.textContent = 'Heading';
+  headingButton.setAttribute('aria-expanded', 'false');
+  const headingMenu = doc.createElement('div');
+  headingMenu.className = 'menu-list heading-menu';
+  headingMenu.setAttribute('aria-label', 'Heading level');
+  headingMenu.hidden = true;
+  const levels = ['Normal text', 'Heading 1', 'Heading 2', 'Heading 3', 'Heading 4', 'Heading 5', 'Heading 6'].map((label, level) => {
+    const item = doc.createElement('button');
+    item.type = 'button';
+    item.textContent = label;
+    keepFocus(item);
+    item.addEventListener('click', () => {
+      dropdown.close();
+      apply(setHeading, level);
+    });
+    return item;
   });
+  headingMenu.append(...levels);
+  headingRoot.append(headingButton, headingMenu);
+  keepFocus(headingButton);
+  const dropdown = createDropdown({ root: headingRoot, button: headingButton, panel: headingMenu, items: () => levels, doc });
 
   const buttons = BUTTONS.map(({ label, name, key, command, className }) => {
     const button = doc.createElement('button');
@@ -61,10 +77,9 @@ export function createToolbar({ element, getView, modName, doc = document }) {
     button.setAttribute('aria-label', name);
     button.title = key ? `${name} (${modName}+${key})` : name;
     if (className) button.className = className;
-    // Keep the editor's focus and selection while the button is pressed.
-    button.addEventListener('mousedown', (event) => event.preventDefault());
+    keepFocus(button);
     button.addEventListener('click', () => apply(command));
     return button;
   });
-  element.append(heading, ...buttons);
+  element.append(headingRoot, ...buttons);
 }

@@ -106,6 +106,10 @@ test('fenced code uses the language named by its info string (MDV-11)', () => {
     ['js', 'let a = 1', 'VariableDeclaration'],
     ['json', '{"a": 1}', 'Object'],
     ['bash', 'echo hi', 'variableName.standard'],
+    ['html', '<div>hi</div>', 'Element'],
+    ['css', 'a { color: red }', 'RuleSet'],
+    ['ts', 'interface A {}', 'InterfaceDeclaration'],
+    ['yaml', 'key: value', 'Pair'],
   ]) {
     const doc = `\`\`\`${info}\n${code}\n\`\`\`\n`;
     assert.ok(namesAt(doc, doc.indexOf(code) + 1).includes(inner), `${info}: ${namesAt(doc, doc.indexOf(code) + 1)}`);

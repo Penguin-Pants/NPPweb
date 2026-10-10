@@ -471,6 +471,11 @@ button.danger {
   font-size: 12px;
 }
 
+.md-toolbar .heading-menu {
+  left: 0;
+  right: auto;
+}
+
 .md-toolbar .md-bold {
   font-weight: 700;
 }

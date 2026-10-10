@@ -318,6 +318,19 @@ Two-pass review of each V2 phase diff (`REQUIREMENTS_V2.md` section 9). Same met
 | M11 | 2 | No test proved that each toolbar button runs its own command. | Confirmed | E2E test applies all eight buttons. Unit tests for `createToolbar` and `run` with a fake document. A swapped Italic command fails a test. |
 | M11 | 3 | MDV-10 needs Ctrl+K to reach the page in Firefox and Safari. Only Chromium runs here. | Risk | Unverified assumption. Owner check in Firefox and Safari (section 13). |
 | M11 | 4 | Visual mode uses the interface font for prose, so line widths change on a toggle. | Rejected | Expected for a visual mode. Code, tables and inline code keep the mono font. |
+| M11 | 5 | Replace decorations that crossed a line break (an image whose alt text wraps, a link whose title is on the next line, a split reference label) made CodeMirror throw. The editor stopped taking text until a reload. | Confirmed | Fixed in the review commit: hides split at line breaks and widgets stay on one line. A unit test checks that no replace spec holds a line break. An E2E test types after a multi-line image. |
+| M11 | 6 | A long fenced block walked all its lines on every rebuild (2044 ms for 40 ArrowDown in a 1 MB block), and the reveal check built a Set of all selected lines. | Confirmed | Only the lines in the visible range are walked. The reveal check compares line bounds. Unit test added. M16 measures Visual mode on 1 MB (NFR-2). |
+| M11 | 7 | Every [text] was styled as a link. Reference links had no URL, so Ctrl+click and image loading failed. | Confirmed | A link is styled only with its own URL or a matching definition (`markdown-syntax.js`). Unit and E2E tests added. |
+| M11 | 8 | The heading select applied a level on the first ArrowDown, so keyboard users could not pick one (NFR-5). | Confirmed | The heading level is a dropdown menu built on `dropdown.js`. Keyboard E2E test added. |
+| M11 | 9 | Any mouse button toggled a task, and Ctrl+click opened links on macOS, where it means right-click. | Confirmed | Left button only. Cmd on macOS, Ctrl elsewhere. E2E test checks a right-click. |
+| M11 | 10 | The code block button merged two blocks or split one, and put the cursor before the fence. | Confirmed | It uses the syntax tree: inside a block it removes that block's fences, else it fences the lines and keeps the cursor inside. Unit tests added. |
+| M11 | 11 | Line commands included the line where the selection ended at column 0. | Confirmed | That line is left out. Unit tests added. |
+| M11 | 12 | Inline toggles stripped the outer marks of a selection over two emphases, and the Link button never removed a link. | Confirmed | Unwrap only an exact emphasis, code span or link from the syntax tree, else wrap. Link inside a link removes it. Unit tests added. |
+| M11 | 13 | setHeading changed blank lines and put the heading before list and quote marks. | Confirmed | Blank lines are skipped and the heading goes after the marks. |
+| M11 | 14 | A heading or a fence inside a quote got overlapping hides. Quote marks inside a fenced block were not hidden. | Confirmed | Fixed. Unit test checks that hides never overlap. |
+| M11 | 15 | The MDV-10 shortcut test did not run in Firefox and WebKit. | Confirmed | Tagged `@smoke`. Those browsers are not installed here (section 13). |
+| M11 | 16 | Link targets kept angle brackets, escapes and entities. E-mail autolinks had no mailto:. | Confirmed | `linkTarget` normalizes them. Unit tests added. |
+| M11 | 17 | Test gaps: no http: image test, a scroll test that passed at the end of the document, no html, css, ts or yaml fence tests. Dead branches (`Autolink` in LINK_PARENTS, a CodeMark check) and FENCE twice. | Confirmed | Tests added. Dead code removed. FENCE lives in `markdown-syntax.js`. Widget DOM and the click handler stay covered by E2E tests, as for other DOM wiring. |
 
 ## 13. V2 validation environment
 

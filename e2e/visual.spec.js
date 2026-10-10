@@ -95,6 +95,9 @@ test('a task box click switches the task, and Ctrl+click opens a link in a new t
   await context.route('https://example.com/**', (route) => route.fulfill({ status: 200, contentType: 'text/html', body: 'ok' }));
   const [id] = await openDocs(page, api, [['a.md', '- [ ] todo\n\n[site](https://example.com/page)\n\nend']]);
   await line(page, 'end').click();
+  await page.locator('.cm-md-task').click({ button: 'right' });
+  await page.keyboard.press('Escape');
+  await line(page, 'end').click();
   await page.locator('.cm-md-task').click();
   expect(await stored(page, api, id)).toBe('- [x] todo\n\n[site](https://example.com/page)\n\nend');
 
@@ -126,13 +129,14 @@ test('the toolbar formats the selection (MDV-9)', async ({ page, api }) => {
   }
   await line(page, 'word').dblclick();
   await toolbar(page).getByRole('button', { name: 'Bold', exact: true }).click();
-  await toolbar(page).getByLabel('Heading level').selectOption('Heading 2');
+  await toolbar(page).getByRole('button', { name: 'Heading', exact: true }).click();
+  await toolbar(page).getByRole('button', { name: 'Heading 2' }).click();
   expect(await stored(page, api, id)).toBe('## **word**\n\nend');
   await toolbar(page).getByRole('button', { name: 'Quote' }).click();
   expect(await stored(page, api, id)).toBe('> ## **word**\n\nend');
 });
 
-test('Ctrl+B, Ctrl+I and Ctrl+K format the selection (MDV-10)', async ({ page, api }) => {
+test('Ctrl+B, Ctrl+I and Ctrl+K format the selection (MDV-10) @smoke', async ({ page, api }) => {
   const [id] = await openDocs(page, api, [['a.md', 'one two three\n\nend']]);
   await toggle(page).click(); // Raw mode: every character is visible, so arrows move one at a time.
   const press = async (key, times = 1) => {
@@ -188,17 +192,62 @@ test('remote images wait for a click, data images show at once, relative ones ne
   expect(imageRequests).toBe(1);
 });
 
+test('an http: image never loads and has no Load button (EDGE-25)', async ({ page, api }) => {
+  let requests = 0;
+  await page.route('http://insecure.example/**', (route) => {
+    requests += 1;
+    return route.fulfill({ status: 200, contentType: 'image/png', body: Buffer.from(PNG_BASE64, 'base64') });
+  });
+  await openDocs(page, api, [['a.md', '![plain http](http://insecure.example/a.png)\n\nend']]);
+  await line(page, 'end').click();
+  const box = page.locator('.cm-md-image-placeholder', { hasText: 'plain http' });
+  await expect(box).toBeVisible();
+  await expect(box.getByRole('button')).toHaveCount(0);
+  await page.waitForTimeout(300);
+  expect(requests).toBe(0);
+});
+
 test('the cursor line stays in view across a toggle (MDV-6)', async ({ page, api }) => {
   const body = Array.from({ length: 300 }, (_, i) => (i % 20 === 0 ? `# Heading ${i}` : `line ${i} with **bold**`)).join('\n');
-  await openDocs(page, api, [['long.md', `${body}\nlast line`]]);
+  await openDocs(page, api, [['long.md', body]]);
   await page.locator('.cm-content').focus();
-  await page.keyboard.press('ControlOrMeta+End');
-  const last = line(page, 'last line');
-  await expect(last).toBeInViewport();
+  for (let i = 0; i < 150; i += 1) await page.keyboard.press('ArrowDown');
+  const cursorLine = page.locator('.cm-activeLine');
+  await expect(cursorLine).toContainText('line 150');
+  await expect(cursorLine).toBeInViewport();
   for (let i = 0; i < 2; i += 1) {
     await toggle(page).click();
-    await expect(last).toBeInViewport();
+    await expect(cursorLine).toContainText('line 150');
+    await expect(cursorLine).toBeInViewport();
   }
+});
+
+test('the heading menu works from the keyboard (MDV-9, NFR-5)', async ({ page, api }) => {
+  const [id] = await openDocs(page, api, [['a.md', 'Title\n\nend']]);
+  await line(page, 'Title').click();
+  await toolbar(page).getByRole('button', { name: 'Heading', exact: true }).focus();
+  await page.keyboard.press('ArrowDown');
+  await expect(toolbar(page).getByRole('button', { name: 'Normal text' })).toBeFocused();
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('ArrowDown');
+  await expect(toolbar(page).getByRole('button', { name: 'Heading 2' })).toBeFocused();
+  await page.keyboard.press('Enter');
+  expect(await stored(page, api, id)).toBe('## Title\n\nend');
+});
+
+test('a reference link opens on Ctrl+click, and a multi-line image keeps the editor working (MDV-7, review M11 1)', async ({ page, context, api }) => {
+  await context.route('https://docs.example/**', (route) => route.fulfill({ status: 200, contentType: 'text/html', body: 'ok' }));
+  const [id] = await openDocs(page, api, [
+    ['a.md', 'see [the docs][d]\n\n![a long\nalt](https://img.example/a.png)\n\nend\n\n[d]: https://docs.example/start'],
+  ]);
+  await line(page, /^end$/).click();
+  const popup = context.waitForEvent('page');
+  await page.locator('.cm-md-link', { hasText: 'the docs' }).click({ modifiers: ['ControlOrMeta'] });
+  expect((await popup).url()).toBe('https://docs.example/start');
+  await line(page, /^end$/).click();
+  await page.keyboard.press('End');
+  await page.keyboard.type('!');
+  expect(await stored(page, api, id)).toContain('end!');
 });
 
 test('each toolbar button applies its own format (MDV-9)', async ({ page, api }) => {

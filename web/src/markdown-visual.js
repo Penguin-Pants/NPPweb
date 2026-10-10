@@ -6,6 +6,8 @@ import { syntaxTree } from '@codemirror/language';
 import { StateEffect } from '@codemirror/state';
 import { Decoration, EditorView, ViewPlugin, WidgetType } from '@codemirror/view';
 import { languageId } from './languages.js';
+import { linkTarget, normalizeLabel, referenceDefinitions } from './markdown-syntax.js';
+import { isMac } from './shortcuts.js';
 
 /**
  * @typedef {{ kind: 'hide', from: number, to: number }
@@ -22,22 +24,13 @@ const INLINE_STYLES = {
   Strikethrough: 'cm-md-strike',
   InlineCode: 'cm-md-inline-code',
 };
-const LINK_PARENTS = new Set(['Link', 'Image', 'Autolink', 'LinkReference']);
-const FENCE = /^\s*(```|~~~)/;
-
-/** Line numbers that a selection range touches (MDV-5). */
-function revealedLines(state) {
-  const lines = new Set();
-  for (const range of state.selection.ranges) {
-    const last = state.doc.lineAt(range.to).number;
-    for (let n = state.doc.lineAt(range.from).number; n <= last; n += 1) lines.add(n);
-  }
-  return lines;
-}
+const LINK_PARENTS = new Set(['Link', 'Image', 'LinkReference']);
 
 /**
  * What Visual mode shows for the part of the document from `from` to `to`.
- * Pure: it reads the state's syntax tree and selection.
+ * Pure: it reads the state's syntax tree and selection. A hide never covers
+ * a line break and a widget stays on one line, because CodeMirror does not
+ * let a plugin replace line breaks.
  * @param {import('@codemirror/state').EditorState} state
  * @param {number} from
  * @param {number} to
@@ -45,13 +38,24 @@ function revealedLines(state) {
  */
 export function collectVisual(state, from, to) {
   const { doc } = state;
-  const revealed = revealedLines(state);
-  const isRevealed = (pos) => revealed.has(doc.lineAt(pos).number);
+  const tree = syntaxTree(state);
+  // Lines that the selection touches show their marks (MDV-5).
+  const shown = state.selection.ranges.map((range) => [doc.lineAt(range.from).from, doc.lineAt(range.to).to]);
+  const isRevealed = (pos) => shown.some(([a, b]) => pos >= a && pos <= b);
+  const oneLine = (a, b) => doc.lineAt(a).number === doc.lineAt(b).number;
   /** @type {VisualSpec[]} */
   const specs = [];
   const text = (a, b) => doc.sliceString(a, b);
   const hide = (a, b) => {
-    if (a < b && !isRevealed(a)) specs.push({ kind: 'hide', from: a, to: b });
+    for (let start = a; start < b; ) {
+      const line = doc.lineAt(start);
+      const end = Math.min(b, line.to);
+      if (end > start && !isRevealed(start)) specs.push({ kind: 'hide', from: start, to: end });
+      start = line.to + 1;
+    }
+  };
+  const widget = (spec) => {
+    if (oneLine(spec.from, spec.to) && !isRevealed(spec.from)) specs.push(spec);
   };
   const mark = (a, b, cls, href) => specs.push({ kind: 'mark', from: a, to: b, cls, ...(href && { href }) });
   const line = (pos, cls) => {
@@ -60,8 +64,16 @@ export function collectVisual(state, from, to) {
   };
   // The mark plus one following space, as in "# " or "> ".
   const withSpace = (node) => node.to + (text(node.to, node.to + 1) === ' ' ? 1 : 0);
+  /** The URL of a link or image: its own, else the one of its reference definition. */
+  const target = (node, marks) => {
+    const url = node.getChild('URL');
+    if (url) return linkTarget(text(url.from, url.to));
+    const label = node.getChild('LinkLabel');
+    const key = label && label.to - label.from > 2 ? text(label.from, label.to) : text(marks[0].to, marks[1].from);
+    return referenceDefinitions(tree, text).get(normalizeLabel(key));
+  };
 
-  syntaxTree(state).iterate({
+  tree.iterate({
     from,
     to,
     enter(ref) {
@@ -84,63 +96,67 @@ export function collectVisual(state, from, to) {
       }
       switch (name) {
         case 'HeaderMark': {
-          if (node.parent?.name.startsWith('Setext')) hide(node.from, node.to);
-          else if (node.from === doc.lineAt(node.from).from) hide(node.from, withSpace(node));
+          const parent = node.parent;
+          if (parent?.name.startsWith('Setext')) hide(node.from, node.to);
+          else if (node.from === parent?.from) hide(node.from, withSpace(node));
           else hide(text(node.from - 1, node.from) === ' ' ? node.from - 1 : node.from, node.to);
           return;
         }
         case 'EmphasisMark':
         case 'StrikethroughMark':
-        case 'Escape':
-          hide(node.from, name === 'Escape' ? node.from + 1 : node.to);
-          return;
         case 'CodeMark':
-          if (node.parent?.name === 'InlineCode') hide(node.from, node.to);
+          hide(node.from, node.to);
+          return;
+        case 'Escape':
+          hide(node.from, node.from + 1);
           return;
         case 'FencedCode':
         case 'CodeBlock': {
-          const first = doc.lineAt(node.from);
-          const last = doc.lineAt(node.to);
-          for (let n = first.number; n <= last.number; n += 1) {
+          // Only the lines in the range, so a long block costs nothing off screen.
+          const marks = name === 'FencedCode' ? node.getChildren('CodeMark') : [];
+          const open = marks[0];
+          const close = marks.length > 1 ? marks.at(-1) : null;
+          const first = Math.max(doc.lineAt(node.from).number, doc.lineAt(from).number);
+          const last = Math.min(doc.lineAt(node.to).number, doc.lineAt(to).number);
+          const onLine = (mark, current) => mark && current.from <= mark.from && mark.from <= current.to;
+          for (let n = first; n <= last; n += 1) {
             const current = doc.line(n);
-            const fence = name === 'FencedCode' && (n === first.number || (n === last.number && FENCE.test(current.text)));
+            const fence = onLine(open, current) ? open : onLine(close, current) ? close : null;
             line(current.from, fence ? 'cm-md-codeblock cm-md-fence' : 'cm-md-codeblock');
-            if (fence) hide(current.from, current.to);
+            if (fence) hide(fence.from, current.to);
+          }
+          // A block inside a quote holds the quote marks of its lines.
+          for (const quote of node.getChildren('QuoteMark')) {
+            if (quote.from >= from && quote.from <= to) {
+              line(quote.from, 'cm-md-quote');
+              hide(quote.from, withSpace(quote));
+            }
           }
           return false;
         }
         case 'Link': {
           const marks = node.getChildren('LinkMark');
           if (marks.length < 2) return;
-          const href = node.getChild('URL');
+          const href = target(node, marks);
+          if (href === undefined) return; // [text] with no definition stays plain text.
           hide(node.from, marks[0].to);
           hide(marks[1].from, node.to);
-          mark(marks[0].to, marks[1].from, 'cm-md-link', href ? text(href.from, href.to) : undefined);
+          mark(marks[0].to, marks[1].from, 'cm-md-link', href);
           return;
         }
         case 'Autolink': {
           const url = node.getChild('URL');
           for (const linkMark of node.getChildren('LinkMark')) hide(linkMark.from, linkMark.to);
-          if (url) mark(url.from, url.to, 'cm-md-link', text(url.from, url.to));
+          if (url) mark(url.from, url.to, 'cm-md-link', linkTarget(text(url.from, url.to)));
           return false;
         }
-        case 'URL': {
-          if (LINK_PARENTS.has(node.parent?.name ?? '')) return;
-          const url = text(node.from, node.to);
-          mark(node.from, node.to, 'cm-md-link', url.startsWith('www.') ? `https://${url}` : url);
+        case 'URL':
+          if (!LINK_PARENTS.has(node.parent?.name ?? '')) mark(node.from, node.to, 'cm-md-link', linkTarget(text(node.from, node.to)));
           return;
-        }
         case 'Image': {
           const marks = node.getChildren('LinkMark');
-          const url = node.getChild('URL');
-          if (!isRevealed(node.from) && marks.length >= 2) {
-            specs.push({
-              kind: 'image',
-              from: node.from,
-              to: node.to,
-              alt: text(marks[0].to, marks[1].from),
-              url: url ? text(url.from, url.to) : '',
-            });
+          if (marks.length >= 2) {
+            widget({ kind: 'image', from: node.from, to: node.to, alt: text(marks[0].to, marks[1].from), url: target(node, marks) ?? '' });
           }
           return false;
         }
@@ -152,13 +168,11 @@ export function collectVisual(state, from, to) {
           const item = node.parent;
           if (item?.parent?.name === 'OrderedList') mark(node.from, node.to, 'cm-md-list-number');
           else if (item?.getChild('Task')) hide(node.from, withSpace(node));
-          else if (!isRevealed(node.from)) specs.push({ kind: 'bullet', from: node.from, to: node.to });
+          else widget({ kind: 'bullet', from: node.from, to: node.to });
           return;
         }
         case 'TaskMarker':
-          if (!isRevealed(node.from)) {
-            specs.push({ kind: 'task', from: node.from, to: node.to, checked: /x/i.test(text(node.from, node.to)) });
-          }
+          widget({ kind: 'task', from: node.from, to: node.to, checked: /x/i.test(text(node.from, node.to)) });
           return;
         case 'HorizontalRule':
           line(node.from, 'cm-md-hr');
@@ -345,11 +359,12 @@ const visualPlugin = ViewPlugin.fromClass(
 
 const SAFE_LINK = /^(https?:|mailto:)/i;
 
-// A click on a task box switches [ ] and [x]. Ctrl+click (Cmd+click on macOS)
-// opens a link in a new browser tab (MDV-7). Other clicks place the cursor.
+// A left click on a task box switches [ ] and [x]. Ctrl+click (Cmd+click on
+// macOS, where Ctrl+click opens the context menu) opens a link in a new
+// browser tab (MDV-7). Other clicks place the cursor.
 const clickHandlers = EditorView.domEventHandlers({
   mousedown(event, view) {
-    if (!isMarkdown(view.state) || !(event.target instanceof Element)) return false;
+    if (event.button !== 0 || !isMarkdown(view.state) || !(event.target instanceof Element)) return false;
     const box = event.target.closest('.cm-md-task');
     if (box) {
       const pos = view.posAtDOM(box);
@@ -361,7 +376,7 @@ const clickHandlers = EditorView.domEventHandlers({
     }
     const link = event.target.closest('.cm-md-link');
     const href = link?.getAttribute('data-href');
-    if ((event.ctrlKey || event.metaKey) && href && SAFE_LINK.test(href)) {
+    if ((isMac() ? event.metaKey : event.ctrlKey) && href && SAFE_LINK.test(href)) {
       window.open(href, '_blank', 'noopener,noreferrer');
       event.preventDefault();
       return true;
