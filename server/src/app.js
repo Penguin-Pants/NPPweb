@@ -50,6 +50,8 @@ export async function buildApp({ config, db, clock = Date.now, logger, webRoot =
     request.log.error(error);
     return reply.code(500).send({ error: 'internal_error' });
   });
+  // Unknown routes and missing static files, which @fastify/static hands on.
+  app.setNotFoundHandler((request, reply) => reply.code(404).send({ error: 'not_found' }));
 
   // Awaited so its cookie parser runs before the gate hook below.
   await app.register(fastifyCookie);

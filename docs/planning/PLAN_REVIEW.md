@@ -598,6 +598,9 @@ Two-pass review of each fix task. Same method and verdicts as section 10.
 | C4 | 5 | Backspace also closes, so a stray Backspace on a focused tab opens the close dialog. | Rejected | The dialog focuses Keep. An empty "Untitled N" closes with no prompt (DOC-6), but it holds no text. macOS keyboards have no Delete key. |
 | C4 | 6 | The ARIA tabs pattern also links each tab to a tab panel (`aria-controls`). | Rejected | One editor view serves every tab. axe needs no `aria-controls`, and NFR-5 asks for names and keys. |
 | C4 | 7 | 12 e2e steps clicked the close button by its role and name. | Confirmed | `closeButton(page, name)` in `e2e/fixtures.js` finds the mark in the named tab. |
+| C3 | 1 | The not-found handler could answer before the gate, so a request without a session would learn which paths exist. | Rejected | Root `onRequest` hooks also run for the not-found handler. `gate.test.js` (unknown paths without a session get 401) passes. |
+| C3 | 2 | A signed-in browser that opens an unknown page gets JSON, not HTML. | Rejected | Fastify's own 404 was JSON too. The app has one page, and every link it makes is known. |
+| C3 | 3 | The handler adds routes that the route sweep (`registeredRoutes`) would have to list. | Rejected | The gate tests pass unchanged. |
 
 ### Audit validation environment
 
@@ -607,3 +610,4 @@ Two-pass review of each fix task. Same method and verdicts as section 10.
 - C1: `npm test` 424 of 424. Chromium e2e 170 passed, plus the 2 known flakes. Alone, the STB-2 test passed and the CLR-6 test failed 5 of 5 retries. The CLR-6 rate is the same without C1 (3 of 6 failed) and with C1 (4 of 6 failed). The 2 new tests failed first on an assertion.
 - C2: `npm test` 425 of 425. Chromium e2e 174 passed, plus the CLR-6 flake, which passed on its first retry. The new unit test and both new e2e tests failed first on an assertion.
 - C4: `npm test` 425 of 425. Chromium e2e 174 passed, plus the 2 known flakes. Alone, STB-2 passed on a retry. CLR-6 failed 9 of 10 runs without C4 and 7 of 10 with C4. The new test failed first on an assertion (3 buttons in the tab list).
+- C3: `npm test` 426 of 426. Chromium e2e 175 passed, plus the CLR-6 flake. The new test failed first on an assertion (the Fastify 404 body).
