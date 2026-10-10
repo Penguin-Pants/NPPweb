@@ -7,19 +7,22 @@ const tabs = (page) => page.getByRole('tab');
  * Dispatches Mod+<key> on document, as an installed app window delivers it.
  * Returns whether the page called preventDefault.
  */
-function dispatchMod(page, code) {
-  return page.evaluate((keyCode) => {
-    const mac = /Mac/.test(navigator.platform);
-    const event = new KeyboardEvent('keydown', {
-      code: keyCode,
-      key: keyCode.slice(3).toLowerCase(),
-      ctrlKey: !mac,
-      metaKey: mac,
-      bubbles: true,
-      cancelable: true,
-    });
-    return !document.activeElement.dispatchEvent(event);
-  }, code);
+function dispatchMod(page, code, key = code.slice(3).toLowerCase()) {
+  return page.evaluate(
+    ([keyCode, keyValue]) => {
+      const mac = /Mac/.test(navigator.platform);
+      const event = new KeyboardEvent('keydown', {
+        code: keyCode,
+        key: keyValue,
+        ctrlKey: !mac,
+        metaKey: mac,
+        bubbles: true,
+        cancelable: true,
+      });
+      return !document.activeElement.dispatchEvent(event);
+    },
+    [code, key],
+  );
 }
 
 test('Ctrl+N creates a document and is kept from the browser', async ({ page }) => {
@@ -95,4 +98,16 @@ test('buttons show their shortcuts in tooltips', async ({ page }) => {
   await login(page);
   await expect(page.getByRole('button', { name: 'New', exact: true })).toHaveAttribute('title', /Alt\+N/);
   await expect(page.getByRole('button', { name: 'Find', exact: true })).toHaveAttribute('title', /\+F/);
+});
+
+test('on AZERTY, Mod+Z stays undo and the key that types w closes the tab', async ({ page }) => {
+  await login(page);
+  await newDocument(page);
+  await editor(page).click();
+  await page.keyboard.type('abc');
+  // AZERTY: the QWERTY W position types z, and the QWERTY Z position types w.
+  await dispatchMod(page, 'KeyW', 'z');
+  await expect(editor(page)).toHaveText('');
+  await dispatchMod(page, 'KeyZ', 'w');
+  await expect(tabs(page)).toHaveCount(0);
 });

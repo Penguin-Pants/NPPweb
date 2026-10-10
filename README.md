@@ -85,7 +85,7 @@ The installed app opens in its own window. Firefox and Safari use the app in a n
 | Replace | Ctrl+H | Cmd+H |
 | Undo, redo | Ctrl+Z, Ctrl+Y | Cmd+Z, Cmd+Shift+Z |
 
-Ctrl+N and Ctrl+W (Cmd+N and Cmd+W) work only in the installed app window. In a normal browser tab the browser keeps them for itself. Alt+N and Alt+W work everywhere, also in Firefox. On macOS, Cmd+H can hide the window instead (a system shortcut). If it does, use the Find button and its replace field.
+Ctrl+N and Ctrl+W (Cmd+N and Cmd+W) work only in the installed app window. In a normal browser tab the browser keeps them for itself. Alt+N and Alt+W work everywhere, also in Firefox. The Ctrl (Cmd) shortcuts follow your keyboard layout. Alt+N and Alt+W use the key position: the keys marked N and W on a US keyboard. On macOS, Cmd+H can hide the window instead (a system shortcut). If it does, use the Find button and its replace field.
 
 In the find panel, Enter goes to the next match, Shift+Enter to the previous one and Escape closes the panel. Search is literal text and ignores case.
 

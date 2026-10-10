@@ -201,6 +201,7 @@ Coding agents record deviations from the plan here.
 | 2026-10-09 | T22 | A held shortcut key is blocked from the browser but acts only once. | P5 review: holding Alt+N created many documents. | Agent, not yet approved |
 | 2026-10-09 | T23 | The conflict dialog focuses Save mine as a new document and styles Overwrite with mine as dangerous. The deleted dialog focuses Save mine as a new document. | The plan names no default. P6 review: Enter or Space while typing would otherwise overwrite the other device's text with no history. | Agent, not yet approved |
 | 2026-10-10 | T09 | `POST /api/password` counts each attempt in the login limiter before the current-password check. A blocked request gets 429 `rate_limited` with `Retry-After`. A correct current password clears that IP's bucket. | Section 11 proposal 1: a stolen session cookie allowed unlimited guesses of the current password, each with a 32 MiB scrypt. | User (chat, 2026-10-10) |
+| 2026-10-10 | T22 | Mod shortcuts (N, W, S, F, H) match the typed Latin letter (`event.key`), with `event.code` as the fallback for keys that type no Latin letter. Alt+N and Alt+W still match `event.code`. | Section 11 proposal 2: on AZERTY, Ctrl+Z opened the close dialog and Ctrl+W could close the installed window. | User (chat, 2026-10-10) |
 | 2026-10-09 | T23 | Each choice runs while its dialog stays open (buttons disabled). A failed step shows its error in the dialog. After a 401, the sign-in dialog opens on top and the user chooses again. | P6 review: text typed during the request was lost, and a failed step looped over the sign-in dialog. | Agent, not yet approved |
 | 2026-10-10 | T28 | Status messages move to the right end of the status bar (D55). | Next to the save status, a long message pushed the counts to the right for 5 seconds. | User (chat, 2026-10-10) |
 | 2026-10-10 | T29 | The server picks no default language. New sends `markdown` in the create request. | The first PR #6 commit stored Markdown for every create without a name. Recovery copies have a name, so they did not match. Now a create stores the language it gets. | Agent, not yet approved |
@@ -252,7 +253,7 @@ Two-pass review of each phase diff. Pass 1 lists findings. Pass 2 classifies eac
 | P4 | 3 | Deleting from the list discards unsaved text in the open tab without a second prompt. | Rejected | T18 specifies one confirm dialog that says the delete is permanent. |
 | P4 | 4 | Window focus sends two list requests (tabs and document list). | Rejected | One owner, small JSON. Not worth shared state. |
 | P5 | 1 | Enter in the search panel ran Next even on a focused button, so keyboard users could not press Replace all. | Confirmed | Fixed in 35de628. E2E test added. |
-| P5 | 2 | On non-QWERTY layouts, Mod shortcuts matched by `event.code` fire on the wrong letters (AZERTY Ctrl+Z opens the close dialog). | Risk | T22 specifies `event.code`. Proposed out-of-scope fix 2 in section 11. |
+| P5 | 2 | On non-QWERTY layouts, Mod shortcuts matched by `event.code` fire on the wrong letters (AZERTY Ctrl+Z opens the close dialog). | Risk | T22 specifies `event.code`. Proposed out-of-scope fix 2 in section 11. Fixed 2026-10-10 (section 9). |
 | P5 | 3 | A rename did not refresh the language tooltip of the active tab. | Confirmed | Fixed in 35de628. E2E test added. |
 | P5 | 4 | Opening the panel again with a selection cleared the replace field. | Confirmed | Fixed in 35de628. E2E test added. |
 | P5 | 5 | A held shortcut key repeated its action. | Confirmed | Fixed in 35de628. Unit test added. |
@@ -275,7 +276,7 @@ Not built. Each one needs a user decision.
 | # | From | Proposal | Reason |
 |---|------|----------|--------|
 | 1 | P1 review 11 | Count wrong current passwords on `POST /api/password` in the login limiter. | A stolen session cookie would otherwise allow unlimited password guessing. Approved and built 2026-10-10 (section 9). |
-| 2 | P5 review 2 | Match the Mod shortcuts (N, W, S, F, H) by `event.key` and keep `event.code` for Alt+N and Alt+W. | On AZERTY and other layouts, `event.code` maps Ctrl+Z to KeyW, so undo opens the close dialog, and Ctrl+W can reach the browser and close the installed window. T22 specifies `event.code`. |
+| 2 | P5 review 2 | Match the Mod shortcuts (N, W, S, F, H) by `event.key` and keep `event.code` for Alt+N and Alt+W. | On AZERTY and other layouts, `event.code` maps Ctrl+Z to KeyW, so undo opens the close dialog, and Ctrl+W can reach the browser and close the installed window. T22 specifies `event.code`. Approved and built 2026-10-10 (section 9). |
 
 ## 12. V2 phase review log
 
