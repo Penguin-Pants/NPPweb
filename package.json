@@ -13,7 +13,8 @@
     "start": "node server/src/index.js",
     "dev": "npm run build && node --env-file-if-exists=.env --watch server/src/index.js",
     "test": "node --test \"server/test/**/*.test.js\" \"web/test/**/*.test.js\"",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "postinstall": "node scripts/patch-lezer-markdown.js"
   },
   "dependencies": {
     "@codemirror/commands": "^6.11.1",

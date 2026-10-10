@@ -71,10 +71,8 @@ async function readAllChunks() {
   return (await Promise.all(names.map((name) => readFile(join(outDir, 'chunks', name), 'utf8')))).join('\n');
 }
 
-// C6 names MIT, BSD-3-Clause, Apache-2.0 and AGPL-3.0. ISC and Unlicense
-// come with Mermaid and wait for an owner decision (PLAN_REVIEW.md section
-// 12, M13 row 17). khroma states MIT in its license file only.
-const ALLOWED = new Set(['MIT', 'BSD-3-Clause', 'Apache-2.0', 'AGPL-3.0', 'ISC', 'Unlicense']);
+// The licenses that C6 names. khroma states MIT in its license file only.
+const ALLOWED = new Set(['MIT', 'BSD-3-Clause', 'Apache-2.0', 'AGPL-3.0', 'ISC', 'Unlicense', 'BlueOak-1.0.0']);
 const LICENSE_FILE_ONLY = new Map([['khroma', 'MIT']]);
 
 test('the notices file holds the license of each bundled package, and each license is allowed (C6)', async () => {
