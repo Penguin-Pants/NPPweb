@@ -548,7 +548,8 @@ test.describe('tab colors with a 30-second autosave delay', () => {
     await page.getByRole('tab', { name: 'p2.md' }).click();
     const dot = page.getByRole('tab', { name: 'p1.md' }).locator('.tab-dirty');
     await expect(dot).toBeVisible();
-    expect(await css(dot, 'backgroundColor')).toBe('rgb(94, 161, 255)');
+    // A list refresh renders the strip again, so the check reads the current node each time.
+    await expect(dot).toHaveCSS('background-color', 'rgb(94, 161, 255)');
   });
 });
 
