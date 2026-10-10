@@ -18,13 +18,14 @@ import { createCounter, createSummary } from './markdown-text.js';
 import { createToolbar } from './markdown-toolbar.js';
 import { mermaidRenderer } from './mermaid-render.js';
 import { createOutline, formatCounts } from './outline.js';
-import { createStoredChoice } from './stored-choice.js';
+import { createStoredChoice, readChoice } from './stored-choice.js';
 import { createOutlinePanel } from './outline-panel.js';
 import { openFind, openReplace } from './search-panel.js';
 import { modName, setupShortcuts } from './shortcuts.js';
 import { setupSessionRecovery } from './session.js';
 import { createTabs } from './tabs.js';
 import { animateThemeSwitch, createTheme } from './theme.js';
+import { WORKSPACE } from './workspace.js';
 
 const $ = (id) => /** @type {HTMLElement} */ (document.getElementById(id));
 
@@ -187,6 +188,8 @@ const autosave = createAutosave({
   onEvent: emit,
 });
 loadSettings();
+// The stored workspace (WS-4). theme-init.js already showed it.
+api.setWorkspace(readChoice({ getStorage: () => localStorage, ...WORKSPACE }));
 tabs = createTabs({
   editor,
   autosave,
@@ -241,7 +244,8 @@ function renderLanguage() {
 languageSelect.addEventListener('change', async () => {
   const tab = tabs.active();
   if (!tab) return;
-  if (!(await tabs.setLanguage(tab.id, languageSelect.value || null))) {
+  // null: a workspace switch dropped the tab meanwhile, so nothing to say.
+  if ((await tabs.setLanguage(tab.id, languageSelect.value || null)) === false) {
     showMessage('Could not change the language. Try again.');
     renderLanguage();
   }

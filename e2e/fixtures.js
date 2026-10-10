@@ -163,3 +163,20 @@ export async function newDocument(page) {
   await expect(tabs).toHaveCount(count + 1);
   await expect(page.locator('.cm-content')).toBeVisible();
 }
+
+/**
+ * Drops files on the page, as a file drag from the desktop does (DRP-1).
+ * @param {import('@playwright/test').Page} page
+ * @param {{ name: string, text?: string, bytes?: number[] }[]} files
+ */
+export async function drop(page, files) {
+  const transfer = await page.evaluateHandle((list) => {
+    const data = new DataTransfer();
+    for (const { name, text, bytes } of list) data.items.add(new File([bytes ? new Uint8Array(bytes) : text], name));
+    return data;
+  }, files);
+  await page.dispatchEvent('body', 'dragenter', { dataTransfer: transfer });
+  await expect(page.locator('#drop-overlay')).toBeVisible();
+  await page.dispatchEvent('#drop-overlay', 'drop', { dataTransfer: transfer });
+  await expect(page.locator('#drop-overlay')).toBeHidden();
+}

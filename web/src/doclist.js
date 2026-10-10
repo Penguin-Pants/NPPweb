@@ -92,7 +92,8 @@ export function createDocList({ api, tabs, root, button, panel, showMessage }) {
       fields: [{ name: 'name', label: 'Name', value: doc.name }],
       submitLabel: 'Rename',
       onSubmit: async ({ name }) => {
-        const { status, data } = await api.updateDocument(doc.id, { name });
+        const { status, data, stale } = await api.updateDocument(doc.id, { name });
+        if (stale) return null;
         if (status === 200) {
           emit('doc-renamed', { id: doc.id, name: data.name });
           return null;
@@ -121,7 +122,8 @@ export function createDocList({ api, tabs, root, button, panel, showMessage }) {
     if (answer !== 'delete') return;
     // Close the tab first, so no pending save reaches the deleted document.
     tabs.removeTab(doc.id);
-    const { status } = await api.deleteDocument(doc.id);
+    const { status, stale } = await api.deleteDocument(doc.id);
+    if (stale) return;
     if (status !== 204 && status !== 404) showMessage('Delete failed. Try again.');
     await refresh();
   }

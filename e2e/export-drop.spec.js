@@ -1,6 +1,6 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
-import { expect, login, openDocs, test } from './fixtures.js';
+import { drop, expect, login, openDocs, test } from './fixtures.js';
 
 const exportButton = (page) => page.getByRole('button', { name: 'Export', exact: true });
 const formats = (page) => page.getByRole('group', { name: 'Export formats' }).getByRole('button');
@@ -122,18 +122,6 @@ test('PDF export prints the rendered page from a frame titled with the PDF name,
 });
 
 /** Drops files on the page: name, text and optional raw bytes. */
-async function drop(page, files) {
-  const transfer = await page.evaluateHandle((list) => {
-    const data = new DataTransfer();
-    for (const { name, text, bytes } of list) data.items.add(new File([bytes ? new Uint8Array(bytes) : text], name));
-    return data;
-  }, files);
-  await page.dispatchEvent('body', 'dragenter', { dataTransfer: transfer });
-  await expect(page.locator('#drop-overlay')).toBeVisible();
-  await page.dispatchEvent('#drop-overlay', 'drop', { dataTransfer: transfer });
-  await expect(page.locator('#drop-overlay')).toBeHidden();
-}
-
 test('a status message that wraps to its own row stays at the right end (STB-2)', async ({ page, api }) => {
   await page.setViewportSize({ width: 800, height: 600 });
   await openDocs(page, api, [['notes.md', 'old']]);

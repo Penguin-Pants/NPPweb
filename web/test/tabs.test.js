@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { planRefresh, readOpenTabs, writeOpenTabs } from '../src/tabs.js';
+import { planRefresh, readOpenTabs, tabsKey, writeOpenTabs } from '../src/tabs.js';
 
 function fakeStorage(initial = {}) {
   const data = new Map(Object.entries(initial));
@@ -66,4 +66,13 @@ test('planRefresh returns the server metadata for every open tab that still exis
   const plan = planRefresh(tabs, [meta('a', 1, 'renamed.md'), meta('other', 1)]);
   assert.deepEqual([...plan.meta.keys()], ['a']);
   assert.equal(plan.meta.get('a').name, 'renamed.md');
+});
+
+test('each workspace stores its tabs under its own key, Personal under the v1 key (TD-31, MIG-2)', () => {
+  assert.equal(tabsKey('personal'), 'pn.openTabs.v1');
+  assert.equal(tabsKey('work'), 'pn.openTabs.work.v1');
+  const storage = fakeStorage({ 'pn.openTabs.v1': JSON.stringify({ ids: ['p'], activeId: 'p' }) });
+  writeOpenTabs(() => storage, { ids: ['w'], activeId: 'w' }, tabsKey('work'));
+  assert.deepEqual(readOpenTabs(() => storage, tabsKey('work')), { ids: ['w'], activeId: 'w' });
+  assert.deepEqual(readOpenTabs(() => storage, tabsKey('personal')), { ids: ['p'], activeId: 'p' });
 });
