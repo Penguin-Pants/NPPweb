@@ -200,6 +200,7 @@ Coding agents record deviations from the plan here.
 | 2026-10-09 | T27 | The installability test runs in a persistent full Chromium profile (`channel: chromium`), not the headless shell. | The headless shell returns no installability errors even for a page with no manifest, and an incognito-like context always reports `in-incognito`. The test also proves it reports a missing manifest. | Agent, not yet approved |
 | 2026-10-09 | T22 | A held shortcut key is blocked from the browser but acts only once. | P5 review: holding Alt+N created many documents. | Agent, not yet approved |
 | 2026-10-09 | T23 | The conflict dialog focuses Save mine as a new document and styles Overwrite with mine as dangerous. The deleted dialog focuses Save mine as a new document. | The plan names no default. P6 review: Enter or Space while typing would otherwise overwrite the other device's text with no history. | Agent, not yet approved |
+| 2026-10-10 | T09 | `POST /api/password` counts each attempt in the login limiter before the current-password check. A blocked request gets 429 `rate_limited` with `Retry-After`. A correct current password clears that IP's bucket. | Section 11 proposal 1: a stolen session cookie allowed unlimited guesses of the current password, each with a 32 MiB scrypt. | User (chat, 2026-10-10) |
 | 2026-10-09 | T23 | Each choice runs while its dialog stays open (buttons disabled). A failed step shows its error in the dialog. After a 401, the sign-in dialog opens on top and the user chooses again. | P6 review: text typed during the request was lost, and a failed step looped over the sign-in dialog. | Agent, not yet approved |
 | 2026-10-10 | T28 | Status messages move to the right end of the status bar (D55). | Next to the save status, a long message pushed the counts to the right for 5 seconds. | User (chat, 2026-10-10) |
 | 2026-10-10 | T29 | The server picks no default language. New sends `markdown` in the create request. | The first PR #6 commit stored Markdown for every create without a name. Recovery copies have a name, so they did not match. Now a create stores the language it gets. | Agent, not yet approved |
@@ -273,7 +274,7 @@ Not built. Each one needs a user decision.
 
 | # | From | Proposal | Reason |
 |---|------|----------|--------|
-| 1 | P1 review 11 | Count wrong current passwords on `POST /api/password` in the login limiter. | A stolen session cookie would otherwise allow unlimited password guessing. |
+| 1 | P1 review 11 | Count wrong current passwords on `POST /api/password` in the login limiter. | A stolen session cookie would otherwise allow unlimited password guessing. Approved and built 2026-10-10 (section 9). |
 | 2 | P5 review 2 | Match the Mod shortcuts (N, W, S, F, H) by `event.key` and keep `event.code` for Alt+N and Alt+W. | On AZERTY and other layouts, `event.code` maps Ctrl+Z to KeyW, so undo opens the close dialog, and Ctrl+W can reach the browser and close the installed window. T22 specifies `event.code`. |
 
 ## 12. V2 phase review log
