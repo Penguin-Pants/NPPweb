@@ -28,7 +28,7 @@
 
 ## 2. Decision log
 
-Numbering continues from v2 (D14 to D38). D39 to D52 are owner decisions for workspaces. D53 and D54 are owner decisions from PR #6. D55 and D56 are builder decisions from the PR #6 review. The owner can reverse D55 and D56.
+Numbering continues from v2 (D14 to D38). D39 to D52 are owner decisions for workspaces. D53 and D54 are owner decisions from PR #6. D55 and D56 are builder decisions from the PR #6 review, approved by the owner on 2026-10-10.
 
 | # | Topic | Decision | Rejected |
 |---|-------|----------|----------|
