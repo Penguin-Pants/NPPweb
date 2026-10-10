@@ -1,9 +1,11 @@
 // Fetch wrapper for /api/* (section 2.7). Calls never throw: a network
 // failure returns status 0. Any 401 except from login emits session-expired.
-// Every /api/documents call acts on the active workspace (v3 TD-30). A switch
-// starts a new generation: a document call from an older generation comes
-// back stale, so a reply from before the switch cannot change the new
-// workspace (TD-41). Callers check `stale` first and then stop quietly.
+// Every /api/documents call acts on the active workspace (v3 TD-30), unless
+// it names one. A switch starts a new generation: a call on the active
+// workspace from an older generation comes back stale, so a reply from
+// before the switch cannot change the new workspace (TD-41). Callers check
+// `stale` first and then stop quietly. A call that names its workspace is
+// never stale.
 import { emit } from './events.js';
 
 /**
@@ -52,8 +54,12 @@ async function call(method, path, { json, text, headers = {}, scoped = false } =
  */
 const inWorkspace = (path, id = workspace) =>
   id === 'personal' ? path : `${path}${path.includes('?') ? '&' : '?'}workspace=${id}`;
-/** A call on the active workspace's documents. */
-const docCall = (method, path, options) => call(method, inWorkspace(path), { ...options, scoped: true });
+/**
+ * A call on a workspace's documents: the active one, or `target` when the
+ * caller names one (the switch prefetch, the rows of the Documents list).
+ */
+const docCall = (method, path, options, target) =>
+  target ? call(method, inWorkspace(path, target), options) : call(method, inWorkspace(path), { ...options, scoped: true });
 const docPath = (id) => `/api/documents/${encodeURIComponent(id)}`;
 
 export const api = {
@@ -78,8 +84,7 @@ export const api = {
    * @param {'personal' | 'work'} [target] Reads that workspace's list instead,
    *   for the switch (TD-33). That read is never stale.
    */
-  listDocuments: (target) =>
-    target ? call('GET', inWorkspace('/api/documents', target)) : docCall('GET', '/api/documents'),
+  listDocuments: (target) => docCall('GET', '/api/documents', {}, target),
   /**
    * @param {string} [content]
    * @param {string} [name] Omit for "Untitled N".
@@ -96,10 +101,14 @@ export const api = {
   /** @param {string} id @param {string} content @param {number} version */
   saveContent: (id, content, version) =>
     docCall('PUT', `${docPath(id)}/content`, { text: content, headers: { 'If-Match': String(version) } }),
-  /** @param {string} id @param {{ name?: string, language?: string | null }} changes */
-  updateDocument: (id, changes) => docCall('PATCH', docPath(id), { json: changes }),
-  /** @param {string} id */
-  deleteDocument: (id) => docCall('DELETE', docPath(id)),
+  /**
+   * @param {string} id
+   * @param {{ name?: string, language?: string | null, workspace?: 'personal' | 'work' }} changes
+   * @param {'personal' | 'work'} [target] Acts on that workspace instead. Never stale.
+   */
+  updateDocument: (id, changes, target) => docCall('PATCH', docPath(id), { json: changes }, target),
+  /** @param {string} id @param {'personal' | 'work'} [target] Acts on that workspace instead. Never stale. */
+  deleteDocument: (id, target) => docCall('DELETE', docPath(id), {}, target),
   getSettings: () => call('GET', '/api/settings'),
   /** @param {{ autosaveSeconds: number, workspaceColors?: { personal: string | null, work: string | null } }} settings */
   saveSettings: (settings) => call('PUT', '/api/settings', { json: settings }),

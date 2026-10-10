@@ -213,6 +213,7 @@ Coding agents record deviations from the plan here.
 | 2026-10-10 | T37 | `server/test/settings.test.js`: the v2 checks compare `autosaveSeconds` only, not the whole reply. A `workspaceColors` object that does not name exactly the two workspaces returns 400 `invalid_request`. | The reply also holds `workspaceColors` (TD-27, a named change to SAV-3). TD-27 says the object has both keys, but not what a partial one does. | User (chat, 2026-10-10) |
 | 2026-10-10 | T38 | A third CSS variable, `--ws-strip-mark`, colors the unsaved dot on inactive tabs. Its default is `var(--accent)`. The Work preset and a stored color set it to the strip text color. | TD-38 gives that dot `--ws-strip-fg`, whose Personal default is `var(--muted)`. That would turn today's accent dot grey and break CLR-6 (Personal keeps today's look). REQUIREMENTS_V3 wins over the plan. | User (chat, 2026-10-10) |
 | 2026-10-10 | T34 | The `hasUnsaved()` check after the second `saveAll()` (TD-33 step 4) is gone. | It cannot be true: `saveAll` returns ok only after its own `hasUnsaved()` check, and only microtasks run from there to the tab close (PR #10 review 7). | User (chat, 2026-10-10) |
+| 2026-10-10 | Audit C2 | Rename and Delete in the Documents list name the workspace of their row, like the switch prefetch (TD-30), so they are never stale and no longer check `stale` (TD-41 lists `doclist.js`). `api.updateDocument` and `api.deleteDocument` take an optional workspace. | Their dialog can stay open while a switch ends. A stale check would drop the reply, and the active workspace would get the request and answer 404. The owner confirmed the action on that row. | Agent, not yet approved |
 
 ## 10. Phase review log
 
@@ -583,6 +584,12 @@ Two-pass review of each fix task. Same method and verdicts as section 10.
 | C1 | 3 | A 401 now shows the message too, under the sign-in dialog. | Rejected | The drop and the recovery copies also show a message on 401. After the sign-in, "Try again" is the right advice. |
 | C1 | 4 | Section 9 (T33) says `newDocument` has no explicit `stale` check. | Confirmed | It has one now: a stale reply has status 0, which would show the message. This row records the change. |
 | C1 | 5 | `newDocument` returned true or false, and no caller read the value. | Confirmed | It returns nothing now. |
+| C2 | 1 | TD-41 names `doclist.js` as a caller that checks `stale`. Rename and Delete now name their workspace, so they cannot be stale. | Confirmed | Section 9 row "Audit C2". |
+| C2 | 2 | Move still acts on the active workspace. | Rejected | Move has no dialog and runs through `exclusive`, and a switch drops the rows (`doclist.reset`), so a Move click always comes from the active workspace. |
+| C2 | 3 | After a switch, the Rename reply emits `doc-renamed` and the Delete removes a tab, both in the new workspace. | Rejected | A document is in one workspace only, so the new workspace has no tab with that id. Both are no-ops. |
+| C2 | 4 | After a Delete in the old workspace, its stored tab list can still name the deleted document. | Rejected | `boot` drops stored ids that are not in the list, so the switch back opens no tab for it. |
+| C2 | 5 | A failure message ("Delete failed", or a rename error) can now show after the switch. | Rejected | It is true for the row the owner chose. Before, the request went to the wrong workspace. |
+| C2 | 6 | `listDocuments(target)` had its own code for a named workspace. | Confirmed | One `docCall` with an optional workspace serves the list read, Rename and Delete. |
 
 ### Audit validation environment
 
@@ -590,3 +597,4 @@ Two-pass review of each fix task. Same method and verdicts as section 10.
 - Chromium e2e only, on the preinstalled Chromium build 1194 through a temporary config with `executablePath`, as in v3. Firefox and WebKit are not installed.
 - Baseline on 8f6c968: `npm test` 424 of 424. Chromium e2e 169 passed and 2 failed. Both failures are flaky on `main` (section 11, rows 3 and 4). When they fail during a task, they run again alone.
 - C1: `npm test` 424 of 424. Chromium e2e 170 passed, plus the 2 known flakes. Alone, the STB-2 test passed and the CLR-6 test failed 5 of 5 retries. The CLR-6 rate is the same without C1 (3 of 6 failed) and with C1 (4 of 6 failed). The 2 new tests failed first on an assertion.
+- C2: `npm test` 425 of 425. Chromium e2e 174 passed, plus the CLR-6 flake, which passed on its first retry. The new unit test and both new e2e tests failed first on an assertion.

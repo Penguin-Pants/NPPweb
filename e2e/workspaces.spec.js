@@ -603,3 +603,50 @@ test('after a switch the Documents list never shows the other workspace\'s rows 
   release();
   await expect(moveButton(page, 'plan.md', 'Personal')).toBeVisible();
 });
+
+// A Delete or Rename dialog that opened before a switch applied acts on the
+// row's workspace when it is confirmed after the switch (audit C2).
+async function openRowDialogDuringSwitch(page, button, dialogName) {
+  let release;
+  const held = new Promise((resolve) => (release = resolve));
+  let arrived;
+  const holding = new Promise((resolve) => (arrived = resolve));
+  await page.route((url) => url.pathname === '/api/documents' && url.searchParams.get('workspace') === 'work', async (route) => {
+    arrived();
+    await held;
+    await route.continue();
+  }, { times: 1 });
+  await switchButton(page).click();
+  await holding;
+  await documentsButton(page).click();
+  await page.getByRole('button', { name: button }).click();
+  const dialog = page.getByRole('dialog', { name: dialogName });
+  await expect(dialog).toBeVisible();
+  release();
+  await expect(page).toHaveTitle('Work - Margin');
+  return dialog;
+}
+
+test('a Delete confirmed after a switch deletes the row\'s document in its own workspace (audit C2)', async ({ page, api }) => {
+  await create(api, 'personal', 'home.md', 'personal');
+  await create(api, 'work', 'home.md', 'work');
+  await login(page);
+  const dialog = await openRowDialogDuringSwitch(page, 'Delete home.md', 'Delete document');
+  await dialog.getByRole('button', { name: 'Delete permanently' }).click();
+  await expect(dialog).toBeHidden();
+  await expect.poll(() => names(api, 'personal')).toEqual([]);
+  expect(await names(api, 'work')).toEqual(['home.md']);
+  await afterReply(page);
+  expect(await message(page).textContent()).toBe('');
+});
+
+test('a Rename submitted after a switch renames the row\'s document in its own workspace (audit C2)', async ({ page, api }) => {
+  await create(api, 'personal', 'home.md', 'personal');
+  await login(page);
+  const dialog = await openRowDialogDuringSwitch(page, 'Rename home.md', 'Rename document');
+  await dialog.getByLabel('Name').fill('house.md');
+  await dialog.getByRole('button', { name: 'Rename' }).click();
+  await expect(dialog).toBeHidden();
+  expect(await names(api, 'personal')).toEqual(['house.md']);
+  expect(await names(api, 'work')).toEqual([]);
+});

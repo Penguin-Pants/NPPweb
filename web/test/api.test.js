@@ -109,6 +109,24 @@ test('the list read of a named workspace is never stale (switch prefetch)', asyn
   assert.deepEqual(await result, { status: 200, data: [] });
 });
 
+test('a rename or delete in a named workspace goes there and is never stale (Documents rows)', async () => {
+  api.setWorkspace('work');
+  const renamed = api.updateDocument('id1', { name: 'n' }, 'personal');
+  const deleted = api.deleteDocument('id2', 'personal');
+  const inWork = api.deleteDocument('id3', 'work');
+  assert.deepEqual(
+    calls.map((call) => `${call.method} ${call.url}`),
+    ['PATCH /api/documents/id1', 'DELETE /api/documents/id2', 'DELETE /api/documents/id3?workspace=work'],
+  );
+  api.setWorkspace('personal');
+  answer(0, 200, { id: 'id1', name: 'n' });
+  answer(1, 204);
+  answer(2, 204);
+  assert.deepEqual(await renamed, { status: 200, data: { id: 'id1', name: 'n' } });
+  assert.deepEqual(await deleted, { status: 204, data: null });
+  assert.deepEqual(await inWork, { status: 204, data: null });
+});
+
 test('a 401 before a switch still emits session-expired', async () => {
   const result = api.getDocument('id1');
   answer(0, 401, { error: 'unauthorized' });
