@@ -8,6 +8,7 @@ import { CONTENT_LIMIT_BYTES, documentRoutes } from './documents/routes.js';
 import { authRoutes } from './routes/auth.js';
 import { healthRoutes } from './routes/health.js';
 import { addSecurityHeaders, securityHeaders } from './security-headers.js';
+import { settingsRoutes } from './settings/routes.js';
 
 const defaultWebRoot = fileURLToPath(new URL('../../dist/web', import.meta.url));
 const redact = {
@@ -59,5 +60,6 @@ export async function buildApp({ config, db, clock = Date.now, logger, webRoot =
   app.register(healthRoutes);
   app.register(authRoutes, { db, config, clock });
   app.register(documentRoutes, { db, clock });
+  app.register(settingsRoutes, { db });
   return app;
 }

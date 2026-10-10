@@ -58,4 +58,7 @@ export const api = {
   updateDocument: (id, changes) => call('PATCH', docPath(id), { json: changes }),
   /** @param {string} id */
   deleteDocument: (id) => call('DELETE', docPath(id)),
+  getSettings: () => call('GET', '/api/settings'),
+  /** @param {{ autosaveSeconds: number }} settings */
+  saveSettings: (settings) => call('PUT', '/api/settings', { json: settings }),
 };

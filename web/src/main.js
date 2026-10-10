@@ -61,6 +61,39 @@ $('logout').addEventListener('click', async () => {
   else showMessage('Sign-out failed. Try again.');
 });
 
+// Settings (SAV-2, SAV-3): the autosave delay, one value on the server for
+// every device.
+const DELAY_ERROR = 'Use a whole number from 1 to 60.';
+// Set once the dialog saves a delay, so a slow startup read cannot undo it.
+let delaySavedHere = false;
+$('settings').addEventListener('click', async () => {
+  account.close();
+  const current = await api.getSettings();
+  if (current.status !== 200) {
+    showMessage('Could not load the settings. Try again.');
+    return;
+  }
+  await formDialog({
+    title: 'Settings',
+    fields: [{ name: 'seconds', label: 'Autosave delay in seconds (1 to 60)', value: String(current.data.autosaveSeconds) }],
+    submitLabel: 'Save',
+    onSubmit: async ({ seconds }) => {
+      const text = seconds.trim();
+      const value = /^\d+$/.test(text) ? Number(text) : NaN;
+      if (!(value >= 1 && value <= 60)) return DELAY_ERROR;
+      const { status, data } = await api.saveSettings({ autosaveSeconds: value });
+      if (status === 200) {
+        delaySavedHere = true;
+        autosave.setDelay(data.autosaveSeconds * 1000);
+        return null;
+      }
+      if (data?.error === 'invalid_autosave_seconds') return DELAY_ERROR;
+      if (status === 0) return 'Cannot connect to the server. Try again.';
+      return 'Saving the settings failed. Try again.';
+    },
+  });
+});
+
 $('change-password').addEventListener('click', async () => {
   account.close();
   const changed = await formDialog({
@@ -103,6 +136,10 @@ const autosave = createAutosave({
     renderSaveStatus();
   },
   onEvent: emit,
+});
+// SAV-4: other devices read a changed delay at the next page load.
+api.getSettings().then(({ status, data }) => {
+  if (status === 200 && !delaySavedHere) autosave.setDelay(data.autosaveSeconds * 1000);
 });
 tabs = createTabs({
   editor,

@@ -61,15 +61,18 @@ test('the API has no sign-up, user or account routes', () => {
     'GET /api/documents',
     'GET /api/documents/:id',
     'GET /api/session',
+    'GET /api/settings',
     'HEAD /api/documents',
     'HEAD /api/documents/:id',
     'HEAD /api/session',
+    'HEAD /api/settings',
     'PATCH /api/documents/:id',
     'POST /api/documents',
     'POST /api/login',
     'POST /api/logout',
     'POST /api/password',
     'PUT /api/documents/:id/content',
+    'PUT /api/settings',
   ]);
 });
 

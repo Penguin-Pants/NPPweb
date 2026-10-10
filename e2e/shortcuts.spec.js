@@ -40,7 +40,7 @@ test('Ctrl+W starts the close flow and is kept from the browser', async ({ page 
   await expect(page.getByRole('dialog')).toHaveCount(1);
 });
 
-test('Ctrl+S saves before the 1-second debounce', async ({ page }) => {
+test('Ctrl+S saves before the autosave delay', async ({ page }) => {
   await login(page);
   await newDocument(page);
   await editor(page).click();

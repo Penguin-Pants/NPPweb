@@ -16,9 +16,10 @@ const RETRY_DELAYS_MS = [2000, 4000, 8000, 16000, 30000];
  * @param {(id: string, status: string) => void} [options.onStatus]
  * @param {(type: string, detail: object) => void} [options.onEvent] doc-saved, doc-conflict,
  *   doc-deleted-remote and doc-too-large.
- * @param {number} [options.debounceMs]
+ * @param {number} [options.delayMs] The autosave delay N (SAV-1). setDelay changes it later.
  */
-export function createAutosave({ save, onStatus = () => {}, onEvent = () => {}, debounceMs = 1000 }) {
+export function createAutosave({ save, onStatus = () => {}, onEvent = () => {}, delayMs = 5000 }) {
+  let delay = delayMs;
   /** @type {Map<string, any>} */
   const docs = new Map();
   // A 401 pauses every document until resumeAll (after re-login).
@@ -34,12 +35,16 @@ export function createAutosave({ save, onStatus = () => {}, onEvent = () => {}, 
   function clearTimer(doc) {
     clearTimeout(doc.timer);
     doc.timer = null;
+    doc.timerKind = null;
   }
 
-  function schedule(doc, ms) {
+  /** @param {'delay' | 'retry'} kind */
+  function schedule(doc, ms, kind) {
     clearTimer(doc);
+    doc.timerKind = kind;
     doc.timer = setTimeout(() => {
       doc.timer = null;
+      doc.timerKind = null;
       start(doc);
     }, ms);
   }
@@ -83,7 +88,7 @@ export function createAutosave({ save, onStatus = () => {}, onEvent = () => {}, 
         setStatus(doc, 'saved');
         settle(doc, true);
       } else if (doc.flushRequested || doc.timer === null) {
-        // Edits arrived during the save and no debounce is waiting: save again now.
+        // Edits arrived during the save and no delay timer is waiting: save again now.
         start(doc);
       } else {
         setStatus(doc, 'unsaved');
@@ -107,7 +112,7 @@ export function createAutosave({ save, onStatus = () => {}, onEvent = () => {}, 
     } else {
       // Network failure, 5xx or anything unexpected: retry with backoff.
       fail(doc, 'network', null);
-      schedule(doc, RETRY_DELAYS_MS[Math.min(doc.failures, RETRY_DELAYS_MS.length - 1)]);
+      schedule(doc, RETRY_DELAYS_MS[Math.min(doc.failures, RETRY_DELAYS_MS.length - 1)], 'retry');
       doc.failures += 1;
     }
   }
@@ -135,6 +140,7 @@ export function createAutosave({ save, onStatus = () => {}, onEvent = () => {}, 
         hold: null,
         failures: 0,
         timer: null,
+        timerKind: null,
         inFlight: null,
         flushRequested: false,
         waiters: [],
@@ -158,7 +164,19 @@ export function createAutosave({ save, onStatus = () => {}, onEvent = () => {}, 
       if (doc.hold === 'too-large') doc.hold = null;
       if (doc.hold) return;
       setStatus(doc, 'unsaved');
-      schedule(doc, debounceMs);
+      // SAV-1: save N seconds after the last edit, but no later than N seconds
+      // after the first unsaved edit. The second bound always comes first, so
+      // the first unsaved edit starts the timer and later edits keep it. An
+      // edit replaces a pending retry, so it never waits for the backoff.
+      if (doc.timerKind !== 'delay') schedule(doc, delay, 'delay');
+    },
+
+    /**
+     * Sets the autosave delay for timers started from now on (SAV-4).
+     * @param {number} ms
+     */
+    setDelay(ms) {
+      delay = ms;
     },
 
     /**

@@ -297,6 +297,11 @@ Two-pass review of each V2 phase diff (`REQUIREMENTS_V2.md` section 9). Same met
 | M9 | 15 | `BUILD_PLAN.md` T18 still says "toggle sidebar". | Rejected | v1 history. `REQUIREMENTS_V2.md` section 10 records the change. |
 | M9 | 16 | The open dropdown covers part of the tab strip. | Rejected | Expected for a dropdown (D19). A press outside closes it. |
 | M9 | 17 | The account menu kept its own open and close code. | Confirmed | Both menus use `dropdown.js` (AGENTS.md Edits rule 6). |
+| M10 | 1 | SAV-1 asks for "N after the last edit, but no later than N after the first unsaved edit". The second bound always comes first, so the rule equals one timer started by the first unsaved edit. | Confirmed (design note) | Implemented as one timer. An edit replaces a pending retry timer, so it never waits for the backoff. Unit tests cover the bound, nonstop typing and the 5-second default. |
+| M10 | 2 | The startup settings read could finish after the Settings dialog saved a new delay and set the old one back. | Confirmed | Fixed before commit: a delay saved in the dialog wins over the startup read. |
+| M10 | 3 | An E2E test name still said "about 1 second". | Confirmed | Renamed. The E2E fixture runs v1 save tests with a 1-second delay. `settings.spec.js` uses the 5-second default. |
+| M10 | 4 | The fixture signs in once more to set the delay, which adds a session per test server. | Rejected | No test counts sessions. Each test has its own server. |
+| M10 | 5 | Perf typing measured 2992 to 3263 ms after M10 (limit 3000 ms). | Risk | Same band as before V2 (section 13). M10 does not touch the typing path. |
 
 ## 13. V2 validation environment
 
