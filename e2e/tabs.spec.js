@@ -1,4 +1,4 @@
-import { expect, login, newDocument, OWNER_PASSWORD, test } from './fixtures.js';
+import { expect, login, newDocument, openDocs, OWNER_PASSWORD, test } from './fixtures.js';
 
 const editor = (page) => page.locator('.cm-content');
 const tab = (page, name) => page.getByRole('tab', { name });
@@ -148,4 +148,22 @@ test('a change saved in context A shows in context B after B regains focus', asy
   await expect(editor(pageB)).toHaveText('first and second');
   await contextA.close();
   await contextB.close();
+});
+
+test('a refresh whose list was read before a new document never closes that new tab', async ({ page, api }) => {
+  await openDocs(page, api, [['a.md', 'a']]);
+  let release;
+  const held = new Promise((resolve) => (release = resolve));
+  await page.route('**/api/documents', async (route) => {
+    if (route.request().method() !== 'GET') return route.continue();
+    const response = await route.fetch(); // The list as it is now, before the new document.
+    await held;
+    return route.fulfill({ response });
+  });
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await page.getByRole('button', { name: 'New', exact: true }).click();
+  await expect(page.getByRole('tab')).toHaveCount(2);
+  release();
+  await page.waitForTimeout(500);
+  await expect(page.getByRole('tab')).toHaveCount(2);
 });

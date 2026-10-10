@@ -389,10 +389,15 @@ export function createTabs({ editor, autosave, api, getStorage, elements, onActi
 
     /** Applies server metadata and reloads clean tabs that changed elsewhere. */
     async refresh() {
+      // Only tabs that were open before the list was read count. A tab opened
+      // during the read (New, a drop) is not in the list yet, but not gone.
+      const known = new Set(tabs.map((tab) => tab.id));
       const { status, data } = await api.listDocuments();
       if (status !== 200) return;
       const plan = planRefresh(
-        tabs.map((tab) => ({ id: tab.id, loaded: tab.state !== null, clean: isClean(tab), version: autosave.version(tab.id) ?? null })),
+        tabs
+          .filter((tab) => known.has(tab.id))
+          .map((tab) => ({ id: tab.id, loaded: tab.state !== null, clean: isClean(tab), version: autosave.version(tab.id) ?? null })),
         data,
       );
       for (const [id, doc] of plan.meta) {

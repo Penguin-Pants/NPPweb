@@ -40,16 +40,21 @@ test('Ctrl+W starts the close flow and is kept from the browser', async ({ page 
   await expect(page.getByRole('dialog')).toHaveCount(1);
 });
 
-test('Ctrl+S saves before the 1-second debounce', async ({ page }) => {
-  await login(page);
-  await newDocument(page);
-  await editor(page).click();
-  await page.keyboard.type('quick');
-  const saved = page.waitForResponse((res) => res.request().method() === 'PUT');
-  const pressedAt = Date.now();
-  await page.keyboard.press('ControlOrMeta+s');
-  expect((await saved).status()).toBe(200);
-  expect(Date.now() - pressedAt).toBeLessThan(700);
+test.describe('with a long autosave delay', () => {
+  // 60 seconds, so only Ctrl+S can explain a save within the limit.
+  test.use({ autosaveSeconds: 60 });
+
+  test('Ctrl+S saves before the autosave delay', async ({ page }) => {
+    await login(page);
+    await newDocument(page);
+    await editor(page).click();
+    await page.keyboard.type('quick');
+    const saved = page.waitForResponse((res) => res.request().method() === 'PUT');
+    const pressedAt = Date.now();
+    await page.keyboard.press('ControlOrMeta+s');
+    expect((await saved).status()).toBe(200);
+    expect(Date.now() - pressedAt).toBeLessThan(700);
+  });
 });
 
 test('Ctrl+F focuses the find field and Ctrl+H the replace field', async ({ page }) => {

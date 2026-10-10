@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { EditorState } from '@codemirror/state';
-import { LIMIT_BYTES, sizeLimit, utf8ByteLength } from '../src/size-limit.js';
+import { docBytes, LIMIT_BYTES, sizeLimit, utf8ByteLength } from '../src/size-limit.js';
 
 test('utf8ByteLength matches Buffer.byteLength for ASCII, multi-byte and astral text', () => {
   for (const text of ['', 'a', 'hello\nworld', 'é', 'ÿĀ', '€', '中文字', '😀', 'a😀b€c\n\té', '\u0000\u007f\u0080߿ࠀ￿']) {
@@ -70,4 +70,15 @@ test('a small paste into a small document is never measured as too large', () =>
   const state = stateWith('short', rejected);
   assert.equal(state.update({ changes: { from: 5, insert: ' text' } }).state.doc.toString(), 'short text');
   assert.deepEqual(rejected, []);
+});
+
+test('docBytes matches Buffer.byteLength across document parts and after edits that reuse them', () => {
+  const lines = Array.from({ length: 3000 }, (_, i) => ['plain', 'café ü', '👍🏽 emoji', ''][i % 4] + ` ${i}`);
+  let state = EditorState.create({ doc: lines.join('\n') });
+  assert.ok(state.doc.children, 'the document has more than one part');
+  assert.equal(docBytes(state.doc), Buffer.byteLength(state.doc.toString()));
+  for (const change of [{ from: 0, insert: '€' }, { from: 5000, to: 5010 }, { from: 100, insert: 'x\ny\n👍' }, { from: 0, to: 20000 }]) {
+    state = state.update({ changes: change }).state;
+    assert.equal(docBytes(state.doc), Buffer.byteLength(state.doc.toString()), JSON.stringify(change));
+  }
 });

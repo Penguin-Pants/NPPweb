@@ -1,22 +1,30 @@
-// Document list sidebar (DOC-4, T18): name and last modified date, newest
-// first. Open, rename and delete. Delete is permanent and closes the tab.
+// Document list (DOC-4, T18) in a top-bar dropdown (LAY-3, LAY-4): name and
+// last modified date, newest first. Open, rename and delete. Open closes the
+// dropdown. Delete is permanent and closes the tab.
 import { choose, formDialog } from './dialogs.js';
+import { createDropdown } from './dropdown.js';
 import { emit } from './events.js';
 
 /**
  * @param {object} deps
  * @param {typeof import('./api.js').api} deps.api
  * @param {ReturnType<typeof import('./tabs.js').createTabs>} deps.tabs
- * @param {HTMLElement} deps.panel The sidebar element.
- * @param {HTMLButtonElement} deps.toggle The button that shows and hides it.
+ * @param {HTMLElement} deps.root Holds the button and the dropdown panel.
+ * @param {HTMLButtonElement} deps.button The Documents button.
+ * @param {HTMLElement} deps.panel The dropdown panel.
  * @param {(text: string) => void} deps.showMessage
  */
-export function createDocList({ api, tabs, panel, toggle, showMessage }) {
-  const heading = document.createElement('h2');
-  heading.textContent = 'Documents';
+export function createDocList({ api, tabs, root, button, panel, showMessage }) {
   const list = document.createElement('ul');
   list.className = 'doc-rows';
-  panel.append(heading, list);
+  panel.append(list);
+  const dropdown = createDropdown({
+    root,
+    button,
+    panel,
+    items: () => [...list.querySelectorAll('.doc-open')],
+    onOpen: () => refresh(),
+  });
 
   function row(doc) {
     const item = document.createElement('li');
@@ -33,16 +41,22 @@ export function createDocList({ api, tabs, panel, toggle, showMessage }) {
     date.className = 'doc-date';
     date.textContent = new Date(doc.updatedAt).toLocaleString();
     open.append(name, date);
-    open.addEventListener('click', () => tabs.open(doc.id, doc.name));
+    open.dataset.action = 'open';
+    open.addEventListener('click', () => {
+      dropdown.close();
+      tabs.open(doc.id, doc.name);
+    });
     const rename = document.createElement('button');
     rename.type = 'button';
     rename.textContent = 'Rename';
+    rename.dataset.action = 'rename';
     rename.setAttribute('aria-label', `Rename ${doc.name}`);
     rename.addEventListener('click', () => renameDocument(doc));
     const remove = document.createElement('button');
     remove.type = 'button';
     remove.className = 'danger';
     remove.textContent = 'Delete';
+    remove.dataset.action = 'delete';
     remove.setAttribute('aria-label', `Delete ${doc.name}`);
     remove.addEventListener('click', () => deleteDocument(doc));
     item.append(open, rename, remove);
@@ -50,9 +64,14 @@ export function createDocList({ api, tabs, panel, toggle, showMessage }) {
   }
 
   async function refresh() {
-    if (panel.hidden) return;
+    if (!dropdown.isOpen()) return;
     const { status, data } = await api.listDocuments();
     if (status !== 200) return;
+    // A re-render drops the focus, so it goes back to the same button of the
+    // same row when that row is still there.
+    const focused = /** @type {HTMLElement | null} */ (list.contains(document.activeElement) ? document.activeElement : null);
+    const focusId = focused?.closest('.doc-row')?.getAttribute('data-id');
+    const focusAction = focused?.dataset.action;
     if (data.length === 0) {
       const empty = document.createElement('li');
       empty.className = 'doc-empty';
@@ -60,6 +79,10 @@ export function createDocList({ api, tabs, panel, toggle, showMessage }) {
       list.replaceChildren(empty);
     } else {
       list.replaceChildren(...data.map(row));
+    }
+    if (focusId) {
+      const again = [...list.querySelectorAll('.doc-row')].find((item) => item.getAttribute('data-id') === focusId);
+      /** @type {HTMLElement | null | undefined} */ (again?.querySelector(`[data-action="${focusAction}"]`))?.focus();
     }
   }
 
@@ -103,17 +126,10 @@ export function createDocList({ api, tabs, panel, toggle, showMessage }) {
     await refresh();
   }
 
-  function setOpen(open) {
-    panel.hidden = !open;
-    toggle.setAttribute('aria-expanded', String(open));
-    if (open) refresh();
-  }
-  toggle.addEventListener('click', () => setOpen(panel.hidden));
-
   return {
-    /** Shows the sidebar and reloads the list. */
-    show: () => setOpen(true),
-    /** Reloads the list when the sidebar is open. */
+    /** Opens the dropdown and reloads the list. */
+    show: () => dropdown.open(),
+    /** Reloads the list when the dropdown is open. */
     refresh,
   };
 }

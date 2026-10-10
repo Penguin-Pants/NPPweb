@@ -12,6 +12,8 @@ test('the first visit is dark and the light choice survives a reload', { tag: '@
   await expect(html).toHaveAttribute('data-theme', 'light');
   await expect(page.getByRole('button', { name: 'Dark theme' })).toBeVisible();
   await page.getByRole('button', { name: 'Dark theme' }).click();
+  // The switch runs in a view transition, one frame after the click (THM-1).
+  await expect(html).toHaveAttribute('data-theme', 'dark');
   await page.reload();
   await expect(html).toHaveAttribute('data-theme', 'dark');
 });

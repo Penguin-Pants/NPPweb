@@ -145,6 +145,8 @@ select {
 }
 
 .topbar {
+  position: relative;
+  flex-wrap: wrap; /* A narrow window gets a second row, never a hidden control. */
   padding: 6px 8px;
   border-bottom-width: 1px;
 }
@@ -203,13 +205,11 @@ select {
   position: relative;
 }
 
-.menu-list {
+.menu-list,
+.doclist {
   position: absolute;
-  right: 0;
   top: calc(100% + 4px);
   z-index: 10;
-  display: grid;
-  min-width: 180px;
   padding: 4px;
   background: var(--surface);
   border: 1px solid var(--border);
@@ -217,7 +217,19 @@ select {
   box-shadow: 0 6px 20px rgb(0 0 0 / 0.3);
 }
 
-.menu-list[hidden] {
+.menu-list {
+  right: 0;
+  display: grid;
+  min-width: 180px;
+}
+
+.menu-list.menu-start {
+  left: 0;
+  right: auto;
+}
+
+.menu-list[hidden],
+.doclist[hidden] {
   display: none;
 }
 
@@ -340,9 +352,31 @@ button.danger {
   display: none;
 }
 
-/* Document list sidebar */
+/* Document list dropdown (LAY-3) */
 .doclist {
-  width: 300px;
+  left: 0;
+  width: min(360px, calc(100vw - 16px));
+  max-height: min(60vh, 480px);
+  overflow-y: auto;
+}
+
+/* In a narrow window the panel hangs from the top bar, so it fits. */
+@media (max-width: 600px) {
+  #doclist-menu {
+    position: static;
+  }
+
+  .doclist {
+    left: 8px;
+  }
+}
+
+/* Outline panel (LAY-2). Its size comes from the row, not from its entries,
+   so a long outline is not laid out or painted again on each key press
+   (NFR-2). */
+.outline-panel {
+  contain: strict;
+  width: 240px;
   flex: none;
   overflow-y: auto;
   background: var(--surface);
@@ -350,11 +384,11 @@ button.danger {
   padding: 8px;
 }
 
-.doclist[hidden] {
+:root[data-outline="closed"] .outline-panel {
   display: none;
 }
 
-.doclist h2 {
+.outline-panel h2 {
   margin: 4px 4px 8px;
   font-size: 13px;
   font-weight: 600;
@@ -435,4 +469,278 @@ button.danger {
 
 .search-panel button {
   padding: 3px 10px;
+}
+
+/* Formatting toolbar (MDV-9) */
+.md-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.md-toolbar[hidden] {
+  display: none;
+}
+
+.md-toolbar button,
+.md-toolbar select {
+  padding: 2px 8px;
+  font-size: 12px;
+}
+
+.md-toolbar .heading-menu {
+  left: 0;
+  right: auto;
+}
+
+.md-toolbar .md-bold {
+  font-weight: 700;
+}
+
+.md-toolbar .md-italic {
+  font-style: italic;
+}
+
+#mode-toggle[aria-pressed="true"] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Visual mode (MDV-3 to MDV-8). Prose uses the interface font, code stays mono. */
+.cm-content.cm-md-visual {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+.cm-md-visual .cm-md-h1 { font-size: 1.7em; font-weight: 600; }
+.cm-md-visual .cm-md-h2 { font-size: 1.45em; font-weight: 600; }
+.cm-md-visual .cm-md-h3 { font-size: 1.25em; font-weight: 600; }
+.cm-md-visual .cm-md-h4 { font-size: 1.1em; font-weight: 600; }
+.cm-md-visual .cm-md-h5 { font-size: 1em; font-weight: 600; }
+.cm-md-visual .cm-md-h6 { font-size: 0.95em; font-weight: 600; color: var(--muted); }
+
+.cm-md-visual .cm-md-setext-underline,
+.cm-md-visual .cm-md-table-delimiter {
+  font-size: 0.6em;
+  color: var(--muted);
+}
+
+.cm-md-visual .cm-md-strong { font-weight: 700; }
+.cm-md-visual .cm-md-em { font-style: italic; }
+.cm-md-visual .cm-md-strike { text-decoration: line-through; }
+
+.cm-md-visual .cm-md-inline-code,
+.cm-md-visual .cm-md-codeblock,
+.cm-md-visual .cm-md-table {
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+}
+
+.cm-md-visual .cm-md-inline-code {
+  background: var(--surface-2);
+  border-radius: 3px;
+  padding: 0 3px;
+}
+
+.cm-md-visual .cm-md-codeblock {
+  background: var(--surface-2);
+}
+
+.cm-md-visual .cm-md-fence {
+  font-size: 0.75em;
+  color: var(--muted);
+}
+
+.cm-md-visual .cm-md-link {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.cm-md-visual .cm-md-quote {
+  border-left: 3px solid var(--border);
+  padding-left: 10px;
+  color: var(--muted);
+}
+
+.cm-md-visual .cm-md-hr {
+  border-bottom: 1px solid var(--border);
+}
+
+.cm-md-visual .cm-md-table-header {
+  font-weight: 600;
+}
+
+.cm-md-visual .cm-md-table-pipe,
+.cm-md-visual .cm-md-list-number {
+  color: var(--muted);
+}
+
+.cm-md-bullet {
+  display: inline-block;
+  width: 1ch;
+  color: var(--muted);
+}
+
+.cm-md-task {
+  margin: 0 4px 0 0;
+  vertical-align: middle;
+  cursor: pointer;
+}
+
+.cm-md-image img {
+  display: block;
+  max-width: 100%;
+  max-height: 480px;
+}
+
+.cm-md-image-placeholder {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 8px;
+  border: 1px dashed var(--border);
+  border-radius: 4px;
+  color: var(--muted);
+}
+
+.cm-md-image-placeholder button {
+  padding: 0 6px;
+  font-size: 12px;
+}
+
+/* Outline (OUT-1, OUT-4, OUT-6) */
+.outline-message {
+  margin: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.outline-message[hidden],
+.outline-list[hidden] {
+  display: none;
+}
+
+.outline-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.outline-entry {
+  display: block;
+  width: 100%;
+  border: 0;
+  background: none;
+  text-align: left;
+  padding: 2px 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.outline-entry:hover {
+  background: var(--surface-2);
+}
+
+.outline-entry[aria-current="location"] {
+  color: var(--accent);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.outline-l1 { font-weight: 600; }
+.outline-l2 { padding-left: 18px; }
+.outline-l3 { padding-left: 30px; }
+.outline-l4 { padding-left: 42px; }
+.outline-l5 { padding-left: 54px; }
+.outline-l6 { padding-left: 66px; }
+
+/* Counts (CNT-1 to CNT-4) */
+.statusbar button {
+  padding: 0 6px;
+  font-size: 12px;
+}
+
+#count-syntax[aria-pressed="true"] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+#selection-counts[hidden],
+#count-syntax[hidden] {
+  display: none;
+}
+
+/* Mermaid diagrams in Visual mode (MDV-12, EDGE-15) */
+.cm-md-mermaid {
+  padding: 8px;
+  overflow-x: auto;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.cm-md-mermaid img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  /* A click goes to the box, which puts the cursor in the block. */
+  pointer-events: none;
+}
+
+/* The hidden frame that draws diagrams (mermaid-render.js). It needs a size
+   for Mermaid to measure text, and stays off screen. */
+.mermaid-frame {
+  position: fixed;
+  left: -10000px;
+  top: 0;
+  width: 1200px;
+  height: 900px;
+  border: 0;
+  visibility: hidden;
+}
+
+.cm-md-mermaid-error {
+  color: var(--danger);
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  white-space: pre-wrap;
+}
+
+/* Theme switch (THM-1): the new theme grows as a circle, so the default
+   cross-fade is off. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+/* Drop files to open them (DRP-5). Its text never takes the drag events. */
+.drop-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-content: center;
+  background: rgb(0 0 0 / 0.55);
+  border: 3px dashed var(--accent);
+  color: #fff;
+  font-size: 20px;
+}
+
+.drop-overlay[hidden] {
+  display: none;
+}
+
+.drop-overlay p {
+  pointer-events: none;
+}
+
+/* The page that the PDF export prints (EXP-5). Off screen, but laid out. */
+.print-frame {
+  position: fixed;
+  left: -10000px;
+  top: 0;
+  width: 800px;
+  height: 600px;
+  border: 0;
 }

@@ -12,7 +12,7 @@ test('line numbers show', async ({ page }) => {
   await expect(page.locator('.cm-lineNumbers .cm-gutterElement', { hasText: /^3$/ })).toBeVisible();
 });
 
-test('typing then pausing saves within about 1 second and survives a reload', { tag: '@smoke' }, async ({ page, api }) => {
+test('typing then pausing saves within the autosave delay (1 second in tests) and survives a reload', { tag: '@smoke' }, async ({ page, api }) => {
   await login(page);
   await newDocument(page);
   const editor = page.locator('.cm-content');

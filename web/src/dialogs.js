@@ -145,19 +145,31 @@ export function formDialog({ title, message, fields, submitLabel, cancellable = 
       dialog.remove();
       resolve(values);
     };
-    const markDone = guardClose(dialog, cancellable, () => finish(null));
-    if (cancellable) {
-      const cancel = el('button', { type: 'button' }, 'Cancel');
-      cancel.addEventListener('click', () => finish(null));
-      row.append(cancel);
+    // While a submit runs, its result decides. A cancel then would close the
+    // dialog while the change still happens.
+    let busy = false;
+    const cancel = () => {
+      if (!busy) finish(null);
+      else if (!dialog.open) dialog.showModal();
+    };
+    const markDone = guardClose(dialog, cancellable, cancel);
+    const cancelButton = cancellable ? el('button', { type: 'button' }, 'Cancel') : null;
+    if (cancelButton) {
+      cancelButton.addEventListener('click', cancel);
+      row.append(cancelButton);
     }
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
+      if (busy) return;
       const values = Object.fromEntries(inputs.map((input) => [input.name, input.value]));
+      busy = true;
       submit.disabled = true;
+      if (cancelButton) cancelButton.disabled = true;
       error.textContent = '';
       const problem = await onSubmit(values);
+      busy = false;
       submit.disabled = false;
+      if (cancelButton) cancelButton.disabled = false;
       if (problem === null) finish(values);
       else error.textContent = problem;
     });

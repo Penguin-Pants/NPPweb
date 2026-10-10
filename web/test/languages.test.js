@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { language } from '@codemirror/language';
+import { ensureSyntaxTree, language } from '@codemirror/language';
 import { EditorState } from '@codemirror/state';
-import { detectLanguage, LANGUAGES, languageSupport, resolveLanguage } from '../src/languages.js';
+import { detectLanguage, extensionOf, languageId, LANGUAGES, languageSupport, resolveLanguage } from '../src/languages.js';
 
 const EXPECTED = {
   'a.md': 'markdown',
@@ -73,4 +73,62 @@ test('each language loads its parser', () => {
   for (const id of ['markdown', 'json', 'html', 'css', 'javascript', 'typescript', 'python', 'sql', 'yaml', 'shell']) {
     assert.equal(parserName(id), id, id);
   }
+});
+
+test('languageSupport sets the languageId facet, and plain is the default', () => {
+  assert.equal(EditorState.create({ extensions: languageSupport('markdown') }).facet(languageId), 'markdown');
+  assert.equal(EditorState.create({ extensions: languageSupport('python') }).facet(languageId), 'python');
+  assert.equal(EditorState.create({ extensions: languageSupport('nope') }).facet(languageId), 'plain');
+  assert.equal(EditorState.create({}).facet(languageId), 'plain');
+});
+
+/** Node names from the outer tree down to the innermost node at pos. */
+function namesAt(doc, pos) {
+  const state = EditorState.create({ doc, extensions: languageSupport('markdown') });
+  const tree = ensureSyntaxTree(state, state.doc.length, 5000);
+  const names = [];
+  for (let node = tree.resolveInner(pos, 1); node; node = node.parent) names.push(node.name);
+  return names;
+}
+
+test('Markdown parses GitHub Flavored Markdown (MDV-4)', () => {
+  const doc = '| a |\n|---|\n| 1 |\n\n- [x] done\n\n~~old~~\n';
+  assert.ok(namesAt(doc, 2).includes('Table'));
+  assert.ok(namesAt(doc, doc.indexOf('[x]') + 1).includes('Task'));
+  assert.ok(namesAt(doc, doc.indexOf('old')).includes('Strikethrough'));
+});
+
+test('fenced code uses the language named by its info string (MDV-11)', () => {
+  for (const [info, code, inner] of [
+    ['python', 'x = 1', 'AssignStatement'],
+    ['py', 'x = 1', 'AssignStatement'],
+    ['sql', 'SELECT 1', 'Statement'],
+    ['js', 'let a = 1', 'VariableDeclaration'],
+    ['json', '{"a": 1}', 'Object'],
+    ['bash', 'echo hi', 'variableName.standard'],
+    ['html', '<div>hi</div>', 'Element'],
+    ['css', 'a { color: red }', 'RuleSet'],
+    ['ts', 'interface A {}', 'InterfaceDeclaration'],
+    ['yaml', 'key: value', 'Pair'],
+    ['markdown', '# Title', 'ATXHeading1'],
+    ['md', '**b**', 'StrongEmphasis'],
+  ]) {
+    const doc = `\`\`\`${info}\n${code}\n\`\`\`\n`;
+    assert.ok(namesAt(doc, doc.indexOf(code) + 1).includes(inner), `${info}: ${namesAt(doc, doc.indexOf(code) + 1)}`);
+  }
+});
+
+test('fenced code with an unknown or missing info string stays plain code text (MDV-11)', () => {
+  for (const info of ['rust', '', 'text']) {
+    const doc = `\`\`\`${info}\nfn main() {}\n\`\`\`\n`;
+    assert.equal(namesAt(doc, doc.indexOf('fn') + 1)[0], 'CodeText', info);
+  }
+});
+
+test('extensionOf gives the last extension as written, or nothing', () => {
+  assert.equal(extensionOf('a.tar.MD'), 'MD');
+  assert.equal(extensionOf('notes'), '');
+  assert.equal(extensionOf('dir.d/notes'), '');
+  assert.equal(extensionOf('notes.'), '');
+  assert.equal(extensionOf(null), '');
 });

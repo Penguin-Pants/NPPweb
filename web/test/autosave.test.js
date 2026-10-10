@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import { afterEach, beforeEach, mock, test } from 'node:test';
 import { createAutosave } from '../src/autosave.js';
 
-// Lets pending promise callbacks run. setImmediate is not mocked.
+// Lets pending promise callbacks run. setImmediate is not mocked. Date is
+// mocked, because the scheduler keeps each document's save deadline.
 const settle = () => new Promise((resolve) => setImmediate(resolve));
 
 let calls;
@@ -19,7 +20,7 @@ function controlledSave(id, text, version) {
 }
 
 beforeEach(() => {
-  mock.timers.enable({ apis: ['setTimeout'] });
+  mock.timers.enable({ apis: ['setTimeout', 'Date'] });
   calls = [];
   replies = [];
   statuses = [];
@@ -29,6 +30,7 @@ beforeEach(() => {
     save: controlledSave,
     onStatus: (id, status) => statuses.push(`${id}:${status}`),
     onEvent: (type, detail) => events.push({ type, ...detail }),
+    delayMs: 1000,
   });
   autosave.track('a', { version: 1, getContent: () => content.a });
   autosave.track('b', { version: 5, getContent: () => content.b });
@@ -55,14 +57,122 @@ test('an edit sets unsaved and saves the latest content after 1000 ms', async ()
   assert.deepEqual(statuses, ['a:unsaved', 'a:saving', 'a:saved']);
 });
 
-test('each edit restarts the debounce', () => {
+test('the default delay is 5 seconds', () => {
+  const fresh = createAutosave({ save: controlledSave });
+  fresh.track('c', { version: 1, getContent: () => 'c' });
+  fresh.edited('c');
+  mock.timers.tick(4999);
+  assert.equal(calls.length, 0);
+  mock.timers.tick(1);
+  assert.equal(calls.length, 1);
+});
+
+test('later edits do not push the save past the delay after the first unsaved edit (SAV-1)', () => {
   autosave.edited('a');
   mock.timers.tick(600);
+  autosave.edited('a');
+  mock.timers.tick(399);
+  assert.equal(calls.length, 0);
+  mock.timers.tick(1);
+  assert.equal(calls.length, 1);
+});
+
+test('nonstop editing for three delays saves at least twice (SAV-1)', async () => {
+  for (let elapsed = 0; elapsed < 3000; elapsed += 100) {
+    content.a = `text ${elapsed}`;
+    autosave.edited('a');
+    mock.timers.tick(100);
+    if (replies.length > 0) await reply(200, { version: autosave.version('a') + 1, updatedAt: elapsed });
+  }
+  assert.ok(calls.length >= 2, `saves: ${calls.length}`);
+});
+
+test('a deadline that passes during a save starts the next save when the reply comes (SAV-1)', async () => {
+  autosave.edited('a');
+  mock.timers.tick(1000);
+  assert.equal(calls.length, 1);
+  mock.timers.tick(200);
+  content.a = 'typed during the save';
+  autosave.edited('a');
+  mock.timers.tick(1100);
+  autosave.edited('a');
+  assert.equal(calls.length, 1);
+  await reply(200, { version: 2, updatedAt: 1 });
+  assert.equal(calls.length, 2);
+  assert.equal(calls[1].text, 'typed during the save');
+});
+
+test('an edit keeps a retry that comes sooner than the autosave delay (SAV-5)', async () => {
+  autosave.setDelay(30000);
+  autosave.edited('a');
+  mock.timers.tick(30000);
+  await reply(503);
+  autosave.edited('a');
+  mock.timers.tick(2000);
+  assert.equal(calls.length, 2);
+});
+
+test('after a smaller delay, the next edit moves a later pending save earlier (SAV-4)', () => {
+  autosave.setDelay(60000);
+  autosave.edited('a');
+  mock.timers.tick(1000);
+  autosave.setDelay(1000);
   autosave.edited('a');
   mock.timers.tick(999);
   assert.equal(calls.length, 0);
   mock.timers.tick(1);
   assert.equal(calls.length, 1);
+});
+
+test('a new delay applies to the pending save: a smaller one moves it earlier, a larger one keeps it (SAV-4)', async () => {
+  autosave.setDelay(60000);
+  autosave.edited('a');
+  mock.timers.tick(1000);
+  autosave.setDelay(2000);
+  mock.timers.tick(1999);
+  assert.equal(calls.length, 0);
+  mock.timers.tick(1);
+  assert.equal(calls.length, 1);
+  await reply(200, { version: 2, updatedAt: 1 });
+  autosave.edited('a');
+  autosave.setDelay(60000);
+  mock.timers.tick(2000);
+  assert.equal(calls.length, 2);
+});
+
+test('a new delay leaves a retry on its backoff (SAV-5)', async () => {
+  autosave.edited('a');
+  mock.timers.tick(1000);
+  await reply(500);
+  autosave.setDelay(100);
+  mock.timers.tick(1999);
+  assert.equal(calls.length, 1);
+  mock.timers.tick(1);
+  assert.equal(calls.length, 2);
+});
+
+test('a failed save keeps an earlier deadline from an edit made during it (SAV-1)', async () => {
+  autosave.edited('a');
+  mock.timers.tick(1000);
+  autosave.edited('a');
+  mock.timers.tick(500);
+  await reply(500);
+  mock.timers.tick(499);
+  assert.equal(calls.length, 1);
+  mock.timers.tick(1);
+  assert.equal(calls.length, 2);
+});
+
+test('an edit after a 413 saves again, also when a deadline passed while it was held', async () => {
+  autosave.edited('a');
+  mock.timers.tick(1000);
+  autosave.edited('a');
+  await reply(413);
+  mock.timers.tick(1000);
+  assert.equal(calls.length, 1);
+  autosave.edited('a');
+  mock.timers.tick(1000);
+  assert.equal(calls.length, 2);
 });
 
 test('the next save uses the version from the last successful save', async () => {
@@ -93,7 +203,7 @@ test('only one save is in flight, and edits during it cause one more save', asyn
   assert.equal(autosave.status('a'), 'saved');
 });
 
-test('flush saves at once, cancels the debounce and reports success', async () => {
+test('flush saves at once, cancels the pending delay and reports success', async () => {
   autosave.edited('a');
   const flushed = autosave.flush('a');
   assert.equal(calls.length, 1);
@@ -143,7 +253,7 @@ test('an untracked document stops saving', () => {
   assert.equal(calls.length, 0);
 });
 
-/** Edits doc a, lets the debounce fire and answers the save with status. */
+/** Edits doc a, lets the autosave delay pass and answers the save with status. */
 async function failOnce(status, data = null) {
   autosave.edited('a');
   mock.timers.tick(1000);
@@ -178,7 +288,7 @@ test('a success resets the backoff', async () => {
   assert.equal(calls.length, 4);
 });
 
-test('an edit during an error saves after the debounce, not the retry delay', async () => {
+test('an edit during an error saves at the autosave delay when it comes before the retry', async () => {
   await failOnce(0);
   autosave.edited('a');
   assert.equal(autosave.status('a'), 'unsaved');

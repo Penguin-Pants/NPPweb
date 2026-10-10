@@ -1,5 +1,8 @@
 // Playwright fixtures (T10). Each test gets its own server on a free port
-// with a fresh data folder, so tests never share state.
+// with a fresh data folder, so tests never share state. The server starts
+// with a 1-second autosave delay, so the v1 save tests keep their timing.
+// A spec sets `test.use({ autosaveSeconds: null })` to keep the 5-second
+// default (SAV-2).
 import { spawn } from 'node:child_process';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { createServer } from 'node:net';
@@ -14,8 +17,9 @@ export const OWNER_PASSWORD = 'e2e-password-123';
 const rootDir = fileURLToPath(new URL('..', import.meta.url));
 
 export const test = base.extend({
-  // eslint-disable-next-line no-empty-pattern
-  server: async ({}, use) => {
+  autosaveSeconds: [1, { option: true }],
+
+  server: async ({ autosaveSeconds }, use) => {
     const dataDir = await mkdtemp(join(tmpdir(), 'pn-e2e-'));
     const port = await freePort();
     const child = spawn(process.execPath, [join(rootDir, 'server', 'src', 'index.js')], {
@@ -35,6 +39,7 @@ export const test = base.extend({
     };
     try {
       await waitForHealth(url, () => child.exitCode !== null);
+      if (autosaveSeconds !== null) await setAutosaveSeconds(url, autosaveSeconds);
     } catch (err) {
       await stop();
       throw new Error(`${err.message}\nServer output:\n${output}`);
@@ -59,14 +64,36 @@ export const test = base.extend({
 });
 
 /**
- * Signs in through the login page and waits for the editor page.
+ * Signs in through the login page and waits until the editor page has
+ * started: its settings read is done, so the autosave delay is in force, and
+ * its tab list is stored and shown, so a test can write pn.openTabs.v1
+ * without the startup overwriting it (tabs.js boot).
  * @param {import('@playwright/test').Page} page
  */
 export async function login(page, password = OWNER_PASSWORD) {
   await page.goto('/login');
   await page.getByLabel('Password').fill(password);
+  const settings = page.waitForResponse((res) => res.url().endsWith('/api/settings') && res.request().method() === 'GET');
   await page.getByRole('button', { name: 'Sign in' }).click();
   await page.waitForURL((url) => url.pathname === '/');
+  await settings;
+  await page.locator('#empty-state:not([hidden]), .tab').first().waitFor();
+}
+
+async function setAutosaveSeconds(url, autosaveSeconds) {
+  const headers = { Origin: url, 'Content-Type': 'application/json' };
+  const login = await fetch(`${url}/api/login`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ password: OWNER_PASSWORD }),
+  });
+  const cookie = login.headers.getSetCookie().find((value) => value.startsWith('pn_session='))?.split(';')[0];
+  const res = await fetch(`${url}/api/settings`, {
+    method: 'PUT',
+    headers: { ...headers, Cookie: cookie },
+    body: JSON.stringify({ autosaveSeconds }),
+  });
+  if (res.status !== 200) throw new Error(`setting the autosave delay failed with ${res.status}`);
 }
 
 function freePort() {
@@ -92,6 +119,37 @@ async function waitForHealth(url, hasExited) {
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
   throw new Error('Server did not answer /healthz within 15 seconds.');
+}
+
+/**
+ * Creates the documents, signs in and opens them as tabs. The first is
+ * active. `mode` stores a Markdown mode first.
+ * @param {import('@playwright/test').Page} page
+ * @param {import('@playwright/test').APIRequestContext} api
+ * @param {[string, string][]} docs Name and content of each document.
+ * @param {{ mode?: 'visual' | 'raw' }} [options]
+ * @returns {Promise<string[]>} The document ids.
+ */
+export async function openDocs(page, api, docs, { mode } = {}) {
+  const ids = [];
+  for (const [name, content] of docs) {
+    const res = await api.post(`/api/documents?name=${encodeURIComponent(name)}`, {
+      data: content,
+      headers: { 'Content-Type': 'text/plain' },
+    });
+    ids.push((await res.json()).id);
+  }
+  await login(page);
+  await page.evaluate(
+    ({ list, markdownMode }) => {
+      localStorage.setItem('pn.openTabs.v1', JSON.stringify({ ids: list, activeId: list[0] }));
+      if (markdownMode) localStorage.setItem('pn.markdownMode', markdownMode);
+    },
+    { list: ids, markdownMode: mode },
+  );
+  await page.reload();
+  await expect(page.locator('.cm-content')).toBeVisible();
+  return ids;
 }
 
 /**
