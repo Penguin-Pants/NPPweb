@@ -78,7 +78,7 @@ Numbering continues from v1 (D1 to D13).
 | MDV-10 | Shortcuts on Markdown tabs: Ctrl+B bold, Ctrl+I italic, Ctrl+K link (Cmd on macOS). | All three work in normal tabs in Chrome, Edge, Firefox and Safari. Unverified assumption: each browser lets a page take Ctrl+K. Verify in the E2E suite. |
 | MDV-11 | Fenced code blocks show syntax highlighting in Visual mode, HTML export and PDF for the 11 languages of EDT-3. An unknown or missing language tag shows plain monospace text. | A `python` block shows colored tokens in all three places. |
 | MDV-12 | Code blocks tagged `mermaid` show as diagrams in Visual mode, HTML export and PDF. Raw mode shows the source. Visual mode also shows the source while the cursor is inside the block. | A flowchart block shows as a diagram in all three places. |
-| MDV-13 | Mermaid loads only when an open document has a `mermaid` block. It runs with `securityLevel: 'strict'`. The ELK layout is not included (C6). | The first page load does not fetch Mermaid. |
+| MDV-13 | Mermaid loads only when an export or the active tab in Visual mode holds a `mermaid` block. It runs with `securityLevel: 'strict'`. The ELK layout is not included (C6). | A page load whose active tab holds no `mermaid` block does not fetch Mermaid. A restored active tab with a `mermaid` block in Visual mode does fetch it. |
 | MDV-14 | Visual mode does not load remote `https:` images by itself. Each one shows its alt text and a Load button. A click on Load shows that image until the page reloads. `data:` images show at once. | No request goes to an image host before a click. After the click, the image shows. |
 
 ### 3.3 Outline
@@ -112,7 +112,7 @@ Numbering continues from v1 (D1 to D13).
 | SAV-2 | N is an owner setting. Default 5. The server stores it, so it applies on every device. | A change on device A shows on device B after a reload. |
 | SAV-3 | N is a whole number from 1 to 60. A Settings dialog in the Account menu edits it. An invalid value is rejected with a message. | 0, 61 and 2.5 are rejected. |
 | SAV-4 | A new N applies to the next scheduled save on the device that changed it. Other devices read it at the next page load. | Behavior matches on both devices. |
-| SAV-5 | Ctrl+S, the status label, retries, conflict handling and the close warning stay as in v1. | The v1 tests for DOC-3, EDGE-2 and CON-1 pass. |
+| SAV-5 | Ctrl+S, the status label, retries, conflict handling and the close warning stay as in v1. | The v1 status, retry, conflict and close-warning tests pass. The v1 1-second timing tests (`web/test/autosave.test.js:44`) change to SAV-1 timing. |
 
 ### 3.6 Export
 
@@ -150,7 +150,7 @@ Numbering continues from v1 (D1 to D13).
 | NOT-7 | Markdown documents push as Markdown. Other types push as one code block with the matching Notion language. `.txt` uses plain text. | A `.py` document shows as a Python code block. |
 | NOT-8 | Each document has a sync status: off, synced, pending or error. The status bar shows it for the active tab. The Documents dropdown shows it per row. A click on the status bar item offers: turn sync on or off, open in Notion and retry now. | Each status shows in its case. |
 | NOT-9 | At most one push runs per document. Saves during a push cause one more push with the newest content. A push never blocks or delays the NPPweb save. | Ten fast saves never have more than one push in flight. The last push holds the final content. |
-| NOT-10 | Pending pushes survive a server restart and run after start. | A restart during pending status ends in synced. |
+| NOT-10 | Pending Notion jobs (content push, title update and archive) are stored in the database. They survive a server restart and run after start. | A restart during a pending push ends in synced. A restart during a pending archive still moves the page to Notion trash. |
 | NOT-11 | Turning sync on again reuses the stored page if it exists and is not in trash. Else it creates a new page. | No duplicate page appears after off and on. |
 | NOT-12 | Without the Railway variables, the sync control is disabled and names the missing variables. | The control shows the note. |
 | NOT-13 | The token can be a personal access token or an internal integration token. The README explains both, including how to share the parent page with an internal integration. | The README has both setups. |
@@ -168,7 +168,7 @@ Numbering continues from v1 (D1 to D13).
 |----|-------------|-----------|
 | NFR-2 | Visual mode, the outline and counts stay responsive in a 1 MB Markdown document. This extends NFR-1. | The performance test covers Visual mode. |
 | NFR-3 | All libraries come from npm through the current esbuild build. No CDN scripts. `script-src` and `connect-src` stay `'self'`. | The CSP keeps those two values. |
-| NFR-4 | Large libraries such as Mermaid load on demand, not at first page load. | The first load does not fetch them. |
+| NFR-4 | Large libraries such as Mermaid load on demand, only when the active tab or an export needs them (MDV-13). | A page load whose active tab needs none of them fetches none of them. |
 | NFR-5 | The toggle, toolbar, outline, Export menu, Documents dropdown and Notion menu have accessible names and work from the keyboard. The toggle uses `aria-pressed`. | A keyboard-only run reaches each control. |
 
 ---
@@ -190,11 +190,12 @@ Numbering continues from v1 (EDGE-1 to EDGE-9).
 | EDGE-18 | The parent page is not found or not shared with the integration. | Turning sync on fails with a message that names the cause. |
 | EDGE-19 | Notion returns a rate limit error. | Wait for `Retry-After`, then retry. Status stays pending. |
 | EDGE-20 | Content is too large for Notion. | Status error "Too large for Notion". The Notion page keeps its last pushed content. |
-| EDGE-21 | Notion is down or the network fails. | Retry after 2, 4, 8, 16 and 30 seconds, then every 30 seconds, as autosave does (`web/src/autosave.js:6`). |
-| EDGE-22 | A synced document is deleted while Notion is unreachable. | The NPPweb delete completes. The archive call retries in the background. |
+| EDGE-21 | Notion is down or the network fails during a content push, title update or archive. | Retry after 2, 4, 8, 16 and 30 seconds, then every 30 seconds, as autosave does (`web/src/autosave.js:6`). These writes set a full state, so a repeat gives the same result. |
+| EDGE-22 | A synced document is deleted while Notion is unreachable. | The NPPweb delete completes. The archive job retries in the background and survives a restart (NOT-10). |
 | EDGE-23 | Notion changes some formatting on push. | Accepted. Headings 5 and 6 become heading 4. Mermaid shows as a code block. Raw HTML can change. |
 | EDGE-24 | The user cancels the print dialog. | Nothing happens. No error. |
 | EDGE-25 | An image cannot load (relative path, `http:` URL or broken link). | Show its alt text in a placeholder box. No Load button for relative or `http:` URLs. |
+| EDGE-26 | A Notion page create times out or returns 500, 502, 503 or 504. The page can exist even though the call failed. | Do not repeat the create blindly. First find out whether the page exists (from Notion retry guidance or a lookup under the parent page). Create again only when it does not. A retried create never leaves a duplicate page. |
 
 ---
 
@@ -210,8 +211,9 @@ Numbering continues from v1 (EDGE-1 to EDGE-9).
   - Markdown page create fails above 5,000 blocks.
   - 2,000 characters per rich text object. 100 child blocks per append request.
   - Latest `Notion-Version` found: `2026-03-11`. Native Markdown create, read and replace endpoints exist.
+  - Retry 429 and 529 responses. Retry 500, 502, 503 and 504 only for idempotent requests, unless the app has its own idempotency protection (EDGE-26). The response fields `retry_guidance` and `committed_resource_id` are unverified.
 - **C11:** Notion calls run only on the server, because a browser cannot hold the token safely.
-- **C12:** Railway runs one replica with a volume (README). An in-process push queue is enough.
+- **C12:** Railway runs one replica with a volume (README). One in-process worker that reads the stored Notion jobs (NOT-10) is enough.
 
 ---
 
@@ -257,7 +259,7 @@ All four are sources of ideas. Code may be copied only with its notices (C6).
 - A true rich-text editor (Milkdown, Tiptap, ProseMirror) or Monaco
 - Image-only PDFs or server-side PDF rendering
 - Visual mode, outline, toolbar or Mermaid for non-Markdown documents
-- `.md`, `.html` or `.pdf` export of non-Markdown documents
+- Rendered `.md`, `.html` or `.pdf` export of non-Markdown documents. Their raw download in their own extension stays (EXP-2).
 - New code-editor languages
 - Rendering raw HTML inside Markdown in Visual mode
 - Image upload, paste or storage
@@ -287,10 +289,10 @@ All four are sources of ideas. Code may be copied only with its notices (C6).
 |-----------|------|--------|
 | M9 | Layout: tabs, left panel, Documents dropdown | LAY-1 to LAY-5 |
 | M10 | Settings API and autosave timing | SAV-1 to SAV-5 |
-| M11 | Visual mode, toggle, toolbar, shortcuts, code block highlighting | MDV-1 to MDV-11 |
-| M12 | Outline and counts | OUT-1 to OUT-6, CNT-1 to CNT-7 |
-| M13 | Export and drag and drop | EXP-1 to EXP-7, DRP-1 to DRP-6 |
-| M14 | Mermaid and theme animation | MDV-12, MDV-13, THM-1, THM-2 |
+| M11 | Visual mode, toggle, toolbar, shortcuts, code block highlighting, remote images | MDV-1 to MDV-10, MDV-14, the Visual mode part of MDV-11 |
+| M12 | Outline, counts and the syntax-stripping rules that EXP-3 reuses | OUT-1 to OUT-6, CNT-1 to CNT-7 |
+| M13 | Mermaid in Visual mode and theme animation | MDV-13, the Visual mode part of MDV-12, THM-1, THM-2 |
+| M14 | Export and drag and drop | EXP-1 to EXP-7, DRP-1 to DRP-6, the export parts of MDV-11 and MDV-12 |
 | M15 | Notion: test call first (C10), then sync | NOT-1 to NOT-13 |
 | M16 | Hardening, README, performance | NFR-2 to NFR-5 |
 
