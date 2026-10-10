@@ -205,6 +205,7 @@ Coding agents record deviations from the plan here.
 | 2026-10-09 | T23 | Each choice runs while its dialog stays open (buttons disabled). A failed step shows its error in the dialog. After a 401, the sign-in dialog opens on top and the user chooses again. | P6 review: text typed during the request was lost, and a failed step looped over the sign-in dialog. | User (chat, 2026-10-10) |
 | 2026-10-10 | T28 | Status messages move to the right end of the status bar (D55). | Next to the save status, a long message pushed the counts to the right for 5 seconds. | User (chat, 2026-10-10) |
 | 2026-10-10 | T29 | The server picks no default language. New sends `markdown` in the create request. | The first PR #6 commit stored Markdown for every create without a name. Recovery copies have a name, so they did not match. Now a create stores the language it gets. | User (chat, 2026-10-10) |
+| 2026-10-10 | T30 | `server/test/db.test.js`: the fresh-database and reopen checks expect `migrations.length`, not 1. The two generic `migrate` tests append their test migrations after the real list. | A fixed version 1 fails with every appended migration, and a list shorter than the real one is skipped. | Agent, not yet approved |
 
 ## 10. Phase review log
 

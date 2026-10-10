@@ -24,4 +24,10 @@ export const migrations = [
     updated_at INTEGER NOT NULL
   );
   `,
+  // 2: workspaces (v3 TD-22). Every existing document goes to Personal (MIG-1).
+  `
+  ALTER TABLE documents ADD COLUMN workspace TEXT NOT NULL DEFAULT 'personal'
+    CHECK (workspace IN ('personal', 'work'));
+  CREATE INDEX documents_workspace_updated ON documents(workspace, updated_at);
+  `,
 ];
