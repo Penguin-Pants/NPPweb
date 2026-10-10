@@ -1,4 +1,4 @@
-import { expect, login, OWNER_PASSWORD, test } from './fixtures.js';
+import { expect, login, test } from './fixtures.js';
 
 const SAMPLES = {
   'a.md': ['markdown', '# Title\n\n**bold** text'],
@@ -83,10 +83,8 @@ test('an override wins over the extension and shows in a second browser context'
 
   const other = await browser.newContext({ baseURL: server.url });
   const second = await other.newPage();
-  await second.goto('/login');
-  await second.getByLabel('Password').fill(OWNER_PASSWORD);
-  await second.getByRole('button', { name: 'Sign in' }).click();
-  await second.waitForURL((url) => url.pathname === '/');
+  // login waits for the startup, so it cannot store its empty tab list over the one below.
+  await login(second);
   await openTabs(second, [doc.id]);
   await expect(content(second)).toHaveAttribute('data-language', 'markdown');
   await expect(languageSelect(second)).toHaveValue('markdown');
