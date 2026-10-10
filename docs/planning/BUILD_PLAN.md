@@ -696,7 +696,7 @@ Update **Status** to `In progress` or `Done`. Add the PR or commit and short not
 | T25 | Performance check | P7 | S | T20, T24 | Done | d286e22 | Chromium, 3 runs: open 75 to 81 ms, 200 typed characters 694 to 747 ms, Ctrl+End 11 to 14 ms, no console errors. Owner-pending: manual scroll check (section 9.1). |
 | T26 | README and production verification | P7 | M | all | Blocked (owner) | 716fb31 | README done. The production checklist (section 9.1) needs the deployed app from T04. Extra owner check (P1 review 4): 6 wrong logins with 6 different X-Real-IP headers must get 429 on the 6th. |
 
-**Resume rule:** Find the first task in table order whose status is not `Done` and whose dependencies are all `Done`. Run `npm test` and `npm run test:e2e` to confirm a green baseline before you continue.
+**Resume rule:** Find the first task in table order whose status is not `Done` and whose dependencies are all `Done`. Run `npm test` to confirm a green baseline before you continue. From T10 onward, also run `npm run test:e2e`.
 
 
 ### 9.1 Owner checklist record
