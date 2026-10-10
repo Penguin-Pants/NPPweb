@@ -10,7 +10,7 @@ For Markdown: a Visual mode (live preview) with one Visual/Raw toggle, a formatt
 
 Needs Node.js 24.2 or later (24.x).
 
-1. `npm ci`
+1. `npm ci`. After the install, `scripts/patch-lezer-markdown.js` patches the Markdown parser so typing stays fast in long documents (`docs/upstream/lezer-markdown-reuse.md`).
 2. Create a `.env` file (it is gitignored) with at least `OWNER_PASSWORD=<a password of 12 or more characters>`.
 3. `npm run dev` builds the frontend and starts the server on http://localhost:3000. It reads `.env` and restarts when server files change. Run `npm run build` again after frontend changes.
 
@@ -120,7 +120,6 @@ Account > Settings sets the autosave delay: a whole number of seconds from 1 to 
 - New documents are named "Untitled N". An empty "Untitled N" tab closes without a prompt and its document is deleted.
 - Visual mode shows diagrams as images, so diagram text cannot be selected there. The Mermaid ELK layout is not included; diagrams use the dagre layout.
 - In PDF export, `http:` images do not load. `https:` images do.
-- In the performance test, typing 200 characters in a 1 MB Markdown document of notes takes less than 3 seconds. In very dense Markdown (a heading, list, table or code block every few lines, all the way through 1 MB) each key takes longer, because the Markdown parser's work grows with the number of blocks.
 - Notion sync is not built yet.
 
 ## Backups

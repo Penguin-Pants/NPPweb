@@ -296,7 +296,7 @@ The owner approved this sequence as the V2 build plan on 2026-10-10. Each phase 
 | M13 | Mermaid in Visual mode and theme animation | MDV-13, the Visual mode part of MDV-12, THM-1, THM-2 | Done. Owner check: theme animation in Firefox and Safari. The owner allowed the ISC and Unlicense packages that Mermaid brings (C6, 2026-10-10). |
 | M14 | Export and drag and drop | EXP-1 to EXP-7, DRP-1 to DRP-6, the export parts of MDV-11 and MDV-12 | Done. Owner check: Save as PDF in the print dialog of a real browser. |
 | M15 | Notion: test call first (C10), then sync | NOT-1 to NOT-13 | Blocked. The C10 test call needs network access to `api.notion.com` (denied in the build environment) and a Notion token with a shared parent page. Sync is not built on unverified API details (`PLAN_REVIEW.md` section 13). |
-| M16 | Hardening, README, performance | NFR-2 to NFR-5 | Done, except NFR-2 typing in dense Markdown. The perf test holds 1 MB of notes in Visual mode to the NFR-1 targets. Blocker: dense Markdown (a block every 40 bytes) types 200 characters in 4.0 to 6.5 s, because of the Markdown parser. Owner decision needed (`PLAN_REVIEW.md` section 12, M16 row 3). The Notion menu part of NFR-5 waits for M15. |
+| M16 | Hardening, README, performance | NFR-2 to NFR-5 | Done. The perf test holds 1 MB of notes and 1 MB of dense Markdown in Visual mode to the NFR-1 targets. Dense typing needed a patch of the Markdown parser, which the owner chose (`PLAN_REVIEW.md` section 12, M16 rows 3 and 15). The Notion menu part of NFR-5 waits for M15. |
 
 ---
 

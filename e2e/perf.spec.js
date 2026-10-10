@@ -1,11 +1,11 @@
 import { expect, login, test } from './fixtures.js';
 
 // NFR-1 targets (T25): open and render under 2 s, 200 typed characters under
-// 3 s, Ctrl+End under 0.5 s, no console errors. NFR-2 holds a 1 MB Markdown
-// document of notes in Visual mode to the same targets. Dense Markdown adds
-// counts within 300 ms (CNT-7) and the outline within 500 ms (OUT-2) after
-// the last change. Runs with the default 5-second autosave delay (SAV-2), as
-// in production.
+// 3 s, Ctrl+End under 0.5 s, no console errors. NFR-2 holds 1 MB Markdown
+// documents in Visual mode, notes and dense, to the same targets. The dense
+// one adds counts within 300 ms (CNT-7) and the outline within 500 ms (OUT-2)
+// after the last change. Runs with the default 5-second autosave delay
+// (SAV-2), as in production.
 const TARGET_BYTES = 1_048_000;
 
 // No trace: its page snapshots take up to 200 ms each with a long outline,
@@ -119,7 +119,7 @@ test('a 1 MB Markdown document of notes in Visual mode opens, types and scrolls 
   expect(errors).toEqual([]);
 });
 
-test('a dense 1 MB Markdown document in Visual mode opens, scrolls and keeps counts and the outline in time (NFR-2, CNT-7, OUT-2)', async ({
+test('a dense 1 MB Markdown document in Visual mode opens, types, scrolls and keeps counts and the outline in time (NFR-2, CNT-7, OUT-2)', async ({
   page,
   api,
   browserName,
@@ -163,9 +163,7 @@ test('a dense 1 MB Markdown document in Visual mode opens, scrolls and keeps cou
     `perf md: open ${openMs} ms, type 200 chars ${typeMs} ms, Ctrl+End ${endMs} ms, counts ${Math.round(countsMs)} ms, outline ${Math.round(outlineMs)} ms`,
   );
   expect(openMs).toBeLessThan(2000);
-  // Typing is logged, not held to 3 s: here each key costs a Markdown parse
-  // step that grows with the number of top-level blocks (PLAN_REVIEW.md
-  // section 12, M16 row 3).
+  expect(typeMs).toBeLessThan(3000);
   expect(endMs).toBeLessThan(500);
   expect(countsMs).toBeLessThan(300);
   expect(outlineMs).toBeLessThan(500);
