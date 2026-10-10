@@ -1,7 +1,7 @@
 // Document API (BUILD_PLAN.md section 2.7). Content travels as text/plain
 // with an exact byte limit (TD-7). Every route acts on the workspace that its
 // `workspace` query value names, Personal by default (v3 TD-23).
-import { parseWorkspace } from '../workspaces.js';
+import { parseWorkspace, WORKSPACES } from '../workspaces.js';
 import {
   createDocument,
   deleteDocument,
@@ -85,6 +85,11 @@ export async function documentRoutes(app, { db, clock }) {
         return reply.code(400).send({ error: 'invalid_language' });
       }
       changes.language = body.language;
+    }
+    // A move (v3 TD-26): the query names the source, the body the target.
+    if (Object.hasOwn(body, 'workspace')) {
+      if (!WORKSPACES.includes(body.workspace)) return reply.code(400).send({ error: 'invalid_workspace' });
+      changes.workspace = body.workspace;
     }
     const meta = updateMeta(db, request.workspace, request.params.id, changes, clock());
     if (!meta) return reply.code(404).send({ error: 'not_found' });

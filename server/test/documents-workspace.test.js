@@ -143,3 +143,65 @@ test('an upgraded version 1 database lists the same documents, now in Personal (
     await rm(dataDir, { recursive: true, force: true, maxRetries: 5 });
   }
 });
+
+// Move (v3 MOV-2, TD-26).
+const move = (id, from, body) => send('PATCH', `/api/documents/${id}?workspace=${from}`, { payload: body });
+const stored = async (id, workspace) => (await send('GET', `/api/documents/${id}?workspace=${workspace}`)).json();
+
+test('a move keeps name, content, version and updatedAt, and the document changes lists (MOV-2)', async () => {
+  const doc = await create('personal', 'notes.md');
+  const saved = await send('PUT', `/api/documents/${doc.id}/content?workspace=personal`, {
+    payload: 'é and a NUL \u0000 stay',
+    headers: { ...text, 'if-match': '1' },
+  });
+  assert.equal(saved.statusCode, 200);
+  const before = await stored(doc.id, 'personal');
+  const res = await move(doc.id, 'personal', { workspace: 'work' });
+  assert.equal(res.statusCode, 200);
+  const { content, ...meta } = before;
+  assert.deepEqual(res.json(), meta);
+  assert.deepEqual(await stored(doc.id, 'work'), before);
+  assert.deepEqual(await names('personal'), []);
+  assert.deepEqual(await names('work'), ['notes.md']);
+  assert.equal((await send('GET', `/api/documents/${doc.id}?workspace=personal`)).statusCode, 404);
+});
+
+test('a moved name that the target already uses stays unchanged (MOV-2)', async () => {
+  await create('work', 'notes.md');
+  const doc = await create('personal', 'notes.md');
+  assert.equal((await move(doc.id, 'personal', { workspace: 'work' })).statusCode, 200);
+  assert.deepEqual(await names('work'), ['notes.md', 'notes.md']);
+});
+
+test('a move sent with the wrong source workspace is not found and moves nothing', async () => {
+  const doc = await create('personal', 'notes.md');
+  const res = await move(doc.id, 'work', { workspace: 'personal' });
+  assert.deepEqual([res.statusCode, res.json()], [404, { error: 'not_found' }]);
+  assert.deepEqual(await names('personal'), ['notes.md']);
+});
+
+test('a move to the same workspace returns 200 and changes nothing', async () => {
+  const doc = await create('work', 'plan.md');
+  const before = await stored(doc.id, 'work');
+  const res = await move(doc.id, 'work', { workspace: 'work' });
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(await stored(doc.id, 'work'), before);
+});
+
+test('an unknown move target returns 400 invalid_workspace and moves nothing', async () => {
+  const doc = await create('personal', 'notes.md');
+  for (const target of ['team', 'Work', null, 1, ['work']]) {
+    const res = await move(doc.id, 'personal', { workspace: target, name: 'renamed.md' });
+    assert.deepEqual([res.statusCode, res.json()], [400, { error: 'invalid_workspace' }], String(target));
+  }
+  assert.deepEqual(await names('personal'), ['notes.md']);
+});
+
+test('a move and a rename in one request apply together', async () => {
+  const doc = await create('personal', 'notes.md');
+  const res = await move(doc.id, 'personal', { name: 'plan.md', workspace: 'work' });
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.json().name, 'plan.md');
+  assert.deepEqual(await names('work'), ['plan.md']);
+  assert.deepEqual(await names('personal'), []);
+});

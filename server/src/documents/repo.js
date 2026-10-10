@@ -130,20 +130,23 @@ export function saveContent(db, { workspace, id, content, expectedVersion, now }
 }
 
 /**
- * Applies a rename and/or a language override. Only a rename changes
- * updated_at (section 2.6). Neither changes version (TD-6).
+ * Applies a rename, a language override and/or a move to the other
+ * workspace. Only a rename changes updated_at (section 2.6), so a move keeps
+ * the sort position (v3 TD-26). None changes version (TD-6).
  * @param {import('node:sqlite').DatabaseSync} db
- * @param {string} workspace
+ * @param {string} workspace The document's workspace now.
  * @param {string} id
- * @param {{ name?: string, language?: string | null }} changes Already validated.
+ * @param {{ name?: string, language?: string | null, workspace?: string }} changes Already validated.
  * @param {number} now
  * @returns {DocumentMeta | undefined} undefined when the document does not exist in the workspace.
  */
-export function updateMeta(db, workspace, id, { name, language }, now) {
+export function updateMeta(db, workspace, id, { name, language, workspace: target }, now) {
   return transaction(db, () => {
     if (!db.prepare('SELECT 1 FROM documents WHERE id = ? AND workspace = ?').get(id, workspace)) return undefined;
     if (name !== undefined) db.prepare('UPDATE documents SET name = ?, updated_at = ? WHERE id = ?').run(name, now, id);
     if (language !== undefined) db.prepare('UPDATE documents SET language = ? WHERE id = ?').run(language, id);
+    if (target !== undefined) db.prepare('UPDATE documents SET workspace = ? WHERE id = ?').run(target, id);
+    // By id only: a moved row is in the target workspace now.
     const row = db.prepare('SELECT id, name, version, language, updated_at FROM documents WHERE id = ?').get(id);
     return row && toMeta(row);
   });
