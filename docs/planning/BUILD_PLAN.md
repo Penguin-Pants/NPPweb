@@ -206,6 +206,7 @@ CREATE TABLE documents (
 - Language values: `plain`, `markdown`, `json`, `html`, `css`, `javascript`, `typescript`, `python`, `sql`, `yaml`, `shell`.
 - Name rule: trimmed, 1 to 255 characters, no control characters. Duplicate names are allowed. Documents are identified by `id`.
 - "Untitled N" rule: N = 1 + the highest N among names that match `^Untitled (\d+)$`. Use 1 if none match. Compute inside the insert transaction.
+- A document created without a name gets `language = 'markdown'`. A document created with a name gets `NULL` (auto), so its extension decides.
 
 ### 2.7 HTTP API
 

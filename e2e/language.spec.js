@@ -44,6 +44,19 @@ test('each extension selects its language and highlights tokens', async ({ page,
   }
 });
 
+test('a new document starts as Markdown and a named one keeps Auto', async ({ page, api }) => {
+  const doc = await createDoc(api, 'notes.txt', 'just text');
+  await login(page);
+  await page.getByRole('button', { name: 'New', exact: true }).click();
+  await expect(page.getByRole('tab', { name: /^Untitled \d+$/ })).toHaveAttribute('aria-selected', 'true');
+  await expect(languageSelect(page)).toHaveValue('markdown');
+  await expect(content(page)).toHaveAttribute('data-language', 'markdown');
+
+  await openTabs(page, [doc.id]);
+  await expect(languageSelect(page)).toHaveValue('');
+  await expect(content(page)).toHaveAttribute('data-language', 'plain');
+});
+
 test('renaming a.py to a.sql switches to SQL', async ({ page, api }) => {
   const doc = await createDoc(api, 'a.py', 'select 1');
   await login(page);

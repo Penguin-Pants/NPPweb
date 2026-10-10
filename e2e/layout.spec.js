@@ -34,6 +34,31 @@ test('the outline panel is open on the first visit and its state survives a relo
   await expect(panel).toBeVisible();
 });
 
+test('the counts and the language start at the left edge of the editor pane, in the status bar', async ({ page, api }) => {
+  await openDocs(page, api, [['notes.md', '# Notes']]);
+  const bar = await page.locator('.statusbar').boundingBox();
+  const counts = page.locator('#counts');
+  const language = page.getByRole('combobox', { name: 'Language' });
+  const left = async (locator) => (await locator.boundingBox()).x;
+  const pane = await left(page.locator('.editor-pane'));
+  await expect(counts).toHaveText('1 word · 5 characters');
+  expect(await left(counts)).toBeGreaterThanOrEqual(pane);
+  expect(await left(counts)).toBeLessThanOrEqual(pane + 16);
+  const select = await language.boundingBox();
+  expect(select.x).toBeGreaterThan(await left(counts));
+  expect(select.x + select.width).toBeLessThan(pane + bar.width / 2);
+  for (const box of [await counts.boundingBox(), select]) {
+    expect(box.y).toBeGreaterThanOrEqual(bar.y);
+    expect(box.y + box.height).toBeLessThanOrEqual(bar.y + bar.height);
+  }
+
+  await page.getByRole('button', { name: 'Outline' }).click();
+  await expect(page.getByRole('complementary', { name: 'Outline' })).toBeHidden();
+  const status = await page.locator('#save-status').boundingBox();
+  await expect.poll(() => left(counts)).toBeLessThan(status.x + status.width + 16);
+  expect(await left(counts)).toBeGreaterThanOrEqual(status.x + status.width);
+});
+
 test('many open tabs stay in one scrolling row and the document list sits in the top bar (LAY-1, LAY-3)', async ({ page, api }) => {
   await openDocs(
     page,
