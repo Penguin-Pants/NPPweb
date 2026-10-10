@@ -3,6 +3,28 @@ import { afterEach, beforeEach, describe, test } from 'node:test';
 import { setupShortcuts, shortcutFor } from '../src/shortcuts.js';
 
 const key = (code, mods = {}) => ({ code, ctrlKey: false, metaKey: false, altKey: false, shiftKey: false, ...mods });
+/** A key press with the character the layout types (event.key). */
+const typed = (code, letter, mods) => ({ ...key(code, mods), key: letter });
+
+test('Mod shortcuts follow the typed letter, so other layouts keep their keys (AZERTY)', () => {
+  for (const mac of [false, true]) {
+    const mod = mac ? { metaKey: true } : { ctrlKey: true };
+    // On AZERTY the QWERTY W position types z, and the QWERTY Z position types w.
+    assert.equal(shortcutFor(typed('KeyW', 'z', mod), mac), null, 'undo stays undo');
+    assert.equal(shortcutFor(typed('KeyZ', 'w', mod), mac), 'close');
+    assert.equal(shortcutFor(typed('KeyN', 'N', mod), mac), 'new', 'Caps Lock');
+  }
+});
+
+test('a Mod key that types no Latin letter falls back to the key position (Cyrillic)', () => {
+  assert.equal(shortcutFor(typed('KeyN', 'т', { ctrlKey: true }), false), 'new');
+  assert.equal(shortcutFor(typed('KeyW', 'ц', { ctrlKey: true }), false), 'close');
+});
+
+test('Alt shortcuts keep the key position, because Option on macOS types other characters', () => {
+  assert.equal(shortcutFor(typed('KeyW', 'z', { altKey: true }), false), 'close');
+  assert.equal(shortcutFor(typed('KeyZ', 'w', { altKey: true }), false), null);
+});
 
 test('Ctrl shortcuts on Windows and Linux', () => {
   const expected = { KeyN: 'new', KeyW: 'close', KeyS: 'save', KeyF: 'find', KeyH: 'replace' };
