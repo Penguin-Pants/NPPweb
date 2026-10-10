@@ -1,6 +1,10 @@
 // v3 workspaces (REQUIREMENTS_V3.md). Fixture API calls send no workspace,
 // so they act on Personal (MIG-3).
 import { drop, expect, login, newDocument, test } from './fixtures.js';
+import { contrastRatio } from '../web/src/workspace-color.js';
+
+/** rgb(r, g, b) from getComputedStyle as #rrggbb. */
+const hex = (rgb) => `#${rgb.match(/\d+/g).slice(0, 3).map((n) => Number(n).toString(16).padStart(2, '0')).join('')}`;
 
 const editor = (page) => page.locator('.cm-content');
 const status = (page) => page.locator('#save-status');
@@ -508,4 +512,51 @@ test('a Personal color applies to Personal only (CLR-1)', async ({ page }) => {
   expect(await strip(page)).toBe(WORK_PRESET);
   await switchTo(page, 'Personal');
   expect(await strip(page)).toBe('rgb(0, 0, 128)');
+});
+
+test.describe('tab colors with a 30-second autosave delay', () => {
+  test.use({ autosaveSeconds: 30 });
+
+  test('an inactive Personal tab keeps today\'s accent dot, and a Work one uses the strip text color (CLR-6, TD-38)', async ({ page, api }) => {
+    const p1 = await create(api, 'personal', 'p1.md', 'one');
+    const p2 = await create(api, 'personal', 'p2.md', 'two');
+    await login(page);
+    await storeTabs(page, { personal: [p1, p2] });
+    await editor(page).click();
+    await page.keyboard.type('x');
+    await page.getByRole('tab', { name: 'p2.md' }).click();
+    const dot = page.getByRole('tab', { name: 'p1.md' }).locator('.tab-dirty');
+    await expect(dot).toBeVisible();
+    expect(await css(dot, 'backgroundColor')).toBe('rgb(94, 161, 255)');
+  });
+});
+
+test('a hovered close button on an inactive Work tab stays readable in the light theme (CLR-5)', async ({ page, api }) => {
+  const w1 = await create(api, 'work', 'w1.md', 'one');
+  const w2 = await create(api, 'work', 'w2.md', 'two');
+  await page.addInitScript(() => {
+    localStorage.setItem('pn.workspace', 'work');
+    localStorage.setItem('pn.theme', 'light');
+  });
+  await login(page);
+  await storeTabs(page, { work: [w1, w2] });
+  const close = page.getByRole('button', { name: 'Close w2.md' });
+  await close.hover();
+  const [color, background] = [await css(close, 'color'), await css(close, 'backgroundColor')];
+  expect(contrastRatio(hex(color), hex(background))).toBeGreaterThanOrEqual(4.5);
+});
+
+test('a settings reply without colors, as from a v2 server, keeps both default colors (R15)', async ({ page }) => {
+  const errors = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await page.route('**/api/settings', (route) =>
+    route.request().method() === 'GET'
+      ? route.fulfill({ status: 200, contentType: 'application/json', body: '{"autosaveSeconds":5}' })
+      : route.fallback(),
+  );
+  await login(page);
+  expect(await strip(page)).toBe(DARK_SURFACE);
+  await switchTo(page, 'Work');
+  expect(await strip(page)).toBe(WORK_PRESET);
+  expect(errors).toEqual([]);
 });

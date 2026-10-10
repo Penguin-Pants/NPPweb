@@ -382,8 +382,11 @@ button.danger {
   color: inherit;
 }
 
+/* The hover background is not the workspace color, so the text is the
+   theme's own (CLR-5). */
 .tab-close:hover {
   background: var(--surface-2);
+  color: var(--fg);
 }
 
 .empty-state[hidden],

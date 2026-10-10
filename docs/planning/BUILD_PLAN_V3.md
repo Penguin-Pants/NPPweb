@@ -1,6 +1,6 @@
 # Build Plan V3: Workspaces, Status Bar and New-Document Defaults
 
-**Status:** M17 (T28, T29) is Done in PR #6. M18 to M21 (T30 to T39) are Planned. T40 (Notion workspace rules) is Blocked with M15 (C17). No open plan decisions.
+**Status:** M17 (T28, T29) is Done in PR #6. M18 to M21 (T30 to T39) are Done in PR #10. T40 (Notion workspace rules) is Blocked with M15 (C17). No open plan decisions.
 **Date:** 2026-10-10
 **Inputs:** `REQUIREMENTS_V3.md`, `REQUIREMENTS_V2.md`, `REQUIREMENTS.md`, `BUILD_PLAN.md` (v1 plan, TD-1 to TD-19), `PLAN_REVIEW.md`
 **Codebase:** v1 and v2 are built (`BUILD_PLAN.md` section 9, `REQUIREMENTS_V2.md` section 9). Line references in this file are for the head of PR #6.
@@ -279,7 +279,7 @@ Numbering continues from v1 (R1 to R8).
 | R10 | A switch waits for every save. On a slow network it can take seconds. | The button is disabled during the switch. The save status shows "Saving...". |
 | R11 | Text typed during a move request reaches a 404 and opens the EDGE-1 dialog. | Accepted: no text is lost (TD-34). The e2e test covers it. |
 | R12 | The migration runs at app start on Railway (v1 TD-17). A failure stops the start. | It runs in one transaction (`migrate` in `server/src/db.js`). Upgrade check in section 5. |
-| R13 | This container runs Node 22. Production runs Node 24. | Run the suites on Node 24 before release, as in v2 (`PLAN_REVIEW.md` section 13). PR #6 ran on Node 22: `npm test` 355 pass, Chromium e2e 138 pass. |
+| R13 | The container default is Node 22. Production runs Node 24. | Run the suites on Node 24 before release, as in v2 (`PLAN_REVIEW.md` section 13). PR #6 ran on Node 22: `npm test` 355 pass, Chromium e2e 138 pass. PR #10 ran on Node 24.21.0 (`PLAN_REVIEW.md` section 14). |
 | R14 | A New that is in flight during a switch still creates its document in the old workspace, but its response is dropped (TD-41). | The document shows in the old workspace's list. No text is lost. |
 | R15 | A rollback to a v2 build after migration 2: the v2 build starts, because `migrate` skips a database whose `user_version` (2) is at or above its own count (1) (`server/src/db.js:31-32`). Its inserts get `personal` from the column default. It lists Personal and Work documents together. | No data is lost. Prefer a forward fix. The README states the effect (T39). |
 
@@ -291,16 +291,16 @@ Numbering continues from v1 (R1 to R8).
 |----|-------|-----------|------|------------|--------|--------------|-------|
 | T28 | Status bar layout | M17 | S | none | Done | PR #6 (aa926e0, 10eac16) | Narrow-window wrap from the Codex review. |
 | T29 | New-document defaults and recovery copies | M17 | S | none | Done | PR #6 (aa926e0, 70239d0, 10eac16) | Recovery copy fixes from the Codex review. |
-| T30 | Migration 2: workspace column | M18 | S | none | Done | | Fresh and upgraded databases reach `user_version` 2. |
-| T31 | Workspace-scoped document API | M18 | M | T30 | Done | | `onRequest` hook checks `workspace` before the body is read. Upgrade check is a test. M18 review in `PLAN_REVIEW.md` section 14. |
-| T32 | Workspace state, title and class rename | M19 | S | none | Done | | `showWorkspace` in `web/src/workspace.js` sets `data-workspace` and, on `<html data-page="app">`, the title. `.workspace` is now `.main-area`. |
-| T33 | Workspace-scoped client calls and tabs | M19 | M | T31, T32 | Done | | `api.js` generation and `stale`. Personal calls keep the v1 paths (`PLAN_REVIEW.md` section 9). The e2e `drop` helper moved to `e2e/fixtures.js`. |
-| T34 | Switch control and switch safety | M19 | M | T33 | Done | | M19 review in `PLAN_REVIEW.md` section 14. Owner check: the installed app window title changes on a switch (Chrome, Edge). |
-| T35 | Move route | M20 | S | T31 | Done | | A move can come with a rename in one PATCH. A non-string target returns 400 `invalid_workspace`. |
-| T36 | Move action in the Documents dropdown | M20 | M | T34, T35 | Done | | Move sits between Rename and Delete. A 404 names the workspace and refreshes the list. M20 review in `PLAN_REVIEW.md` section 14. |
-| T37 | Color settings API | M21 | S | none | Done | | `workspaceColors` must name both workspaces and nothing else, else 400 `invalid_request`. v2 settings tests now compare `autosaveSeconds` only. |
-| T38 | Colors in the UI | M21 | M | T34, T37 | Done | | `--ws-strip-mark` keeps the Personal default dot (`PLAN_REVIEW.md` section 9). A reply without `workspaceColors` (a v2 server) keeps both defaults. Screenshots for the owner in the PR. |
-| T39 | README and docs | M21 | S | T36, T38 | Planned | | |
+| T30 | Migration 2: workspace column | M18 | S | none | Done | PR #10 (14fda57) | Fresh and upgraded databases reach `user_version` 2. |
+| T31 | Workspace-scoped document API | M18 | M | T30 | Done | PR #10 (f5212e7) | `onRequest` hook checks `workspace` before the body is read. Upgrade check is a test. M18 review in `PLAN_REVIEW.md` section 14. |
+| T32 | Workspace state, title and class rename | M19 | S | none | Done | PR #10 (3b6c7a5) | `showWorkspace` in `web/src/workspace.js` sets `data-workspace` and, on `<html data-page="app">`, the title. `.workspace` is now `.main-area`. |
+| T33 | Workspace-scoped client calls and tabs | M19 | M | T31, T32 | Done | PR #10 (eb1686e) | `api.js` generation and `stale`. Personal calls keep the v1 paths (`PLAN_REVIEW.md` section 9). The e2e `drop` helper moved to `e2e/fixtures.js`. |
+| T34 | Switch control and switch safety | M19 | M | T33 | Done | PR #10 (542ff27) | M19 review in `PLAN_REVIEW.md` section 14. Owner check: the installed app window title changes on a switch (Chrome, Edge). |
+| T35 | Move route | M20 | S | T31 | Done | PR #10 (829e248) | A move can come with a rename in one PATCH. A non-string target returns 400 `invalid_workspace`. |
+| T36 | Move action in the Documents dropdown | M20 | M | T34, T35 | Done | PR #10 (c25dade) | Move sits between Rename and Delete. A 404 names the workspace and refreshes the list. M20 review in `PLAN_REVIEW.md` section 14. |
+| T37 | Color settings API | M21 | S | none | Done | PR #10 (b97cebd) | `workspaceColors` must name both workspaces and nothing else, else 400 `invalid_request`. v2 settings tests now compare `autosaveSeconds` only. |
+| T38 | Colors in the UI | M21 | M | T34, T37 | Done | PR #10 (aa8e697) | `--ws-strip-mark` keeps the Personal default dot (`PLAN_REVIEW.md` section 9). A reply without `workspaceColors` (a v2 server) keeps both defaults. Screenshots for the owner in the PR. |
+| T39 | README and docs | M21 | S | T36, T38 | Done | PR #10 | README section Workspaces. M21 review in `PLAN_REVIEW.md` section 14. |
 | T40 | Notion workspace rules | M15 | S | M15, T35 | Blocked | | C17 |
 
 ---

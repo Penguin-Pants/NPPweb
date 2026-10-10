@@ -514,3 +514,15 @@ Two-pass review of each V3 phase and of `BUILD_PLAN_V3.md`. Same method and verd
 | M20 | 3 | A Move during a conflict hold. | Rejected | The conflict dialog is modal and Escape does not close it (T23), so the Move button cannot be pressed. |
 | M20 | 4 | A Move during a switch, or a switch during a Move. | Rejected | Both run through `exclusive` (TD-42): the second shows "Wait until the ... ends, then try again." Unit test. |
 | M20 | 5 | After a Move the row leaves the list, so the focus falls back to the page body, as after a Delete. | Risk | Same as the v1 Delete. The Documents button is one Shift+Tab away. Not changed (fewest parts). |
+| M21 | 1 | TD-38 gives the unsaved dot on inactive tabs the strip text color. With no Personal color that is `var(--muted)`, so today's accent dot would turn grey (CLR-6). | Confirmed | `--ws-strip-mark` (section 9, T38). E2E test: an inactive Personal dot keeps the accent. |
+| M21 | 2 | A hovered close button on an inactive Work tab in the light theme showed white text on `--surface-2`: 1.16:1. | Confirmed | On hover the close button uses `var(--fg)` on `--surface-2`. E2E test with the WCAG formula. It failed (1.16) before the fix. |
+| M21 | 3 | A settings reply without `workspaceColors` (a v2 server after a rollback, R15) threw in the color code, so the delay was not applied either. | Confirmed | A missing object keeps both defaults. E2E test with a v2 reply. It failed (page error) without the guard. |
+| M21 | 4 | Two devices that save the Settings dialog at the same time: the last save wins for the delay and both colors. | Risk | Same rule as the v2 delay (SAV-4). One owner. Not changed. |
+| M21 | 5 | R9: a custom Work color shows the teal preset for a moment after a page load. | Risk | Kept by the owner. README says so. |
+
+### V3 validation environment
+
+- Node.js 24.21.0 from nodejs.org (checksum verified), outside the repo. The container default is Node 22.
+- Chromium e2e only, on the preinstalled Chromium build 1194 through a temporary config with `executablePath`. Playwright 1.64 expects build 1248, which is not installed. Firefox and WebKit are not installed, so the `@smoke` runs there stay with the owner, the new switch round trip too.
+- Each task: `npm test` and the full Chromium suite green before its commit. Each new test failed first on an assertion (against a stub or the code before the task).
+- The perf spec, run alone at the end: all timings within the targets (1 MB Python open 163 ms, 200 characters 919 ms, Ctrl+End 22 ms; dense Markdown 200 characters 903 ms, counts 145 ms, outline 213 ms). Its "no console errors" check fails here, the same on `main`: the full Chromium build asks for `/favicon.ico`, which the gate answers with 401 before sign-in and the server with 404 after. Playwright's headless shell does not ask for it. A fix outside v3 is proposed to the owner.
