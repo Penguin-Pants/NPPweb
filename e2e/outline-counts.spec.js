@@ -1,21 +1,4 @@
-import { expect, login, test } from './fixtures.js';
-
-/** Creates the documents, signs in and opens them as tabs. The first is active. */
-async function openDocs(page, api, docs) {
-  const ids = [];
-  for (const [name, content] of docs) {
-    const res = await api.post(`/api/documents?name=${encodeURIComponent(name)}`, {
-      data: content,
-      headers: { 'Content-Type': 'text/plain' },
-    });
-    ids.push((await res.json()).id);
-  }
-  await login(page);
-  await page.evaluate((list) => localStorage.setItem('pn.openTabs.v1', JSON.stringify({ ids: list, activeId: list[0] })), ids);
-  await page.reload();
-  await expect(page.locator('.cm-content')).toBeVisible();
-  return ids;
-}
+import { expect, openDocs, test } from './fixtures.js';
 
 const panel = (page) => page.getByRole('complementary', { name: 'Outline' });
 const entries = (page) => panel(page).locator('.outline-entry');
@@ -95,4 +78,71 @@ test('other tabs count raw text and have no syntax toggle (CNT-4)', async ({ pag
   await openDocs(page, api, [['code.py', '# a comment\nx = 1']]);
   await expect(page.locator('#counts')).toHaveText('4 words · 16 characters');
   await expect(page.getByRole('button', { name: 'Count syntax' })).toBeHidden();
+});
+
+test('the outline is one tab stop, the arrow keys move in it and Enter goes to the heading (NFR-5, OUT-3)', async ({ page, api }) => {
+  await openDocs(page, api, [['a.md', DOC]]);
+  await expect(entries(page)).toHaveText(['One', 'Two', 'Six']);
+  await expect(panel(page).locator('.outline-entry[tabindex="0"]')).toHaveCount(1);
+  await page.getByRole('button', { name: 'Outline' }).focus();
+  for (let i = 0; i < 20 && !(await page.evaluate(() => document.activeElement?.classList.contains('outline-entry'))); i += 1) {
+    await page.keyboard.press('Tab');
+  }
+  await expect(entries(page).first()).toBeFocused();
+  await page.keyboard.press('ArrowDown');
+  await expect(entries(page).nth(1)).toBeFocused();
+  await page.keyboard.press('End');
+  await expect(entries(page).nth(2)).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.cm-activeLine')).toHaveText('###### Six');
+  await expect(page.locator('.cm-content')).toBeFocused();
+});
+
+test('a refresh on window focus keeps the outline and its focus (NFR-5)', async ({ page, api }) => {
+  await openDocs(page, api, [['a.md', DOC]]);
+  await expect(entries(page)).toHaveText(['One', 'Two', 'Six']);
+  await entries(page).nth(1).focus();
+  const listed = page.waitForResponse((res) => res.url().endsWith('/api/documents') && res.request().method() === 'GET');
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await listed;
+  await page.waitForTimeout(300);
+  await expect(entries(page).nth(1)).toBeFocused();
+  await expect(entries(page)).toHaveText(['One', 'Two', 'Six']);
+});
+
+test('a tab switch or a language change shows the counts and outline of the new state, never the old ones (CNT-1, CNT-4, OUT-6)', async ({ page, api }) => {
+  await openDocs(page, api, [
+    ['a.md', '# Head\n\n**bold** text'],
+    ['b.md', 'one two'],
+  ]);
+  const counts = page.locator('#counts');
+  await expect(counts).toHaveText('3 words · 13 characters');
+  await page.getByRole('tab', { name: 'b.md' }).click();
+  expect(await counts.textContent()).not.toBe('3 words · 13 characters');
+  await expect(entries(page)).toHaveCount(0);
+  await expect(counts).toHaveText('2 words · 7 characters');
+  await expect(panel(page).locator('.outline-message')).toHaveText('No headings.');
+
+  await page.getByRole('tab', { name: 'a.md' }).click();
+  await expect(entries(page)).toHaveText(['Head']);
+  await page.getByRole('combobox', { name: 'Language' }).selectOption('python');
+  await expect(counts).toHaveText('3 words · 19 characters');
+  await expect(page.getByRole('button', { name: 'Count syntax' })).toBeHidden();
+  await expect(panel(page).locator('.outline-message')).toHaveText('Outline is available for Markdown documents.');
+  await page.getByRole('combobox', { name: 'Language' }).selectOption('');
+  await expect(counts).toHaveText('3 words · 13 characters');
+  await expect(entries(page)).toHaveText(['Head']);
+});
+
+test('a click on an entry right after an edit goes to a valid place (OUT-3)', async ({ page, api }) => {
+  const errors = [];
+  page.on('pageerror', (err) => errors.push(err.message));
+  await openDocs(page, api, [['a.md', DOC]]);
+  await expect(entries(page)).toHaveText(['One', 'Two', 'Six']);
+  await page.locator('.cm-content').focus();
+  await page.keyboard.press('ControlOrMeta+a');
+  await page.keyboard.press('Backspace');
+  await entries(page).nth(2).click({ timeout: 1000 }).catch(() => {});
+  await expect(panel(page).locator('.outline-message')).toHaveText('No headings.');
+  expect(errors).toEqual([]);
 });

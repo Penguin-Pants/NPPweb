@@ -1,5 +1,5 @@
 // Editor app entry: wires the modules together.
-import { ensureSyntaxTree, syntaxTree } from '@codemirror/language';
+import { ensureSyntaxTree } from '@codemirror/language';
 import { EditorView } from '@codemirror/view';
 import { api } from './api.js';
 import { createAutosave } from './autosave.js';
@@ -10,7 +10,7 @@ import { createDropdown } from './dropdown.js';
 import { createEditor } from './editor.js';
 import { emit, on } from './events.js';
 import { LANGUAGES } from './languages.js';
-import { createCounter, headings, renderedText } from './markdown-text.js';
+import { createCounter, createSummary } from './markdown-text.js';
 import { createToolbar } from './markdown-toolbar.js';
 import { createOutline, formatCounts } from './outline.js';
 import { createStoredChoice } from './stored-choice.js';
@@ -147,9 +147,14 @@ const editor = createEditor($('editor'), {
     if (update.docChanged) {
       const id = tabs.shownId();
       if (id) autosave.edited(id);
+      // The outline follows the edit until the next refresh (OUT-3).
+      if (describedDoc === update.startState.doc) {
+        outline.map((pos) => update.changes.mapPos(pos));
+        describedDoc = update.state.doc;
+      }
+      scheduleTotals();
     }
     if (update.selectionSet) outline.setActive(update.state.selection.main.head);
-    if (update.docChanged || syntaxTree(update.startState) !== syntaxTree(update.state)) scheduleTotals();
     if (update.docChanged || update.selectionSet) scheduleSelection();
   },
   // DOC-8, EDGE-3: the edit is not applied, so the content stays unchanged.
@@ -174,8 +179,9 @@ tabs = createTabs({
     renderSaveStatus();
     renderLanguage();
     renderMarkdownUi();
-    // The tab paints first; outline and counts follow 100 ms later.
-    outline.show(undefined);
+    // The tab paints first; outline and counts follow 100 ms later. Those of
+    // another document go at once, so they never show for the wrong text.
+    if (!tabs.shownId() || editor.view.state.doc !== describedDoc) clearSummary();
     scheduleTotals();
     scheduleSelection();
   },
@@ -239,9 +245,10 @@ modeButton.addEventListener('click', () => {
 });
 
 // Outline (OUT-1 to OUT-6) and counts (CNT-1 to CNT-7) of the shown tab. They
-// read the editor's own syntax tree, which parses in the background, and
-// refresh 100 ms after the last change. Totals and the selection refresh apart,
-// so moving the cursor never recounts a long document.
+// read the editor's own syntax tree and refresh 100 ms after the last change.
+// While the tree still parses, they continue the parse in short steps. Totals
+// and the selection refresh apart, so moving the cursor never recounts a long
+// document. Caches per line and per block keep a refresh of 1 MB quick.
 const outline = createOutline({
   element: $('outline-body'),
   onSelect: (pos) => {
@@ -262,6 +269,16 @@ const countSyntax = createStoredChoice({
 countButton.addEventListener('click', () => countSyntax.toggle());
 const countTotals = createCounter();
 const countSelection = createCounter();
+const summary = createSummary();
+/** The document that the outline and counts show, or null when they are clear. */
+let describedDoc = null;
+
+function clearSummary() {
+  describedDoc = null;
+  outline.show(undefined);
+  $('counts').textContent = '';
+  $('selection-counts').hidden = true;
+}
 
 /** The shown tab's state, and its Markdown tree once parsed to the end. */
 function shownInfo() {
@@ -275,13 +292,13 @@ function shownInfo() {
 
 let totalsTimer;
 let selectionTimer;
-function scheduleTotals() {
+function scheduleTotals(delay = 100) {
   clearTimeout(totalsTimer);
-  totalsTimer = setTimeout(refreshTotals, 100);
+  totalsTimer = setTimeout(refreshTotals, delay);
 }
-function scheduleSelection() {
+function scheduleSelection(delay = 100) {
   clearTimeout(selectionTimer);
-  selectionTimer = setTimeout(refreshSelection, 100);
+  selectionTimer = setTimeout(refreshSelection, delay);
 }
 
 function refreshTotals() {
@@ -289,18 +306,19 @@ function refreshTotals() {
   countButton.hidden = !info?.markdown; // CNT-4
   countButton.setAttribute('aria-pressed', String(countSyntax.get() === 'included'));
   if (!info) {
-    outline.show(undefined);
-    $('counts').textContent = '';
+    clearSummary();
     return;
   }
   if (info.markdown && !info.tree) {
-    scheduleTotals(); // Still parsing: the next try continues the parse.
+    scheduleTotals(0); // Still parsing: the next step continues the parse.
     return;
   }
   const text = info.state.doc.toString();
-  outline.show(info.markdown ? headings(text, info.tree) : null);
+  const markdown = info.markdown ? summary.all(text, info.tree) : null;
+  describedDoc = info.state.doc;
+  outline.show(markdown?.headings ?? null);
   outline.setActive(info.state.selection.main.head);
-  $('counts').textContent = formatCounts(countTotals(info.exclude ? renderedText(text, info.tree) : text));
+  $('counts').textContent = formatCounts(info.exclude ? markdown.counts : countTotals(text));
 }
 
 function refreshSelection() {
@@ -312,14 +330,14 @@ function refreshSelection() {
     return;
   }
   if (info.exclude && !info.tree) {
-    scheduleSelection();
+    scheduleSelection(0);
     return;
   }
-  const part = info.exclude
-    ? renderedText(info.state.doc.toString(), info.tree, range.from, range.to)
-    : info.state.sliceDoc(range.from, range.to);
+  const counts = info.exclude
+    ? summary.range(info.state.doc.toString(), info.tree, range.from, range.to)
+    : countSelection(info.state.sliceDoc(range.from, range.to));
   label.hidden = false;
-  label.textContent = `Selection: ${formatCounts(countSelection(part))}`;
+  label.textContent = `Selection: ${formatCounts(counts)}`;
 }
 
 // CON-1 and EDGE-1: a 412 or 404 save opens a dialog with the choices.

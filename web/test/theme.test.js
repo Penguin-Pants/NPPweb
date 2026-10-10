@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { animateThemeSwitch, createTheme, readTheme } from '../src/theme.js';
+import { readChoice } from '../src/stored-choice.js';
+import { animateThemeSwitch, createTheme, THEME } from '../src/theme.js';
 
 function fakeStorage(initial = {}) {
   const data = new Map(Object.entries(initial));
@@ -20,7 +21,7 @@ const throwingStorage = {
 };
 
 test('the theme is dark when nothing is stored', () => {
-  assert.equal(readTheme(() => fakeStorage()), 'dark');
+  assert.equal(readChoice({ ...THEME, getStorage: () => fakeStorage() }), 'dark');
   const root = { dataset: {} };
   const theme = createTheme({ getStorage: () => fakeStorage(), root });
   assert.equal(theme.get(), 'dark');
@@ -35,14 +36,17 @@ test('a stored light choice is used', () => {
 });
 
 test('an unknown stored value falls back to dark', () => {
-  assert.equal(readTheme(() => fakeStorage({ 'pn.theme': 'purple' })), 'dark');
+  assert.equal(readChoice({ ...THEME, getStorage: () => fakeStorage({ 'pn.theme': 'purple' }) }), 'dark');
 });
 
 test('blocked storage falls back to dark and toggling still works', () => {
-  assert.equal(readTheme(() => throwingStorage), 'dark');
+  assert.equal(readChoice({ ...THEME, getStorage: () => throwingStorage }), 'dark');
   assert.equal(
-    readTheme(() => {
-      throw new Error('no storage');
+    readChoice({
+      ...THEME,
+      getStorage: () => {
+        throw new Error('no storage');
+      },
     }),
     'dark',
   );

@@ -122,6 +122,37 @@ async function waitForHealth(url, hasExited) {
 }
 
 /**
+ * Creates the documents, signs in and opens them as tabs. The first is
+ * active. `mode` stores a Markdown mode first.
+ * @param {import('@playwright/test').Page} page
+ * @param {import('@playwright/test').APIRequestContext} api
+ * @param {[string, string][]} docs Name and content of each document.
+ * @param {{ mode?: 'visual' | 'raw' }} [options]
+ * @returns {Promise<string[]>} The document ids.
+ */
+export async function openDocs(page, api, docs, { mode } = {}) {
+  const ids = [];
+  for (const [name, content] of docs) {
+    const res = await api.post(`/api/documents?name=${encodeURIComponent(name)}`, {
+      data: content,
+      headers: { 'Content-Type': 'text/plain' },
+    });
+    ids.push((await res.json()).id);
+  }
+  await login(page);
+  await page.evaluate(
+    ({ list, markdownMode }) => {
+      localStorage.setItem('pn.openTabs.v1', JSON.stringify({ ids: list, activeId: list[0] }));
+      if (markdownMode) localStorage.setItem('pn.markdownMode', markdownMode);
+    },
+    { list: ids, markdownMode: mode },
+  );
+  await page.reload();
+  await expect(page.locator('.cm-content')).toBeVisible();
+  return ids;
+}
+
+/**
  * Clicks New and waits for the new tab and the editor.
  * @param {import('@playwright/test').Page} page
  */

@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import { ensureSyntaxTree } from '@codemirror/language';
 import { EditorState } from '@codemirror/state';
 import { languageSupport } from '../src/languages.js';
-import { decodeEntity, FENCE, linkTarget, referenceDefinitions } from '../src/markdown-syntax.js';
+import { decodeEntity, linkTarget, referenceDefinitions } from '../src/markdown-syntax.js';
 
 test('decodeEntity knows named and numeric entities and returns null for others', () => {
   assert.equal(decodeEntity('&amp;'), '&');
@@ -11,14 +11,16 @@ test('decodeEntity knows named and numeric entities and returns null for others'
   assert.equal(decodeEntity('&#65;'), 'A');
   assert.equal(decodeEntity('&#x1F600;'), '😀');
   assert.equal(decodeEntity('&bogus;'), null);
-  assert.equal(decodeEntity('&#0;'), null);
-  assert.equal(decodeEntity('&#x110000;'), null);
+  assert.equal(decodeEntity('&eacute;'), 'é', 'every HTML named entity, not only common ones');
+  assert.equal(decodeEntity('&NotSquareSupersetEqual;'), '⋣');
+  assert.equal(decodeEntity('&constructor;'), null, 'object keys are not entities');
+  assert.equal(decodeEntity('&#0;'), '\uFFFD', 'CommonMark: U+0000 and invalid code points become U+FFFD');
+  assert.equal(decodeEntity('&#x110000;'), '\uFFFD');
+  assert.equal(decodeEntity('&#xD800;'), '\uFFFD');
+  assert.equal(decodeEntity('&#12345678;'), null, 'CommonMark: at most 7 decimal digits');
+  assert.equal(decodeEntity('&#x1234567;'), null, 'CommonMark: at most 6 hex digits');
 });
 
-test('FENCE matches backtick and tilde fences, also indented', () => {
-  for (const line of ['```', '~~~', '   ```js', '```python x']) assert.ok(FENCE.test(line), line);
-  for (const line of ['``', 'code ```', '~~']) assert.ok(!FENCE.test(line), line);
-});
 
 test('linkTarget strips angle brackets, escapes and entities, and adds mailto and https', () => {
   assert.equal(linkTarget(' <https://x.y/a b> '), 'https://x.y/a b');

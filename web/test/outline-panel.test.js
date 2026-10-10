@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { createOutlinePanel, readOutlineOpen } from '../src/outline-panel.js';
+import { createOutlinePanel, OUTLINE } from '../src/outline-panel.js';
+import { readChoice } from '../src/stored-choice.js';
 
 function fakeStorage(initial = {}) {
   const data = new Map(Object.entries(initial));
@@ -33,11 +34,12 @@ function fakeElements() {
   };
 }
 
-test('readOutlineOpen is true unless closed is stored, and true when storage is blocked', () => {
-  assert.equal(readOutlineOpen(() => fakeStorage()), true);
-  assert.equal(readOutlineOpen(() => fakeStorage({ 'pn.outline': 'closed' })), false);
-  assert.equal(readOutlineOpen(() => fakeStorage({ 'pn.outline': 'sideways' })), true);
-  assert.equal(readOutlineOpen(() => throwingStorage), true);
+test('the stored panel state is open unless closed is stored, and open when storage is blocked', () => {
+  const read = (storage) => readChoice({ ...OUTLINE, getStorage: () => storage });
+  assert.equal(read(fakeStorage()), 'open');
+  assert.equal(read(fakeStorage({ 'pn.outline': 'closed' })), 'closed');
+  assert.equal(read(fakeStorage({ 'pn.outline': 'sideways' })), 'open');
+  assert.equal(read(throwingStorage), 'open');
 });
 
 test('the panel is open on the first visit', () => {

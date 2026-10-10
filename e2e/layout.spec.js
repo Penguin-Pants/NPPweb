@@ -1,4 +1,4 @@
-import { expect, login, newDocument, test } from './fixtures.js';
+import { expect, login, newDocument, openDocs, test } from './fixtures.js';
 
 async function createDoc(api, name, content = '') {
   const res = await api.post(`/api/documents?name=${encodeURIComponent(name)}`, {
@@ -35,11 +35,11 @@ test('the outline panel is open on the first visit and its state survives a relo
 });
 
 test('many open tabs stay in one scrolling row and the document list sits in the top bar', async ({ page, api }) => {
-  const ids = [];
-  for (let i = 0; i < 12; i += 1) ids.push((await createDoc(api, `a-rather-long-document-name-${i}.txt`)).id);
-  await login(page);
-  await page.evaluate((list) => localStorage.setItem('pn.openTabs.v1', JSON.stringify({ ids: list, activeId: list[0] })), ids);
-  await page.reload();
+  await openDocs(
+    page,
+    api,
+    Array.from({ length: 12 }, (_, i) => [`a-rather-long-document-name-${i}.txt`, '']),
+  );
   const tabs = page.getByRole('tab');
   await expect(tabs).toHaveCount(12);
   await expect(tabs.first()).toHaveAttribute('aria-selected', 'true');

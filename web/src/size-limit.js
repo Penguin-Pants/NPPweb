@@ -33,11 +33,27 @@ export function utf8ByteLength(text) {
   return bytes;
 }
 
-/** @param {import('@codemirror/state').Text} doc */
-function docBytes(doc) {
-  // Chunks split at line breaks, so a surrogate pair never spans two chunks.
-  let bytes = 0;
-  for (const chunk of doc.iter()) bytes += utf8ByteLength(chunk);
+// UTF-8 sizes of document parts. Versions of a document share their
+// unchanged parts, so an edit measures only its new parts.
+/** @type {WeakMap<import('@codemirror/state').Text, number>} */
+const partBytes = new WeakMap();
+
+/**
+ * UTF-8 size of a document.
+ * @param {import('@codemirror/state').Text} doc
+ */
+export function docBytes(doc) {
+  let bytes = partBytes.get(doc);
+  if (bytes !== undefined) return bytes;
+  if (doc.children) {
+    // Children hold whole lines, with one line break between two children.
+    bytes = doc.children.length - 1;
+    for (const child of doc.children) bytes += docBytes(child);
+  } else {
+    // A part holds whole lines, so a surrogate pair never spans two parts.
+    bytes = utf8ByteLength(doc.sliceString(0));
+  }
+  partBytes.set(doc, bytes);
   return bytes;
 }
 

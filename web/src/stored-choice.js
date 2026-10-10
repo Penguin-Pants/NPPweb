@@ -1,7 +1,24 @@
 // A choice between two values, stored per browser in localStorage: the
-// Markdown mode (MDV-2) and whether counts include Markdown syntax (CNT-2).
-// The first value is the default, also when storage is blocked or holds an
-// unknown value.
+// theme (EDT-6), the outline panel (LAY-5), the Markdown mode (MDV-2) and
+// whether counts include Markdown syntax (CNT-2). The first value is the
+// default, also when storage is blocked or holds an unknown value.
+
+/**
+ * The stored value. theme-init.js reads it before first paint.
+ * @template {string} T
+ * @param {object} options
+ * @param {() => Pick<Storage, 'getItem'>} options.getStorage Throws or returns a storage that throws when blocked.
+ * @param {string} options.key
+ * @param {[T, T]} options.values
+ * @returns {T}
+ */
+export function readChoice({ getStorage, key, values: [first, second] }) {
+  try {
+    return getStorage().getItem(key) === second ? second : first;
+  } catch {
+    return first;
+  }
+}
 
 /**
  * @template {string} T
@@ -13,12 +30,7 @@
  */
 export function createStoredChoice({ getStorage, key, values, onChange }) {
   const [first, second] = values;
-  let current = first;
-  try {
-    if (getStorage().getItem(key) === second) current = second;
-  } catch {
-    // Blocked storage: keep the default.
-  }
+  let current = readChoice({ getStorage, key, values });
   return {
     get: () => current,
     /** Switches to the other value. Returns the new value. */

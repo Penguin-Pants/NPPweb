@@ -292,11 +292,11 @@ The owner approved this sequence as the V2 build plan on 2026-10-10. Each phase 
 | M9 | Layout: tabs, left panel, Documents dropdown | LAY-1 to LAY-5 | Done. Outline content comes in M12. |
 | M10 | Settings API and autosave timing | SAV-1 to SAV-5 | Done |
 | M11 | Visual mode, toggle, toolbar, shortcuts, code block highlighting, remote images | MDV-1 to MDV-10, MDV-14, the Visual mode part of MDV-11 | Done. Owner check: Ctrl+K in Firefox and Safari. |
-| M12 | Outline, counts and the syntax-stripping rules that EXP-3 reuses | OUT-1 to OUT-6, CNT-1 to CNT-7 | Done. CNT-7 timing on 1 MB is measured in M16. |
+| M12 | Outline, counts and the syntax-stripping rules that EXP-3 reuses | OUT-1 to OUT-6, CNT-1 to CNT-7 | Done. The perf test measures CNT-7 and OUT-2 on 1 MB of Markdown. |
 | M13 | Mermaid in Visual mode and theme animation | MDV-13, the Visual mode part of MDV-12, THM-1, THM-2 | Done. Owner check: theme animation in Firefox and Safari. |
 | M14 | Export and drag and drop | EXP-1 to EXP-7, DRP-1 to DRP-6, the export parts of MDV-11 and MDV-12 | Not started |
 | M15 | Notion: test call first (C10), then sync | NOT-1 to NOT-13 | Not started |
-| M16 | Hardening, README, performance | NFR-2 to NFR-5 | Not started |
+| M16 | Hardening, README, performance | NFR-2 to NFR-5 | Not started. Risk: typing in 1 MB of Markdown in Visual mode was 10.7 s for 200 characters here (`PLAN_REVIEW.md` section 12, M12 row 21). |
 
 ---
 

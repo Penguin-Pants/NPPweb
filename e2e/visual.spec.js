@@ -1,23 +1,6 @@
-import { expect, login, test } from './fixtures.js';
+import { expect, openDocs, test } from './fixtures.js';
 
 const PNG_BASE64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
-
-/** Creates the documents, signs in and opens them as tabs. The first is active. */
-async function openDocs(page, api, docs) {
-  const ids = [];
-  for (const [name, content] of docs) {
-    const res = await api.post(`/api/documents?name=${encodeURIComponent(name)}`, {
-      data: content,
-      headers: { 'Content-Type': 'text/plain' },
-    });
-    ids.push((await res.json()).id);
-  }
-  await login(page);
-  await page.evaluate((list) => localStorage.setItem('pn.openTabs.v1', JSON.stringify({ ids: list, activeId: list[0] })), ids);
-  await page.reload();
-  await expect(page.locator('.cm-content')).toBeVisible();
-  return ids;
-}
 
 const line = (page, text) => page.locator('.cm-line', { hasText: text });
 const toggle = (page) => page.getByRole('button', { name: 'Visual' });

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { createStoredChoice } from '../src/stored-choice.js';
+import { createStoredChoice, readChoice } from '../src/stored-choice.js';
 
 function fakeStorage(initial = {}) {
   const data = new Map(Object.entries(initial));
@@ -19,6 +19,21 @@ const throwingStorage = {
   },
 };
 const MODE = { key: 'pn.markdownMode', values: ['visual', 'raw'] };
+
+test('readChoice gives the stored value, else the first value, also for blocked storage', () => {
+  assert.equal(readChoice({ ...MODE, getStorage: () => fakeStorage({ 'pn.markdownMode': 'raw' }) }), 'raw');
+  assert.equal(readChoice({ ...MODE, getStorage: () => fakeStorage({ 'pn.markdownMode': 'other' }) }), 'visual');
+  assert.equal(readChoice({ ...MODE, getStorage: () => throwingStorage }), 'visual');
+  assert.equal(
+    readChoice({
+      ...MODE,
+      getStorage: () => {
+        throw new Error('no storage');
+      },
+    }),
+    'visual',
+  );
+});
 
 test('the first value is the default (MDV-2, CNT-2)', () => {
   assert.equal(createStoredChoice({ ...MODE, getStorage: () => fakeStorage() }).get(), 'visual');

@@ -1,27 +1,4 @@
-import { expect, login, test } from './fixtures.js';
-
-/** Creates the documents, signs in and opens them as tabs. The first is active. */
-async function openDocs(page, api, docs, { mode } = {}) {
-  const ids = [];
-  for (const [name, content] of docs) {
-    const res = await api.post(`/api/documents?name=${encodeURIComponent(name)}`, {
-      data: content,
-      headers: { 'Content-Type': 'text/plain' },
-    });
-    ids.push((await res.json()).id);
-  }
-  await login(page);
-  await page.evaluate(
-    ({ list, markdownMode }) => {
-      localStorage.setItem('pn.openTabs.v1', JSON.stringify({ ids: list, activeId: list[0] }));
-      if (markdownMode) localStorage.setItem('pn.markdownMode', markdownMode);
-    },
-    { list: ids, markdownMode: mode },
-  );
-  await page.reload();
-  await expect(page.locator('.cm-content')).toBeVisible();
-  return ids;
-}
+import { expect, login, openDocs, test } from './fixtures.js';
 
 /** Counts requests for Mermaid's entry chunk. A tiny shared runtime chunk loads with main.js. */
 function countChunks(page) {
