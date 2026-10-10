@@ -1,4 +1,4 @@
-# NPPweb
+# Margin
 
 A private, single-owner text editor in the browser, inspired by Notepad++. Documents live on the server, so they are the same on every device. One password protects the app. It runs as one service on Railway with a persistent volume.
 
@@ -108,7 +108,7 @@ In a Markdown tab, Ctrl+B (Cmd+B) makes text bold, Ctrl+I (Cmd+I) italic and Ctr
 ## Workspaces
 
 - **Personal and Work:** each workspace has its own documents, open tabs and "Untitled N" numbers. Documents from before workspaces are in Personal. There are always exactly these two.
-- **Switch:** the button left of the theme button shows the active workspace. Click it, or press Enter or Space on it, to switch. All text saves first. If a save fails, the workspace stays the same and a message says why. The window title starts with the workspace name, for example "Work - Notepad". Each browser opens its last workspace.
+- **Switch:** the button left of the theme button shows the active workspace. Click it, or press Enter or Space on it, to switch. All text saves first. If a save fails, the workspace stays the same and a message says why. The window title starts with the workspace name, for example "Work - Margin". Each browser opens its last workspace.
 - **Shared by both:** the password, sessions, theme, Visual or Raw mode, the outline panel, the count mode and the autosave delay.
 - **Move:** in the Documents list, "Move to Work" or "Move to Personal" moves a document with its name, text and date. An open tab saves first, then closes.
 - **Colors:** the tab strip and the switch show the workspace color. Personal keeps the theme look. Work starts teal (`#0f766e`). Inactive tabs get black or white text, whichever is easier to read.
@@ -138,6 +138,10 @@ The same dialog sets one color per workspace: `#RGB` or `#RRGGBB`, in any letter
 ## Backups
 
 Export saves one document at a time. Use Railway volume backups to protect `/data/notepad.db`.
+
+## Brand
+
+`margin-brand/` holds the approved Margin icons and the brand guide (`BRAND.md`). `web/icons/` holds copies of the icons that the app serves. `web/test/brand.test.js` fails when a copy is different from its source or when `web/icons/` holds an icon that no page or manifest uses. To change an icon, change it in `margin-brand/` first. Then copy it to `web/icons/`.
 
 ## Third-party notices
 

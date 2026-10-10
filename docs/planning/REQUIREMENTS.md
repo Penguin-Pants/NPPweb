@@ -1,4 +1,4 @@
-# Private Web Notepad: Requirements and Build Plan Input
+# Margin: Requirements and Build Plan Input
 
 **Status:** Decision-complete. Open questions: none.
 **Date:** 2026-10-09

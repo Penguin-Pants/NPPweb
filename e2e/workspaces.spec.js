@@ -35,11 +35,11 @@ async function savedDocument(page, api, workspace, content) {
 
 test('the window title names the workspace at first paint (WS-3, WS-4)', async ({ page }) => {
   await login(page);
-  await expect(page).toHaveTitle('Personal - Notepad');
+  await expect(page).toHaveTitle('Personal - Margin');
   await page.evaluate(() => localStorage.setItem('pn.workspace', 'work'));
   await page.reload();
   await expect(page.locator('html')).toHaveAttribute('data-workspace', 'work');
-  await expect(page).toHaveTitle('Work - Notepad');
+  await expect(page).toHaveTitle('Work - Margin');
 });
 
 test('in Work, New creates a Work document and Personal stays empty (WS-6)', async ({ page, api }) => {
@@ -143,7 +143,7 @@ async function storeTabs(page, { personal = [], work = [] }) {
 
 async function switchTo(page, name) {
   await switchButton(page).click();
-  await expect(page).toHaveTitle(`${name} - Notepad`);
+  await expect(page).toHaveTitle(`${name} - Margin`);
 }
 
 /** Lets a reply that just arrived run its handlers. */
@@ -200,7 +200,7 @@ test('a save that fails before a switch keeps the workspace and says why (EDGE-2
   await expect(message(page)).toHaveText(
     'Unsaved changes could not be saved: the server cannot be reached. The workspace did not change.',
   );
-  await expect(page).toHaveTitle('Personal - Notepad');
+  await expect(page).toHaveTitle('Personal - Margin');
   await expect(switchButton(page)).toHaveText('Personal');
   await expect(editor(page)).toHaveText('not saved');
 });
@@ -215,7 +215,7 @@ test('a failed list read keeps the workspace, and the text typed before is saved
   );
   await switchButton(page).click();
   await expect(message(page)).toHaveText('Could not open the Work documents. Try again.');
-  await expect(page).toHaveTitle('Personal - Notepad');
+  await expect(page).toHaveTitle('Personal - Margin');
   const [doc] = await (await api.get('/api/documents')).json();
   expect((await (await api.get(`/api/documents/${doc.id}`)).json()).content).toBe('saved first');
 });
@@ -271,10 +271,10 @@ test('a keyboard-only run switches the workspace (WS-2)', async ({ page }) => {
   await page.keyboard.press('Shift+Tab');
   await expect(switchButton(page)).toBeFocused();
   await page.keyboard.press('Enter');
-  await expect(page).toHaveTitle('Work - Notepad');
+  await expect(page).toHaveTitle('Work - Margin');
   await expect(switchButton(page)).toBeFocused();
   await page.keyboard.press('Space');
-  await expect(page).toHaveTitle('Personal - Notepad');
+  await expect(page).toHaveTitle('Personal - Margin');
 });
 
 test('a theme change in Work also shows in Personal (WS-9)', async ({ page }) => {
@@ -299,7 +299,7 @@ test('two browsers in different workspaces work independently (EDGE-34)', async 
     await newDocument(second);
     await page.evaluate(() => window.dispatchEvent(new Event('focus')));
     await second.evaluate(() => window.dispatchEvent(new Event('focus')));
-    await expect(page).toHaveTitle('Personal - Notepad');
+    await expect(page).toHaveTitle('Personal - Margin');
     await expect(page.getByRole('tab')).toHaveCount(1);
     await expect(second.getByRole('tab')).toHaveCount(1);
     expect(await names(api, 'personal')).toEqual(['Untitled 1']);

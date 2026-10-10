@@ -20,21 +20,21 @@ test('a stored work opens Work', () => {
 
 test('the window title starts with the workspace name (WS-3)', () => {
   assert.deepEqual(WORKSPACE_NAMES, { personal: 'Personal', work: 'Work' });
-  assert.equal(titleFor('personal'), 'Personal - Notepad');
-  assert.equal(titleFor('work'), 'Work - Notepad');
+  assert.equal(titleFor('personal'), 'Personal - Margin');
+  assert.equal(titleFor('work'), 'Work - Margin');
 });
 
 const fakeDocument = (page, title) => ({ title, documentElement: { dataset: page ? { page } : {} } });
 
 test('showWorkspace marks <html> and sets the title on the app page only (TD-29)', () => {
-  const app = fakeDocument('app', 'Notepad');
+  const app = fakeDocument('app', 'Margin');
   showWorkspace(app, 'work');
   assert.equal(app.documentElement.dataset.workspace, 'work');
-  assert.equal(app.title, 'Work - Notepad');
-  const signIn = fakeDocument(undefined, 'Sign in - Notepad');
+  assert.equal(app.title, 'Work - Margin');
+  const signIn = fakeDocument(undefined, 'Sign in - Margin');
   showWorkspace(signIn, 'work');
   assert.equal(signIn.documentElement.dataset.workspace, 'work');
-  assert.equal(signIn.title, 'Sign in - Notepad');
+  assert.equal(signIn.title, 'Sign in - Margin');
 });
 
 test('otherWorkspace gives the workspace a switch or a move goes to', () => {

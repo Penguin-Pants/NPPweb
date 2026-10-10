@@ -284,9 +284,9 @@ test('a keyboard-only run reaches each visible control of the top bar, the outli
   expect(reached).toContain('Workspace: Personal. Switch to Work');
   await page.locator('#workspace-switch').focus();
   await page.keyboard.press('Enter');
-  await expect(page).toHaveTitle('Work - Notepad');
+  await expect(page).toHaveTitle('Work - Margin');
   await expect(page.locator('#workspace-switch')).toBeFocused();
   await page.keyboard.press('Enter');
-  await expect(page).toHaveTitle('Personal - Notepad');
+  await expect(page).toHaveTitle('Personal - Margin');
   await expect(page.getByRole('tab', { name: 'k.md' })).toHaveAttribute('aria-selected', 'true');
 });

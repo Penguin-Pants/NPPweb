@@ -1,7 +1,8 @@
 {
   "id": "/",
-  "name": "Notepad",
-  "short_name": "Notepad",
+  "name": "Margin",
+  "short_name": "Margin",
+  "description": "Private notes and code, in one place.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

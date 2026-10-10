@@ -1,6 +1,6 @@
 # Upstream: @lezer/markdown incremental parsing
 
-Text for the owner to file with the parser project. NPPweb ships the same change as an install-time patch (`scripts/patch-lezer-markdown.js`). Remove that patch when a release has the fix.
+Text for the owner to file with the parser project. Margin ships the same change as an install-time patch (`scripts/patch-lezer-markdown.js`). Remove that patch when a release has the fix.
 
 - Project: `@lezer/markdown`, repository in its `package.json`: https://code.haverbeke.berlin/lezer/markdown
 - Unverified assumption: issues and patches go to that repository. Check its page before filing.

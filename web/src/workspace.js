@@ -9,7 +9,7 @@ export const WORKSPACE = { key: 'pn.workspace', values: ['personal', 'work'] };
 export const WORKSPACE_NAMES = { personal: 'Personal', work: 'Work' };
 
 /** @param {'personal' | 'work'} id */
-export const titleFor = (id) => `${WORKSPACE_NAMES[id]} - Notepad`;
+export const titleFor = (id) => `${WORKSPACE_NAMES[id]} - Margin`;
 
 /** @param {'personal' | 'work'} id @returns {'personal' | 'work'} */
 export const otherWorkspace = (id) => (id === 'personal' ? 'work' : 'personal');

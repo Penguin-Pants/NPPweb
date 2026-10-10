@@ -16,7 +16,7 @@ test.describe('login', { tag: '@smoke' }, () => {
     await page.addInitScript(() => localStorage.setItem('pn.workspace', 'work'));
     await page.goto('/login');
     await expect(page.locator('html')).toHaveAttribute('data-workspace', 'work');
-    await expect(page).toHaveTitle('Sign in - Notepad');
+    await expect(page).toHaveTitle('Sign in - Margin');
   });
 
   test('a wrong password shows a generic error', async ({ page }) => {
