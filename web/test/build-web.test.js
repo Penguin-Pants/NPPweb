@@ -39,13 +39,15 @@ test('build copies the HTML pages and stylesheet unchanged', async () => {
   }
 });
 
-test('the theme-init bundle runs as a classic script, sets the theme and adds no globals', async () => {
+test('the theme-init bundle runs as a classic script, sets the theme and outline state and adds no globals', async () => {
   const { runInNewContext } = await import('node:vm');
   const code = await readFile(join(outDir, 'theme-init.js'), 'utf8');
-  for (const stored of [null, 'light']) {
-    const sandbox = { document: { documentElement: { dataset: {} } }, localStorage: { getItem: () => stored } };
+  for (const [theme, outline] of [[null, null], ['light', 'closed']]) {
+    const stored = { 'pn.theme': theme, 'pn.outline': outline };
+    const sandbox = { document: { documentElement: { dataset: {} } }, localStorage: { getItem: (key) => stored[key] } };
     runInNewContext(code, sandbox);
     assert.deepEqual(Object.keys(sandbox).sort(), ['document', 'localStorage']);
-    assert.equal(sandbox.document.documentElement.dataset.theme, stored ?? 'dark');
+    assert.equal(sandbox.document.documentElement.dataset.theme, theme ?? 'dark');
+    assert.equal(sandbox.document.documentElement.dataset.outline, outline ?? 'open');
   }
 });

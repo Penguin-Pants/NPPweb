@@ -34,20 +34,42 @@ test('the outline panel is open on the first visit and its state survives a relo
   await expect(panel).toBeVisible();
 });
 
-test('open tabs stay in one row at the top and the left panel holds no document list', async ({ page, api }) => {
-  await createDoc(api, 'a.txt');
-  await createDoc(api, 'b.txt');
+test('many open tabs stay in one scrolling row and the document list sits in the top bar', async ({ page, api }) => {
+  const ids = [];
+  for (let i = 0; i < 12; i += 1) ids.push((await createDoc(api, `a-rather-long-document-name-${i}.txt`)).id);
   await login(page);
-  await documentsButton(page).click();
-  await openButtons(page).first().click();
-  await documentsButton(page).click();
-  await openButtons(page).nth(1).click();
+  await page.evaluate((list) => localStorage.setItem('pn.openTabs.v1', JSON.stringify({ ids: list, activeId: list[0] })), ids);
+  await page.reload();
   const tabs = page.getByRole('tab');
-  await expect(tabs).toHaveCount(2);
-  const [first, second] = [await tabs.nth(0).boundingBox(), await tabs.nth(1).boundingBox()];
-  expect(second.y).toBe(first.y);
-  expect(second.x).toBeGreaterThan(first.x);
-  await expect(page.getByRole('complementary', { name: 'Outline' }).locator('.doc-row')).toHaveCount(0);
+  await expect(tabs).toHaveCount(12);
+  await expect(tabs.first()).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('.cm-content')).toBeVisible();
+  const tops = await tabs.evaluateAll((list) => list.map((tab) => tab.getBoundingClientRect().top));
+  expect(new Set(tops).size).toBe(1);
+  const strip = await page.locator('#tabstrip').evaluate((el) => ({ scroll: el.scrollWidth, client: el.clientWidth }));
+  expect(strip.scroll).toBeGreaterThan(strip.client);
+  await expect(page.locator('.topbar #doclist')).toHaveCount(1);
+  await expect(page.locator('#outline #doclist')).toHaveCount(0);
+});
+
+test('the empty-state button opens the dropdown and a click on a tab closes it', async ({ page, api }) => {
+  await createDoc(api, 'first.txt');
+  await login(page);
+  await page.getByRole('button', { name: 'Open document list' }).click();
+  await expect(dropdown(page)).toBeVisible();
+  await openButtons(page).first().click();
+  for (let i = 0; i < 5; i += 1) await newDocument(page);
+  await documentsButton(page).click();
+  await expect(dropdown(page)).toBeVisible();
+  // A tab beside the dropdown, so the click reaches it. A tab click re-renders the strip.
+  const edge = await dropdown(page).evaluate((el) => el.getBoundingClientRect().right);
+  const lefts = await page.getByRole('tab').evaluateAll((list) => list.map((tab) => tab.getBoundingClientRect().left));
+  const index = lefts.findIndex((left) => left > edge + 4);
+  expect(index).toBeGreaterThan(-1);
+  const tab = page.getByRole('tab').nth(index);
+  await tab.click({ position: { x: 8, y: 8 } });
+  await expect(dropdown(page)).toBeHidden();
+  await expect(tab).toHaveAttribute('aria-selected', 'true');
 });
 
 test('the Documents dropdown closes on Escape, on a click outside and after Open', async ({ page, api }) => {
@@ -96,18 +118,36 @@ test('arrow keys move through the Documents dropdown', async ({ page, api }) => 
   await expect(page.getByRole('tab', { name: 'one.txt' })).toHaveAttribute('aria-selected', 'true');
 });
 
-test('a rename dialog opened from the dropdown keeps the dropdown open', async ({ page, api }) => {
+test('rename and delete dialogs keep the dropdown open, and Escape closes it afterwards', async ({ page, api }) => {
   await createDoc(api, 'draft.txt');
+  await createDoc(api, 'spare.txt');
   await login(page);
   await documentsButton(page).click();
   await page.getByRole('button', { name: 'Rename draft.txt' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Rename document' });
-  await dialog.getByLabel('Name').fill('final.txt');
-  await dialog.getByLabel('Name').click();
-  await dialog.getByRole('button', { name: 'Rename' }).click();
-  await expect(dialog).toBeHidden();
+  const rename = page.getByRole('dialog', { name: 'Rename document' });
+  await rename.getByLabel('Name').fill('final.txt');
+  await rename.getByLabel('Name').click();
+  await rename.getByRole('button', { name: 'Rename' }).click();
+  await expect(rename).toBeHidden();
   await expect(dropdown(page)).toBeVisible();
+  await expect(page.locator('#doclist .doc-name')).toHaveText(['final.txt', 'spare.txt']);
+  await expect(page.getByRole('button', { name: 'Rename final.txt' })).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(dropdown(page)).toBeHidden();
+  await expect(documentsButton(page)).toBeFocused();
+
+  await documentsButton(page).click();
+  await page.getByRole('button', { name: 'Delete spare.txt' }).click();
+  const remove = page.getByRole('dialog', { name: 'Delete document' });
+  await remove.getByRole('button', { name: 'Cancel' }).click();
+  await expect(remove).toBeHidden();
+  await expect(dropdown(page)).toBeVisible();
+  await page.getByRole('button', { name: 'Delete spare.txt' }).click();
+  await remove.getByRole('button', { name: 'Delete permanently' }).click();
   await expect(page.locator('#doclist .doc-name')).toHaveText(['final.txt']);
+  await expect(dropdown(page)).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(dropdown(page)).toBeHidden();
 });
 
 test('the account menu closes on Escape and on a click outside', async ({ page }) => {

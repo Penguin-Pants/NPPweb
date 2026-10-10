@@ -52,7 +52,7 @@ const account = createDropdown({
 });
 
 // Outline panel (LAY-2, LAY-5).
-createOutlinePanel({ getStorage: () => localStorage, panel: $('outline'), toggle: $('toggle-outline') });
+createOutlinePanel({ getStorage: () => localStorage, root: document.documentElement, toggle: $('toggle-outline') });
 
 $('logout').addEventListener('click', async () => {
   account.close();

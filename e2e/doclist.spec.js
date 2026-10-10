@@ -97,5 +97,6 @@ test('the empty state button opens the document list', async ({ page, api }) => 
   await createDoc(api, 'from-empty.txt');
   await login(page);
   await page.getByRole('button', { name: 'Open document list' }).click();
+  await expect(page.locator('#doclist')).toBeVisible();
   await expect(rows(page).locator('.doc-name')).toHaveText(['from-empty.txt']);
 });

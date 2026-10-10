@@ -41,6 +41,7 @@ export function createDocList({ api, tabs, root, button, panel, showMessage }) {
     date.className = 'doc-date';
     date.textContent = new Date(doc.updatedAt).toLocaleString();
     open.append(name, date);
+    open.dataset.action = 'open';
     open.addEventListener('click', () => {
       dropdown.close();
       tabs.open(doc.id, doc.name);
@@ -48,12 +49,14 @@ export function createDocList({ api, tabs, root, button, panel, showMessage }) {
     const rename = document.createElement('button');
     rename.type = 'button';
     rename.textContent = 'Rename';
+    rename.dataset.action = 'rename';
     rename.setAttribute('aria-label', `Rename ${doc.name}`);
     rename.addEventListener('click', () => renameDocument(doc));
     const remove = document.createElement('button');
     remove.type = 'button';
     remove.className = 'danger';
     remove.textContent = 'Delete';
+    remove.dataset.action = 'delete';
     remove.setAttribute('aria-label', `Delete ${doc.name}`);
     remove.addEventListener('click', () => deleteDocument(doc));
     item.append(open, rename, remove);
@@ -64,6 +67,11 @@ export function createDocList({ api, tabs, root, button, panel, showMessage }) {
     if (!dropdown.isOpen()) return;
     const { status, data } = await api.listDocuments();
     if (status !== 200) return;
+    // A re-render drops the focus, so it goes back to the same button of the
+    // same row when that row is still there.
+    const focused = /** @type {HTMLElement | null} */ (list.contains(document.activeElement) ? document.activeElement : null);
+    const focusId = focused?.closest('.doc-row')?.getAttribute('data-id');
+    const focusAction = focused?.dataset.action;
     if (data.length === 0) {
       const empty = document.createElement('li');
       empty.className = 'doc-empty';
@@ -71,6 +79,10 @@ export function createDocList({ api, tabs, root, button, panel, showMessage }) {
       list.replaceChildren(empty);
     } else {
       list.replaceChildren(...data.map(row));
+    }
+    if (focusId) {
+      const again = [...list.querySelectorAll('.doc-row')].find((item) => item.getAttribute('data-id') === focusId);
+      /** @type {HTMLElement | null | undefined} */ (again?.querySelector(`[data-action="${focusAction}"]`))?.focus();
     }
   }
 

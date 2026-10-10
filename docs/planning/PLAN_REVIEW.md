@@ -280,13 +280,23 @@ Two-pass review of each V2 phase diff (`REQUIREMENTS_V2.md` section 9). Same met
 
 | Phase | # | Finding | Verdict | Action |
 |-------|---|---------|---------|--------|
-| M9 | 1 | The Cancel button of the delete dialog closed the Documents dropdown: the dialog closes before the click reaches the document, so a `dialog[open]` check misses it. | Confirmed | Fixed before commit: a target inside any dialog or no longer in the page never counts as outside. Covered by the doclist delete spec and the rename-dialog spec. |
-| M9 | 2 | The open dropdown covers the tab strip, so a click on a tab under it does not reach the tab. | Rejected | Expected for a dropdown (D19). A click outside closes it. `language.spec.js` now presses Escape first. |
-| M9 | 3 | Tab moves focus out of the open dropdown and leaves it open over the tabs. | Rejected | LAY-4 names Escape, a click outside and Open. Each still works. |
-| M9 | 4 | With pn.outline set to closed, the panel can show for one frame before `main.js` hides it. | Risk | Cosmetic. The module script runs before first paint in practice (unverified). No change. |
-| M9 | 5 | A window focus refresh re-renders the dropdown rows, so a focused row button loses focus. | Risk | Minor keyboard annoyance. The list must refresh on focus (TD-15). No change. |
-| M9 | 6 | `createDropdown` has no unit test. | Rejected | DOM wiring, covered by `e2e/layout.spec.js` (Escape, outside click, Open, arrow keys, dialogs, account menu), as v1 did for DOM modules (P3 5). |
-| M9 | 7 | The account menu kept its own open, close, outside-click and Escape code. | Confirmed | Fixed before commit: both menus use `dropdown.js` (AGENTS.md Edits rule 6). The account menu also gains arrow keys. |
+| M9 | 1 | The Cancel button of a dialog opened from the Documents dropdown closed the dropdown. | Confirmed | Fixed in the review commit: outside presses are read on capture-phase `pointerdown`, before the dialog closes. |
+| M9 | 2 | "Open document list" in the empty state opened the dropdown, then the same click closed it. | Confirmed | Fixed by the same `pointerdown` change. `doclist.spec.js` and `layout.spec.js` now assert the dropdown is visible. |
+| M9 | 3 | A click on a tab left the dropdown open, because the tab strip re-renders and the target was treated as inside. | Confirmed | Fixed by the same change. The `isConnected` exemption is gone. E2E test added. |
+| M9 | 4 | Escape did nothing once the focus left the dropdown: after a rename refresh, after a delete, after a window focus refresh, or after a mouse open in browsers that do not focus a clicked button. | Confirmed | Fixed: Escape is read on the document while a dropdown is open, except inside a dialog. A refresh puts the focus back on the same button of the same row. E2E and unit tests added. |
+| M9 | 5 | The added Escape in `language.spec.js` could land in the rename dialog while it was still saving. | Confirmed | Fixed: the test waits for the dialog to close, then asserts the dropdown closes. |
+| M9 | 6 | The one-row tab test was flaky (`boundingBox` during a re-render) and could not fail. | Confirmed | Rewritten: 12 restored tabs share one top and the strip scrolls. The list must sit in the top bar, not the outline panel. |
+| M9 | 7 | `createDropdown` had no unit test (AGENTS.md Testing rule 2). | Confirmed | `web/test/dropdown.test.js` with an injected fake document. Three mutations each fail a test. |
+| M9 | 8 | The dialog test did not press Escape afterwards or cover the delete dialog. | Confirmed | Extended to rename, delete Cancel, delete and Escape. |
+| M9 | 9 | The fixed 360 px dropdown was clipped in a narrow window. | Confirmed | Width is `min(360px, 100vw - 16px)`. |
+| M9 | 10 | A stored closed panel showed until `main.js` ran. | Confirmed | `theme-init.js` sets `data-outline` before first paint and the CSS hides the panel. Build test extended. |
+| M9 | 11 | Two dropdowns could be open at once (ArrowDown on one while the other was open). | Confirmed | One dropdown is open at a time. Unit test added. |
+| M9 | 12 | ArrowDown from a Rename or Delete button jumped to the first row. | Confirmed | Arrows go to the next item after, or the last item before, the focused control. Unit test added. |
+| M9 | 13 | Unused exports: `OUTLINE_KEY` and `isOpen`. `#outline-body` has no reader yet. | Confirmed (exports) and Rejected (`#outline-body`) | Exports removed. M12 fills `#outline-body` in this build. |
+| M9 | 14 | The Account button kept `aria-haspopup="true"` with no menu role, unlike the Documents button. | Confirmed | Removed. Both buttons use `aria-expanded` and `aria-controls`. |
+| M9 | 15 | `BUILD_PLAN.md` T18 still says "toggle sidebar". | Rejected | v1 history. `REQUIREMENTS_V2.md` section 10 records the change. |
+| M9 | 16 | The open dropdown covers part of the tab strip. | Rejected | Expected for a dropdown (D19). A press outside closes it. |
+| M9 | 17 | The account menu kept its own open and close code. | Confirmed | Both menus use `dropdown.js` (AGENTS.md Edits rule 6). |
 
 ## 13. V2 validation environment
 

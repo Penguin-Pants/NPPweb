@@ -348,7 +348,7 @@ button.danger {
 /* Document list dropdown (LAY-3) */
 .doclist {
   left: 0;
-  width: 360px;
+  width: min(360px, calc(100vw - 16px));
   max-height: min(60vh, 480px);
   overflow-y: auto;
 }
@@ -363,7 +363,7 @@ button.danger {
   padding: 8px;
 }
 
-.outline-panel[hidden] {
+:root[data-outline="closed"] .outline-panel {
   display: none;
 }
 
