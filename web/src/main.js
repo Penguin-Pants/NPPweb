@@ -25,7 +25,7 @@ import { modName, setupShortcuts } from './shortcuts.js';
 import { setupSessionRecovery } from './session.js';
 import { createTabs } from './tabs.js';
 import { animateThemeSwitch, createTheme } from './theme.js';
-import { showWorkspace, WORKSPACE, WORKSPACE_NAMES } from './workspace.js';
+import { otherWorkspace, showWorkspace, WORKSPACE, WORKSPACE_NAMES } from './workspace.js';
 import { textColorOn } from './workspace-color.js';
 import { createExclusive, switchWorkspace } from './workspace-switch.js';
 
@@ -52,7 +52,8 @@ api.setWorkspace(workspace.get());
 
 // Workspace colors (CLR-1 to CLR-5, TD-36). They come from the server
 // settings. A stored color goes inline on <html> over the CSS default.
-let workspaceColors = { personal: null, work: null };
+const DEFAULT_COLORS = Object.fromEntries(WORKSPACE.values.map((id) => [id, null]));
+let workspaceColors = DEFAULT_COLORS;
 function applyWorkspaceColor() {
   const color = workspaceColors[workspace.get()];
   const { style } = document.documentElement;
@@ -105,7 +106,7 @@ async function loadSettings() {
 function applySettings({ autosaveSeconds, workspaceColors: colors }) {
   autosave.setDelay(autosaveSeconds * 1000);
   // A v2 server (a rollback, R15) sends no colors: both keep their default.
-  workspaceColors = colors ?? { personal: null, work: null };
+  workspaceColors = colors ?? DEFAULT_COLORS;
   applyWorkspaceColor();
 }
 // One Settings dialog at a time, also while its first read is slow.
@@ -131,15 +132,16 @@ async function showSettings() {
     fields: [
       { name: 'seconds', label: 'Autosave delay in seconds (1 to 60)', value: String(current.data.autosaveSeconds) },
       // CLR-2: an empty field is the workspace's default color (TD-39).
-      ...['personal', 'work'].map((id) => ({
+      ...WORKSPACE.values.map((id) => ({
         name: id,
         label: `${WORKSPACE_NAMES[id]} color (hex, empty for default)`,
-        value: current.data.workspaceColors[id] ?? '',
+        // A v2 server (a rollback, R15) sends no colors.
+        value: current.data.workspaceColors?.[id] ?? '',
       })),
     ],
     submitLabel: 'Save',
     onSubmit: async ({ seconds, personal, work }) => {
-      // The server checks the rules (whole number, 1 to 60, and #RGB or
+      // The server checks the rules (a whole number from 1 to 60 and #RGB or
       // #RRGGBB). '' becomes 0 and text becomes NaN, which it rejects too.
       const color = (value) => value.trim() || null;
       const { status, data } = await api.saveSettings({
@@ -459,11 +461,10 @@ const exclusive = createExclusive(showMessage);
 
 // Workspace switch (WS-2, TD-32, TD-33). The button names the active workspace.
 const workspaceButton = /** @type {HTMLButtonElement} */ ($('workspace-switch'));
-const otherWorkspace = () => (workspace.get() === 'personal' ? 'work' : 'personal');
 function renderWorkspace() {
   const current = WORKSPACE_NAMES[workspace.get()];
   workspaceButton.textContent = current;
-  workspaceButton.setAttribute('aria-label', `Workspace: ${current}. Switch to ${WORKSPACE_NAMES[otherWorkspace()]}`);
+  workspaceButton.setAttribute('aria-label', `Workspace: ${current}. Switch to ${WORKSPACE_NAMES[otherWorkspace(workspace.get())]}`);
 }
 renderWorkspace();
 workspaceButton.addEventListener('click', () =>
@@ -471,14 +472,15 @@ workspaceButton.addEventListener('click', () =>
     workspaceButton.disabled = true;
     try {
       await switchWorkspace({
-        target: otherWorkspace(),
+        target: otherWorkspace(workspace.get()),
         autosave,
         api,
         tabs,
         showMessage,
         apply: (target) => {
-          workspace.toggle();
+          if (workspace.get() !== target) workspace.toggle();
           api.setWorkspace(target);
+          doclist.reset();
           showWorkspace(document, target);
           applyWorkspaceColor();
           renderWorkspace();

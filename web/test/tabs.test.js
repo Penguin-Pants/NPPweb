@@ -12,27 +12,27 @@ const blocked = () => {
 
 test('readOpenTabs returns the stored ids and active id', () => {
   const storage = fakeStorage({ 'pn.openTabs.v1': JSON.stringify({ ids: ['a', 'b'], activeId: 'b' }) });
-  assert.deepEqual(readOpenTabs(() => storage), { ids: ['a', 'b'], activeId: 'b' });
+  assert.deepEqual(readOpenTabs(() => storage, tabsKey('personal')), { ids: ['a', 'b'], activeId: 'b' });
 });
 
 test('readOpenTabs returns no tabs for missing, broken or blocked storage', () => {
   const empty = { ids: [], activeId: null };
-  assert.deepEqual(readOpenTabs(() => fakeStorage()), empty);
-  assert.deepEqual(readOpenTabs(() => fakeStorage({ 'pn.openTabs.v1': '{not json' })), empty);
-  assert.deepEqual(readOpenTabs(() => fakeStorage({ 'pn.openTabs.v1': '{"ids":"a"}' })), empty);
-  assert.deepEqual(readOpenTabs(blocked), empty);
+  assert.deepEqual(readOpenTabs(() => fakeStorage(), tabsKey('personal')), empty);
+  assert.deepEqual(readOpenTabs(() => fakeStorage({ 'pn.openTabs.v1': '{not json' }), tabsKey('personal')), empty);
+  assert.deepEqual(readOpenTabs(() => fakeStorage({ 'pn.openTabs.v1': '{"ids":"a"}' }), tabsKey('personal')), empty);
+  assert.deepEqual(readOpenTabs(blocked, tabsKey('personal')), empty);
 });
 
 test('readOpenTabs drops ids that are not strings, duplicates and an unknown active id', () => {
   const raw = JSON.stringify({ ids: ['a', 3, 'a', null, 'b'], activeId: 'zzz' });
-  assert.deepEqual(readOpenTabs(() => fakeStorage({ 'pn.openTabs.v1': raw })), { ids: ['a', 'b'], activeId: null });
+  assert.deepEqual(readOpenTabs(() => fakeStorage({ 'pn.openTabs.v1': raw }), tabsKey('personal')), { ids: ['a', 'b'], activeId: null });
 });
 
 test('writeOpenTabs stores the state and ignores blocked storage', () => {
   const storage = fakeStorage();
-  writeOpenTabs(() => storage, { ids: ['a'], activeId: 'a' });
+  writeOpenTabs(() => storage, { ids: ['a'], activeId: 'a' }, tabsKey('personal'));
   assert.deepEqual(JSON.parse(storage.data.get('pn.openTabs.v1')), { ids: ['a'], activeId: 'a' });
-  assert.doesNotThrow(() => writeOpenTabs(blocked, { ids: [], activeId: null }));
+  assert.doesNotThrow(() => writeOpenTabs(blocked, { ids: [], activeId: null }, tabsKey('personal')));
 });
 
 const meta = (id, version, name = id) => ({ id, name, version, language: null, updatedAt: 0 });

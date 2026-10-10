@@ -20,7 +20,8 @@ const isValidColor = (value) => typeof value === 'string' && /^#([0-9a-f]{3}|[0-
  * @returns {{ autosaveSeconds: number, workspaceColors: Record<string, string | null> }}
  */
 function getSettings(db) {
-  const read = (key) => db.prepare('SELECT value FROM settings WHERE key = ?').get(key)?.value;
+  const select = db.prepare('SELECT value FROM settings WHERE key = ?');
+  const read = (key) => select.get(key)?.value;
   const stored = Number(read(AUTOSAVE_KEY));
   const workspaceColors = Object.fromEntries(
     WORKSPACES.map((workspace) => {
@@ -64,12 +65,13 @@ export async function settingsRoutes(app, { db }) {
     const upsert = db.prepare(
       'INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value',
     );
+    const remove = db.prepare('DELETE FROM settings WHERE key = ?');
     transaction(db, () => {
       upsert.run(AUTOSAVE_KEY, String(body.autosaveSeconds));
       if (!Object.hasOwn(body, 'workspaceColors')) return;
       for (const workspace of WORKSPACES) {
         const color = body.workspaceColors[workspace];
-        if (color === null) db.prepare('DELETE FROM settings WHERE key = ?').run(colorKey(workspace));
+        if (color === null) remove.run(colorKey(workspace));
         else upsert.run(colorKey(workspace), color);
       }
     });

@@ -5,7 +5,7 @@
 import { choose, formDialog } from './dialogs.js';
 import { createDropdown } from './dropdown.js';
 import { emit } from './events.js';
-import { WORKSPACE_NAMES } from './workspace.js';
+import { otherWorkspace, WORKSPACE_NAMES } from './workspace.js';
 
 /**
  * @param {object} deps
@@ -56,13 +56,14 @@ export function createDocList({ api, tabs, autosave, exclusive, root, button, pa
     rename.dataset.action = 'rename';
     rename.setAttribute('aria-label', `Rename ${doc.name}`);
     rename.addEventListener('click', () => renameDocument(doc));
-    const target = WORKSPACE_NAMES[otherWorkspace()];
+    // The label and the request use the same target, fixed when the row renders.
+    const target = otherWorkspace(api.workspace());
     const moveTo = document.createElement('button');
     moveTo.type = 'button';
-    moveTo.textContent = `Move to ${target}`;
+    moveTo.textContent = `Move to ${WORKSPACE_NAMES[target]}`;
     moveTo.dataset.action = 'move';
-    moveTo.setAttribute('aria-label', `Move ${doc.name} to ${target}`);
-    moveTo.addEventListener('click', () => moveDocument(doc));
+    moveTo.setAttribute('aria-label', `Move ${doc.name} to ${WORKSPACE_NAMES[target]}`);
+    moveTo.addEventListener('click', () => moveDocument(doc, target));
     const remove = document.createElement('button');
     remove.type = 'button';
     remove.className = 'danger';
@@ -119,13 +120,10 @@ export function createDocList({ api, tabs, autosave, exclusive, root, button, pa
     await refresh();
   }
 
-  const otherWorkspace = () => (api.workspace() === 'personal' ? 'work' : 'personal');
-
   // MOV-1 to MOV-3, EDGE-32 (TD-34). An open tab saves first. Only a clean
   // tab closes: text typed during the request stays, and its next save gets
   // 404 and the EDGE-1 dialog, so no text is lost (R11).
-  async function moveDocument(doc) {
-    const target = otherWorkspace();
+  async function moveDocument(doc, target) {
     await exclusive('move', async () => {
       if (!(await autosave.flush(doc.id))) {
         showMessage('Not moved: unsaved changes could not be saved.');
@@ -174,5 +172,13 @@ export function createDocList({ api, tabs, autosave, exclusive, root, button, pa
     show: () => dropdown.open(),
     /** Reloads the list when the dropdown is open. */
     refresh,
+    /**
+     * Closes the dropdown and drops its rows, when the workspace changes
+     * (TD-33). The next open shows only the new workspace's rows.
+     */
+    reset() {
+      dropdown.close();
+      list.replaceChildren();
+    },
   };
 }

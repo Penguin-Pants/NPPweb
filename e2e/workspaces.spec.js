@@ -468,7 +468,7 @@ test('each workspace colors the tab strip in both themes, and Personal keeps tod
   expect(await strip(page)).toBe(LIGHT_SURFACE);
 });
 
-test('a color set in Settings colors the strip, shows on another device after a reload, and an empty field restores the default (CLR-2 to CLR-4)', async ({ page, browser, baseURL }) => {
+test('a color set in Settings colors the strip and shows on another device after a reload, and an empty field restores the default (CLR-2 to CLR-4)', async ({ page, browser, baseURL }) => {
   await login(page);
   let dialog = await openSettings(page);
   await dialog.getByLabel('Work color (hex, empty for default)').fill('#12');
@@ -558,5 +558,27 @@ test('a settings reply without colors, as from a v2 server, keeps both default c
   expect(await strip(page)).toBe(DARK_SURFACE);
   await switchTo(page, 'Work');
   expect(await strip(page)).toBe(WORK_PRESET);
+  const dialog = await openSettings(page);
+  await expect(dialog.getByLabel('Work color (hex, empty for default)')).toHaveValue('');
   expect(errors).toEqual([]);
+});
+
+test('after a switch the Documents list never shows the other workspace\'s rows (WS-6)', async ({ page, api }) => {
+  await create(api, 'personal', 'home.md', 'personal');
+  await create(api, 'work', 'plan.md', 'work');
+  await login(page);
+  await documentsButton(page).click();
+  await expect(page.locator('.doc-row')).toHaveCount(1);
+  await page.keyboard.press('Escape');
+  await switchTo(page, 'Work');
+  let release;
+  const held = new Promise((resolve) => (release = resolve));
+  await page.route((url) => url.pathname === '/api/documents' && url.searchParams.get('workspace') === 'work', async (route) => {
+    await held;
+    await route.continue();
+  }, { times: 1 });
+  await documentsButton(page).click();
+  await expect(page.getByRole('button', { name: 'Delete home.md' })).toHaveCount(0);
+  release();
+  await expect(moveButton(page, 'plan.md', 'Personal')).toBeVisible();
 });

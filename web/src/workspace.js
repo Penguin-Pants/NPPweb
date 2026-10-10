@@ -11,6 +11,9 @@ export const WORKSPACE_NAMES = { personal: 'Personal', work: 'Work' };
 /** @param {'personal' | 'work'} id */
 export const titleFor = (id) => `${WORKSPACE_NAMES[id]} - Notepad`;
 
+/** @param {'personal' | 'work'} id @returns {'personal' | 'work'} */
+export const otherWorkspace = (id) => (id === 'personal' ? 'work' : 'personal');
+
 /**
  * Shows the workspace on the page: data-workspace on <html> and, on the app
  * page only (`<html data-page="app">`), the window title (WS-3). The sign-in

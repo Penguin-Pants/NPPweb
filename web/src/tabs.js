@@ -15,10 +15,10 @@ export const tabsKey = (workspace) => (workspace === 'work' ? 'pn.openTabs.work.
 
 /**
  * @param {() => Pick<Storage, 'getItem'>} getStorage
- * @param {string} [key]
+ * @param {string} key From tabsKey.
  * @returns {{ ids: string[], activeId: string | null }}
  */
-export function readOpenTabs(getStorage, key = tabsKey('personal')) {
+export function readOpenTabs(getStorage, key) {
   try {
     const parsed = JSON.parse(getStorage().getItem(key) ?? 'null');
     if (!Array.isArray(parsed?.ids)) return { ids: [], activeId: null };
@@ -32,9 +32,9 @@ export function readOpenTabs(getStorage, key = tabsKey('personal')) {
 /**
  * @param {() => Pick<Storage, 'setItem'>} getStorage
  * @param {{ ids: string[], activeId: string | null }} state
- * @param {string} [key]
+ * @param {string} key From tabsKey.
  */
-export function writeOpenTabs(getStorage, state, key = tabsKey('personal')) {
+export function writeOpenTabs(getStorage, state, key) {
   try {
     getStorage().setItem(key, JSON.stringify(state));
   } catch {

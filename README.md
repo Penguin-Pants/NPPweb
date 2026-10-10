@@ -119,7 +119,7 @@ In a Markdown tab, Ctrl+B (Cmd+B) makes text bold, Ctrl+I (Cmd+I) italic and Ctr
 
 Account > Settings sets the autosave delay: a whole number of seconds from 1 to 60, default 5. A document saves that many seconds after the last edit, and during nonstop typing no later than that many seconds after the first unsaved edit. The server stores the value, so it applies on every device after a reload.
 
-The same dialog sets one color per workspace: `#RGB` or `#RRGGBB`, in any letter case. Leave a field empty for the default color. The server stores the colors, so other devices show a change after a reload. Right after a page load, a custom Work color can show the teal default for a moment.
+The same dialog sets one color per workspace: `#RGB` or `#RRGGBB`, in any letter case. Leave a field empty for the default color. The server stores the colors, so other devices show a change after a reload. Right after a page load, a custom color can show the workspace's default color for a moment.
 
 ## Known limits
 

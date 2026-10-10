@@ -148,7 +148,7 @@ test('an upgraded version 1 database lists the same documents, now in Personal (
 const move = (id, from, body) => send('PATCH', `/api/documents/${id}?workspace=${from}`, { payload: body });
 const stored = async (id, workspace) => (await send('GET', `/api/documents/${id}?workspace=${workspace}`)).json();
 
-test('a move keeps name, content, version and updatedAt, and the document changes lists (MOV-2)', async () => {
+test('a move keeps name, content, version and updatedAt and puts the document in the other list (MOV-2)', async () => {
   const doc = await create('personal', 'notes.md');
   const saved = await send('PUT', `/api/documents/${doc.id}/content?workspace=personal`, {
     payload: 'é and a NUL \u0000 stay',

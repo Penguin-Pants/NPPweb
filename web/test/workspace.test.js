@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { readChoice } from '../src/stored-choice.js';
-import { showWorkspace, titleFor, WORKSPACE, WORKSPACE_NAMES } from '../src/workspace.js';
+import { otherWorkspace, showWorkspace, titleFor, WORKSPACE, WORKSPACE_NAMES } from '../src/workspace.js';
 
 const storage = (value) => () => ({ getItem: (key) => (key === 'pn.workspace' ? value : null) });
 
@@ -35,4 +35,9 @@ test('showWorkspace marks <html> and sets the title on the app page only (TD-29)
   showWorkspace(signIn, 'work');
   assert.equal(signIn.documentElement.dataset.workspace, 'work');
   assert.equal(signIn.title, 'Sign in - Notepad');
+});
+
+test('otherWorkspace gives the workspace a switch or a move goes to', () => {
+  assert.equal(otherWorkspace('personal'), 'work');
+  assert.equal(otherWorkspace('work'), 'personal');
 });

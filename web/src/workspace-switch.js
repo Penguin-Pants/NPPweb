@@ -107,12 +107,8 @@ export async function switchWorkspace({ target, autosave, api, tabs, apply, show
     reportSaveFailure(second, showMessage);
     return false;
   }
-  if (autosave.hasUnsaved()) {
-    showMessage('Text is still changing. Try the switch again.');
-    return false;
-  }
-  // No await from the check above to here: no keystroke can land in a tab
-  // that then closes.
+  // saveAll is ok only when nothing is unsaved, and only microtasks run from
+  // that check to here: no keystroke can land in a tab that then closes.
   tabs.closeAllSaved();
   apply(target);
   await tabs.boot({ list: list.data });

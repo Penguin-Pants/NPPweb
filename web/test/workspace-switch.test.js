@@ -6,8 +6,8 @@ import { createExclusive, saveAll, switchWorkspace } from '../src/workspace-swit
 
 /**
  * A fake autosave over `docs` (id -> { status, reason }). Each flush calls
- * `onFlush(id, docs)`, which can change the state, and resolves to its result
- * (default: the document saves).
+ * `onFlush(id, docs)`. That can change the state. The flush resolves to its
+ * result (default: the document saves).
  */
 function fakeAutosave(docs, onFlush = (id) => ((docs[id] = { status: 'saved', reason: null }), true)) {
   const flushed = [];
