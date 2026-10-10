@@ -18,6 +18,10 @@
       <button type="button" id="toggle-doclist" aria-expanded="false" aria-controls="doclist">Documents</button>
       <div id="doclist" class="doclist" role="group" aria-label="Documents" hidden></div>
     </div>
+    <div class="menu" id="export-wrap" hidden>
+      <button type="button" id="toggle-export" aria-expanded="false" aria-controls="export-menu">Export</button>
+      <div id="export-menu" class="menu-list menu-start" role="group" aria-label="Export formats" hidden></div>
+    </div>
     <button type="button" id="find">Find</button>
     <button type="button" id="mode-toggle" aria-pressed="true" title="Switch Markdown between Visual and Raw" hidden>Visual</button>
     <span class="spacer"></span>
@@ -58,5 +62,8 @@
     <button type="button" id="count-syntax" aria-pressed="false" title="Count Markdown syntax too" hidden>Count syntax</button>
     <span id="language-slot"></span>
   </footer>
+  <div id="drop-overlay" class="drop-overlay" hidden>
+    <p>Drop .md, .txt or .html files to open them</p>
+  </div>
 </body>
 </html>

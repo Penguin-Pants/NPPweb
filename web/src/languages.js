@@ -66,7 +66,7 @@ const codeLanguages = new Map();
  * a language id or one of its extensions. Others stay plain code text.
  * @param {string} info
  */
-function codeLanguage(info) {
+export function codeLanguage(info) {
   const word = info.trim().split(/\s+/, 1)[0].toLowerCase();
   const id = IDS.has(word) ? word : BY_EXTENSION.get(word);
   if (!id || id === 'plain') return null;

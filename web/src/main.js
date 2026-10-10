@@ -6,12 +6,16 @@ import { createAutosave } from './autosave.js';
 import { setupConflictHandling } from './conflict.js';
 import { formDialog } from './dialogs.js';
 import { createDocList } from './doclist.js';
+import { openDropped, setupDrop } from './drop.js';
 import { createDropdown } from './dropdown.js';
 import { createEditor } from './editor.js';
 import { emit, on } from './events.js';
+import { download, exportContent, exportFormats, fullTree, printPage } from './export.js';
 import { LANGUAGES } from './languages.js';
+import { mermaidSources } from './markdown-html.js';
 import { createCounter, createSummary } from './markdown-text.js';
 import { createToolbar } from './markdown-toolbar.js';
+import { mermaidRenderer } from './mermaid-render.js';
 import { createOutline, formatCounts } from './outline.js';
 import { createStoredChoice } from './stored-choice.js';
 import { createOutlinePanel } from './outline-panel.js';
@@ -190,6 +194,7 @@ tabs = createTabs({
     renderSaveStatus();
     renderLanguage();
     renderMarkdownUi();
+    exportWrap.hidden = !tabs.active();
     // The tab paints first; outline and counts follow 100 ms later. Those of
     // another document go at once, so they never show for the wrong text.
     if (!tabs.shownId() || editor.view.state.doc !== describedDoc) clearSummary();
@@ -353,6 +358,63 @@ function refreshSelection() {
   label.hidden = false;
   label.textContent = `Selection: ${formatCounts(counts)}`;
 }
+
+// Export menu (EXP-1, EXP-2): the formats of the active tab, built on open.
+const exportWrap = $('export-wrap');
+const exportMenu = $('export-menu');
+const FORMAT_LABELS = { md: 'Markdown (.md)', txt: 'Plain text (.txt)', html: 'Web page (.html)', pdf: 'PDF (print dialog)' };
+const exporter = createDropdown({
+  root: exportWrap,
+  button: /** @type {HTMLButtonElement} */ ($('toggle-export')),
+  panel: exportMenu,
+  items: () => [...exportMenu.querySelectorAll('button')],
+  onOpen: () => {
+    const tab = tabs.active();
+    const formats = tab ? exportFormats(tab.name, tabs.languageOf(tab.id)) : [];
+    exportMenu.replaceChildren(
+      ...formats.map((format) => {
+        const item = document.createElement('button');
+        item.type = 'button';
+        item.textContent = FORMAT_LABELS[format] ?? `Original (.${format})`;
+        item.addEventListener('click', () => exportAs(format));
+        return item;
+      }),
+    );
+  },
+});
+
+/** Mermaid diagrams for export, in the light theme. One that fails stays code (EDGE-15). */
+async function exportDiagrams(state) {
+  const diagrams = new Map();
+  for (const source of mermaidSources(state.doc.toString(), fullTree(state))) {
+    const result = await mermaidRenderer.render(source, 'light');
+    if (result && 'svg' in result) diagrams.set(source, result.svg);
+  }
+  return diagrams;
+}
+
+// The editor's state is the content, also unsaved changes (EXP-7).
+async function exportAs(format) {
+  exporter.close();
+  const tab = tabs.active();
+  if (!tab || tabs.shownId() !== tab.id) return;
+  const { state } = editor.view;
+  try {
+    const diagrams = format === 'html' || format === 'pdf' ? await exportDiagrams(state) : undefined;
+    const file = exportContent({ name: tab.name, format, state, diagrams });
+    if (format === 'pdf') printPage(file.content);
+    else download(file);
+  } catch (err) {
+    showMessage(`Export failed. ${err.message}`);
+  }
+}
+
+// Drop files on the page to open them (DRP-1 to DRP-6).
+setupDrop({
+  win: window,
+  overlay: $('drop-overlay'),
+  onFiles: (files) => openDropped({ files, api, open: (meta, text) => tabs.addDocument(meta, text), showMessage }),
+});
 
 // CON-1 and EDGE-1: a 412 or 404 save opens a dialog with the choices.
 setupConflictHandling({ api, autosave, tabs });

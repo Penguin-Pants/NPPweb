@@ -223,6 +223,11 @@ select {
   min-width: 180px;
 }
 
+.menu-list.menu-start {
+  left: 0;
+  right: auto;
+}
+
 .menu-list[hidden],
 .doclist[hidden] {
   display: none;
@@ -704,4 +709,35 @@ button.danger {
 ::view-transition-new(root) {
   animation: none;
   mix-blend-mode: normal;
+}
+
+/* Drop files to open them (DRP-5). Its text never takes the drag events. */
+.drop-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-content: center;
+  background: rgb(0 0 0 / 0.55);
+  border: 3px dashed var(--accent);
+  color: #fff;
+  font-size: 20px;
+}
+
+.drop-overlay[hidden] {
+  display: none;
+}
+
+.drop-overlay p {
+  pointer-events: none;
+}
+
+/* The page that the PDF export prints (EXP-5). Off screen, but laid out. */
+.print-frame {
+  position: fixed;
+  left: -10000px;
+  top: 0;
+  width: 800px;
+  height: 600px;
+  border: 0;
 }
