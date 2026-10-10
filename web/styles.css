@@ -153,6 +153,7 @@ select {
 }
 
 .statusbar {
+  flex-wrap: wrap; /* A narrow window gets a second row, never a hidden control. */
   padding: 2px 8px;
   min-height: 26px;
   border-top-width: 1px;
