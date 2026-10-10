@@ -1,20 +1,26 @@
-// Open tabs (section 2.8, T17). Tabs persist per browser in localStorage
-// (pn.openTabs.v1). Content loads on first activation. Clean tabs refresh
-// from the server on window focus and on tab activation (TD-15).
+// Open tabs (section 2.8, T17). Tabs persist per browser and per workspace in
+// localStorage (v3 TD-31). Content loads on first activation. Clean tabs
+// refresh from the server on window focus and on tab activation (TD-15).
 
 import { choose } from './dialogs.js';
 import { languageSupport, resolveLanguage } from './languages.js';
 import { modName } from './shortcuts.js';
 
-const STORAGE_KEY = 'pn.openTabs.v1';
+/**
+ * The localStorage key of a workspace's open tabs. Personal keeps the v1 key,
+ * so tabs stored before v3 restore as the Personal tabs (MIG-2).
+ * @param {'personal' | 'work'} workspace
+ */
+export const tabsKey = (workspace) => (workspace === 'work' ? 'pn.openTabs.work.v1' : 'pn.openTabs.v1');
 
 /**
  * @param {() => Pick<Storage, 'getItem'>} getStorage
+ * @param {string} key From tabsKey.
  * @returns {{ ids: string[], activeId: string | null }}
  */
-export function readOpenTabs(getStorage) {
+export function readOpenTabs(getStorage, key) {
   try {
-    const parsed = JSON.parse(getStorage().getItem(STORAGE_KEY) ?? 'null');
+    const parsed = JSON.parse(getStorage().getItem(key) ?? 'null');
     if (!Array.isArray(parsed?.ids)) return { ids: [], activeId: null };
     const ids = [...new Set(parsed.ids.filter((id) => typeof id === 'string'))];
     return { ids, activeId: ids.includes(parsed.activeId) ? parsed.activeId : null };
@@ -26,10 +32,11 @@ export function readOpenTabs(getStorage) {
 /**
  * @param {() => Pick<Storage, 'setItem'>} getStorage
  * @param {{ ids: string[], activeId: string | null }} state
+ * @param {string} key From tabsKey.
  */
-export function writeOpenTabs(getStorage, state) {
+export function writeOpenTabs(getStorage, state, key) {
   try {
-    getStorage().setItem(STORAGE_KEY, JSON.stringify(state));
+    getStorage().setItem(key, JSON.stringify(state));
   } catch {
     // Storage can be blocked. Tabs then last until reload.
   }
@@ -89,7 +96,8 @@ export function createTabs({ editor, autosave, api, getStorage, elements, onActi
 
   const find = (id) => tabs.find((tab) => tab.id === id);
   const isClean = (tab) => tab.state === null || autosave.status(tab.id) === 'saved';
-  const persist = () => writeOpenTabs(getStorage, { ids: tabs.map((tab) => tab.id), activeId });
+  const storageKey = () => tabsKey(api.workspace());
+  const persist = () => writeOpenTabs(getStorage, { ids: tabs.map((tab) => tab.id), activeId }, storageKey());
 
   /** The live state of a tab: the view's state when the view shows it. */
   const stateOf = (tab) => (tab.id === shownId ? editor.view.state : tab.state);
@@ -190,7 +198,8 @@ export function createTabs({ editor, autosave, api, getStorage, elements, onActi
 
   // The tab is already closed, so no pending save can reach the document.
   async function deleteOnServer(id) {
-    const { status } = await api.deleteDocument(id);
+    const { status, stale } = await api.deleteDocument(id);
+    if (stale) return;
     if (status !== 204 && status !== 404) showMessage('Delete failed. The document is still in the document list.');
   }
 
@@ -214,11 +223,22 @@ export function createTabs({ editor, autosave, api, getStorage, elements, onActi
   }
 
   const controller = {
-    /** Restores the stored tabs, dropping documents that no longer exist. */
-    async boot() {
-      const stored = readOpenTabs(getStorage);
-      const list = await api.listDocuments();
-      const byId = list.status === 200 ? new Map(list.data.map((doc) => [doc.id, doc])) : null;
+    /**
+     * Restores the stored tabs of the active workspace, dropping documents
+     * that no longer exist.
+     * @param {{ list?: import('./api.js').DocumentMeta[] }} [options] The
+     *   workspace's list when the caller read it already (a switch, TD-33).
+     */
+    async boot({ list } = {}) {
+      const stored = readOpenTabs(getStorage, storageKey());
+      let docs = list ?? null;
+      if (!docs) {
+        const result = await api.listDocuments();
+        // A switch during the read boots the other workspace itself (TD-41).
+        if (result.stale) return;
+        if (result.status === 200) docs = result.data;
+      }
+      const byId = docs ? new Map(docs.map((doc) => [doc.id, doc])) : null;
       tabs = stored.ids
         .filter((id) => !byId || byId.has(id))
         .map((id) => ({ id, name: byId?.get(id).name ?? 'Loading', language: byId?.get(id).language ?? null, state: null }));
@@ -243,8 +263,8 @@ export function createTabs({ editor, autosave, api, getStorage, elements, onActi
       if (!tab.state) {
         showBlank();
         onActiveChange();
-        const { status, data } = await api.getDocument(id);
-        if (!find(id)) return;
+        const { status, data, stale } = await api.getDocument(id);
+        if (stale || !find(id)) return;
         if (status === 404) {
           removeTab(id);
           return;
@@ -314,7 +334,8 @@ export function createTabs({ editor, autosave, api, getStorage, elements, onActi
       if (!tab) return false;
       let content = controller.content(id);
       if (content === null) {
-        const { status, data } = await api.getDocument(id);
+        const { status, data, stale } = await api.getDocument(id);
+        if (stale) return false;
         if (status === 404) {
           removeTab(id);
           return true;
@@ -357,6 +378,20 @@ export function createTabs({ editor, autosave, api, getStorage, elements, onActi
     /** Closes a tab without saving (its document is gone). */
     removeTab,
 
+    /**
+     * Closes every tab with no prompt and no delete, before a workspace
+     * switch (TD-33). Every tab is saved by then. The stored tab list stays,
+     * so the workspace gets its tabs back on the way back (WS-7).
+     */
+    closeAllSaved() {
+      for (const tab of tabs) autosave.untrack(tab.id);
+      tabs = [];
+      activeId = null;
+      shownId = null;
+      editor.showBlank();
+      render();
+    },
+
     /** Shows a new name on an open tab. */
     rename(id, name) {
       const tab = find(id);
@@ -369,10 +404,12 @@ export function createTabs({ editor, autosave, api, getStorage, elements, onActi
 
     /**
      * Stores a manual language override, or null for auto (EDT-4).
-     * @returns {Promise<boolean>} false when the server did not accept it.
+     * @returns {Promise<boolean | null>} false when the server did not accept
+     *   it. null when a workspace switch dropped the tab meanwhile (TD-41).
      */
     async setLanguage(id, language) {
-      const { status, data } = await api.updateDocument(id, { language });
+      const { status, data, stale } = await api.updateDocument(id, { language });
+      if (stale) return null;
       const tab = find(id);
       if (status !== 200 || !tab) return false;
       tab.language = data.language;
@@ -417,6 +454,11 @@ export function createTabs({ editor, autosave, api, getStorage, elements, onActi
     },
 
     render,
+    /** True when the tab has no unsaved text, or no tab shows the document. */
+    isClean: (id) => {
+      const tab = find(id);
+      return !tab || isClean(tab);
+    },
     active: () => find(activeId) ?? null,
     /** The id of the document in the editor view, for autosave. */
     shownId: () => shownId,

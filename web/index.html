@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-page="app">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -25,6 +25,7 @@
     <button type="button" id="find">Find</button>
     <button type="button" id="mode-toggle" aria-pressed="true" title="Switch Markdown between Visual and Raw" hidden>Visual</button>
     <span class="spacer"></span>
+    <button type="button" id="workspace-switch"></button>
     <button type="button" id="theme-toggle"></button>
     <div class="menu">
       <button type="button" id="account-button" aria-expanded="false" aria-controls="account-menu">Account</button>
@@ -35,7 +36,7 @@
       </div>
     </div>
   </header>
-  <div class="workspace">
+  <div class="main-area">
     <aside id="outline" class="outline-panel" aria-label="Outline">
       <h2>Outline</h2>
       <div id="outline-body"></div>

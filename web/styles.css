@@ -28,6 +28,21 @@
   --focus: #0b62d6;
 }
 
+/* Workspace color of the tab strip and the switch (v3 CLR-1, CLR-6, TD-36).
+   Personal keeps today's look. main.js sets the three variables inline on
+   <html> when the active workspace has a stored color. */
+:root {
+  --ws-strip: var(--surface);
+  --ws-strip-fg: var(--muted);
+  --ws-strip-mark: var(--accent);
+}
+
+:root[data-workspace="work"] {
+  --ws-strip: #0f766e;
+  --ws-strip-fg: #ffffff;
+  --ws-strip-mark: #ffffff;
+}
+
 *,
 *::before,
 *::after {
@@ -178,7 +193,7 @@ select {
   min-width: calc(var(--outline-width) - 6px); /* minus the bar gap */
 }
 
-.workspace {
+.main-area {
   flex: 1;
   display: flex;
   min-height: 0;
@@ -306,7 +321,7 @@ button.danger {
 .tabstrip {
   display: flex;
   overflow-x: auto;
-  background: var(--surface);
+  background: var(--ws-strip);
   border-bottom: 1px solid var(--border);
   min-height: 32px;
 }
@@ -318,7 +333,7 @@ button.danger {
   max-width: 220px;
   padding: 0 4px 0 12px;
   border-right: 1px solid var(--border);
-  color: var(--muted);
+  color: var(--ws-strip-fg);
   cursor: pointer;
   user-select: none;
 }
@@ -340,8 +355,18 @@ button.danger {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--ws-strip-mark);
   flex: none;
+}
+
+/* The active tab is not on the workspace color, so it keeps its own (TD-38). */
+.tab[aria-selected="true"] .tab-dirty {
+  background: var(--accent);
+}
+
+#workspace-switch {
+  background: var(--ws-strip);
+  color: var(--ws-strip-fg);
 }
 
 .tab.dirty .tab-dirty {
@@ -357,8 +382,11 @@ button.danger {
   color: inherit;
 }
 
+/* The hover background is not the workspace color, so the text is the
+   theme's own (CLR-5). */
 .tab-close:hover {
   background: var(--surface-2);
+  color: var(--fg);
 }
 
 .empty-state[hidden],

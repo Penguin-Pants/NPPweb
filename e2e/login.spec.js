@@ -12,6 +12,13 @@ test.describe('login', { tag: '@smoke' }, () => {
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   });
 
+  test('the sign-in page keeps its title with a stored workspace (TD-29)', async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('pn.workspace', 'work'));
+    await page.goto('/login');
+    await expect(page.locator('html')).toHaveAttribute('data-workspace', 'work');
+    await expect(page).toHaveTitle('Sign in - Notepad');
+  });
+
   test('a wrong password shows a generic error', async ({ page }) => {
     await page.goto('/login');
     await page.getByLabel('Password').fill('not-the-password');

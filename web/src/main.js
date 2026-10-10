@@ -25,6 +25,9 @@ import { modName, setupShortcuts } from './shortcuts.js';
 import { setupSessionRecovery } from './session.js';
 import { createTabs } from './tabs.js';
 import { animateThemeSwitch, createTheme } from './theme.js';
+import { otherWorkspace, showWorkspace, WORKSPACE, WORKSPACE_NAMES } from './workspace.js';
+import { textColorOn } from './workspace-color.js';
+import { createExclusive, switchWorkspace } from './workspace-switch.js';
 
 const $ = (id) => /** @type {HTMLElement} */ (document.getElementById(id));
 
@@ -42,6 +45,24 @@ function showTheme(current) {
   themeButton.textContent = current === 'dark' ? 'Light theme' : 'Dark theme';
 }
 showTheme(theme.get());
+
+// The stored workspace (WS-4). theme-init.js already showed it.
+const workspace = createStoredChoice({ getStorage: () => localStorage, ...WORKSPACE });
+api.setWorkspace(workspace.get());
+
+// Workspace colors (CLR-1 to CLR-5, TD-36). They come from the server
+// settings. A stored color goes inline on <html> over the CSS default.
+const DEFAULT_COLORS = Object.fromEntries(WORKSPACE.values.map((id) => [id, null]));
+let workspaceColors = DEFAULT_COLORS;
+function applyWorkspaceColor() {
+  const color = workspaceColors[workspace.get()];
+  const { style } = document.documentElement;
+  const text = color && textColorOn(color);
+  for (const [name, value] of [['--ws-strip', color], ['--ws-strip-fg', text], ['--ws-strip-mark', text]]) {
+    if (value) style.setProperty(name, value);
+    else style.removeProperty(name);
+  }
+}
 themeButton.addEventListener('click', () => animateThemeSwitch({ toggle: () => theme.toggle(), button: themeButton }));
 
 // Status bar message for one-off notices.
@@ -79,8 +100,14 @@ let delayRequest = 0;
 async function loadSettings() {
   const request = (delayRequest += 1);
   const result = await api.getSettings();
-  if (result.status === 200 && request === delayRequest) autosave.setDelay(result.data.autosaveSeconds * 1000);
+  if (result.status === 200 && request === delayRequest) applySettings(result.data);
   return result;
+}
+function applySettings({ autosaveSeconds, workspaceColors: colors }) {
+  autosave.setDelay(autosaveSeconds * 1000);
+  // A v2 server (a rollback, R15) sends no colors: both keep their default.
+  workspaceColors = colors ?? DEFAULT_COLORS;
+  applyWorkspaceColor();
 }
 // One Settings dialog at a time, also while its first read is slow.
 let settingsOpen = false;
@@ -102,18 +129,32 @@ async function showSettings() {
   }
   await formDialog({
     title: 'Settings',
-    fields: [{ name: 'seconds', label: 'Autosave delay in seconds (1 to 60)', value: String(current.data.autosaveSeconds) }],
+    fields: [
+      { name: 'seconds', label: 'Autosave delay in seconds (1 to 60)', value: String(current.data.autosaveSeconds) },
+      // CLR-2: an empty field is the workspace's default color (TD-39).
+      ...WORKSPACE.values.map((id) => ({
+        name: id,
+        label: `${WORKSPACE_NAMES[id]} color (hex, empty for default)`,
+        // A v2 server (a rollback, R15) sends no colors.
+        value: current.data.workspaceColors?.[id] ?? '',
+      })),
+    ],
     submitLabel: 'Save',
-    onSubmit: async ({ seconds }) => {
-      // The server checks the rule (whole number, 1 to 60). '' becomes 0 and
-      // text becomes NaN, which it rejects too.
-      const { status, data } = await api.saveSettings({ autosaveSeconds: Number(seconds.trim()) });
+    onSubmit: async ({ seconds, personal, work }) => {
+      // The server checks the rules (a whole number from 1 to 60 and #RGB or
+      // #RRGGBB). '' becomes 0 and text becomes NaN, which it rejects too.
+      const color = (value) => value.trim() || null;
+      const { status, data } = await api.saveSettings({
+        autosaveSeconds: Number(seconds.trim()),
+        workspaceColors: { personal: color(personal), work: color(work) },
+      });
       if (status === 200) {
         delayRequest += 1;
-        autosave.setDelay(data.autosaveSeconds * 1000);
+        applySettings(data);
         return null;
       }
       if (data?.error === 'invalid_autosave_seconds') return 'Use a whole number from 1 to 60.';
+      if (data?.error === 'invalid_color') return `Use #RGB or #RRGGBB for the ${WORKSPACE_NAMES[data.workspace]} color.`;
       if (status === 0) return 'Cannot connect to the server. Try again.';
       return 'Saving the settings failed. Try again.';
     },
@@ -241,7 +282,8 @@ function renderLanguage() {
 languageSelect.addEventListener('change', async () => {
   const tab = tabs.active();
   if (!tab) return;
-  if (!(await tabs.setLanguage(tab.id, languageSelect.value || null))) {
+  // null: a workspace switch dropped the tab meanwhile, so nothing to say.
+  if ((await tabs.setLanguage(tab.id, languageSelect.value || null)) === false) {
     showMessage('Could not change the language. Try again.');
     renderLanguage();
   }
@@ -414,11 +456,50 @@ async function exportAs(format) {
   }
 }
 
+// A workspace switch, a drop and a move never overlap (TD-42).
+const exclusive = createExclusive(showMessage);
+
+// Workspace switch (WS-2, TD-32, TD-33). The button names the active workspace.
+const workspaceButton = /** @type {HTMLButtonElement} */ ($('workspace-switch'));
+function renderWorkspace() {
+  const current = WORKSPACE_NAMES[workspace.get()];
+  workspaceButton.textContent = current;
+  workspaceButton.setAttribute('aria-label', `Workspace: ${current}. Switch to ${WORKSPACE_NAMES[otherWorkspace(workspace.get())]}`);
+}
+renderWorkspace();
+workspaceButton.addEventListener('click', () =>
+  exclusive('workspace switch', async () => {
+    workspaceButton.disabled = true;
+    try {
+      await switchWorkspace({
+        target: otherWorkspace(workspace.get()),
+        autosave,
+        api,
+        tabs,
+        showMessage,
+        apply: (target) => {
+          if (workspace.get() !== target) workspace.toggle();
+          api.setWorkspace(target);
+          doclist.reset();
+          showWorkspace(document, target);
+          applyWorkspaceColor();
+          renderWorkspace();
+        },
+      });
+    } finally {
+      workspaceButton.disabled = false;
+      // A disabled button loses the focus. Give it back unless a tab took it.
+      if (document.activeElement === document.body) workspaceButton.focus();
+    }
+  }),
+);
+
 // Drop files on the page to open them (DRP-1 to DRP-6).
 setupDrop({
   win: window,
   overlay: $('drop-overlay'),
-  onFiles: (files) => openDropped({ files, api, open: (meta, text) => tabs.addDocument(meta, text), showMessage }),
+  onFiles: (files) =>
+    exclusive('drop', () => openDropped({ files, api, open: (meta, text) => tabs.addDocument(meta, text), showMessage })),
 });
 
 // CON-1 and EDGE-1: a 412 or 404 save opens a dialog with the choices.
@@ -445,6 +526,8 @@ window.addEventListener('beforeunload', (event) => {
 const doclist = createDocList({
   api,
   tabs,
+  autosave,
+  exclusive,
   root: $('doclist-menu'),
   button: /** @type {HTMLButtonElement} */ ($('toggle-doclist')),
   panel: $('doclist'),

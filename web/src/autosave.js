@@ -236,6 +236,8 @@ export function createAutosave({ save, onStatus = () => {}, onEvent = () => {}, 
       return this.flush(id);
     },
 
+    /** The tracked document ids (v3: the save before a workspace switch). */
+    ids: () => [...docs.keys()],
     status: (id) => docs.get(id)?.status,
     reason: (id) => docs.get(id)?.reason ?? null,
     version: (id) => docs.get(id)?.version,

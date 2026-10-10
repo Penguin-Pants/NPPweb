@@ -1,5 +1,7 @@
 // Document API (BUILD_PLAN.md section 2.7). Content travels as text/plain
-// with an exact byte limit (TD-7).
+// with an exact byte limit (TD-7). Every route acts on the workspace that its
+// `workspace` query value names, Personal by default (v3 TD-23).
+import { parseWorkspace, WORKSPACES } from '../workspaces.js';
 import {
   createDocument,
   deleteDocument,
@@ -18,7 +20,14 @@ export const CONTENT_LIMIT_BYTES = 1_048_576;
  * @param {{ db: import('node:sqlite').DatabaseSync, clock: () => number }} options
  */
 export async function documentRoutes(app, { db, clock }) {
-  app.get('/api/documents', async () => listDocuments(db));
+  // Before the body is read, so a bad value never costs a 1 MB upload.
+  app.decorateRequest('workspace', null);
+  app.addHook('onRequest', async (request, reply) => {
+    request.workspace = parseWorkspace(request.query);
+    if (request.workspace === null) return reply.code(400).send({ error: 'invalid_workspace' });
+  });
+
+  app.get('/api/documents', async (request) => listDocuments(db, request.workspace));
 
   app.post('/api/documents', { bodyLimit: CONTENT_LIMIT_BYTES }, async (request, reply) => {
     const content = textBody(request, { optional: true });
@@ -32,11 +41,11 @@ export async function documentRoutes(app, { db, clock }) {
     if (language !== undefined && !LANGUAGES.includes(language)) {
       return reply.code(400).send({ error: 'invalid_language' });
     }
-    return reply.code(201).send(createDocument(db, { name, content, language, now: clock() }));
+    return reply.code(201).send(createDocument(db, { workspace: request.workspace, name, content, language, now: clock() }));
   });
 
   app.get('/api/documents/:id', async (request, reply) => {
-    const doc = getDocument(db, request.params.id);
+    const doc = getDocument(db, request.workspace, request.params.id);
     if (!doc) return reply.code(404).send({ error: 'not_found' });
     return doc;
   });
@@ -50,6 +59,7 @@ export async function documentRoutes(app, { db, clock }) {
     const content = textBody(request, { optional: false });
     if (content === null) return reply.code(415).send({ error: 'unsupported_media_type' });
     const result = saveContent(db, {
+      workspace: request.workspace,
       id: request.params.id,
       content,
       expectedVersion: Number(ifMatch),
@@ -76,13 +86,18 @@ export async function documentRoutes(app, { db, clock }) {
       }
       changes.language = body.language;
     }
-    const meta = updateMeta(db, request.params.id, changes, clock());
+    // A move (v3 TD-26): the query names the source, the body the target.
+    if (Object.hasOwn(body, 'workspace')) {
+      if (!WORKSPACES.includes(body.workspace)) return reply.code(400).send({ error: 'invalid_workspace' });
+      changes.workspace = body.workspace;
+    }
+    const meta = updateMeta(db, request.workspace, request.params.id, changes, clock());
     if (!meta) return reply.code(404).send({ error: 'not_found' });
     return meta;
   });
 
   app.delete('/api/documents/:id', async (request, reply) => {
-    if (!deleteDocument(db, request.params.id)) return reply.code(404).send({ error: 'not_found' });
+    if (!deleteDocument(db, request.workspace, request.params.id)) return reply.code(404).send({ error: 'not_found' });
     return reply.code(204).send();
   });
 }

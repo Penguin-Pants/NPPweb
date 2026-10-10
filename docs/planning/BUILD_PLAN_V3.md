@@ -1,6 +1,6 @@
 # Build Plan V3: Workspaces, Status Bar and New-Document Defaults
 
-**Status:** M17 (T28, T29) is Done in PR #6. M18 to M21 (T30 to T39) are Planned. T40 (Notion workspace rules) is Blocked with M15 (C17). No open plan decisions.
+**Status:** M17 (T28, T29) is Done in PR #6. M18 to M21 (T30 to T39) are Done in PR #10. T40 (Notion workspace rules) is Blocked with M15 (C17). No open plan decisions.
 **Date:** 2026-10-10
 **Inputs:** `REQUIREMENTS_V3.md`, `REQUIREMENTS_V2.md`, `REQUIREMENTS.md`, `BUILD_PLAN.md` (v1 plan, TD-1 to TD-19), `PLAN_REVIEW.md`
 **Codebase:** v1 and v2 are built (`BUILD_PLAN.md` section 9, `REQUIREMENTS_V2.md` section 9). Line references in this file are for the head of PR #6.
@@ -78,7 +78,7 @@ API changes in `BUILD_PLAN.md` section 2.7 terms:
 | ID | Decision | Reason |
 |----|----------|--------|
 | TD-28 | The active workspace is a `createStoredChoice` (`web/src/stored-choice.js`) with key `pn.workspace` and values `['personal', 'work']`. | The first value is the default for a first visit, blocked storage and unknown values (WS-4). Same module as the theme. |
-| TD-29 | `theme-init.js` sets `data-workspace` on `<html>` before first paint. It also sets `document.title` ("Personal - Notepad" or "Work - Notepad"), but only on the app page: `web/index.html` marks its `<html>` with `data-page="app"`. The sign-in page also loads `theme-init.js` (`web/login.html:7`) and keeps the title "Notepad". | WS-3. No flash of the wrong title or tab strip color. The sign-in page shows no workspace. |
+| TD-29 | `theme-init.js` sets `data-workspace` on `<html>` before first paint. It also sets `document.title` ("Personal - Notepad" or "Work - Notepad"), but only on the app page: `web/index.html` marks its `<html>` with `data-page="app"`. The sign-in page also loads `theme-init.js` (`web/login.html:7`) and keeps its title "Sign in - Notepad". | WS-3. No flash of the wrong title or tab strip color. The sign-in page shows no workspace. |
 | TD-30 | `api.js` holds the active workspace (`api.setWorkspace(id)`) and adds `workspace=<id>` to every `/api/documents` path. `listDocuments(workspace?)` takes an override for the switch prefetch. | Callers (`tabs.js`, `doclist.js`, `drop.js`, `conflict.js`) stay unchanged. New, drop and recovery copies go to the active workspace (WS-6). |
 | TD-41 | `api.js` keeps a workspace generation number. `setWorkspace` increases it. Each `/api/documents` call records the generation when it starts. If the generation changed when the response arrives, the call returns `{ status: 0, data: null, stale: true }` and emits no `session-expired`. The prefetch with an explicit `workspace` (TD-30) is exempt. Every caller checks `stale` before its status check, then stops and shows no message: `tabs.js`, `doclist.js`, `drop.js`, `conflict.js` and the language list handler in `main.js`. | A refresh, load or New that started before a switch must not change the new workspace (drops and moves cannot overlap a switch, TD-42). Example: a Personal list that returns after the switch makes `planRefresh` close every clean Work tab. A stale create still runs on the server, so that document is in the old workspace's list (R14). A plain status check reads `stale` as a network failure (status 0): a language change in flight during a switch makes `tabs.setLanguage` return false (`web/src/tabs.js:377`), and `main.js` then shows "Could not change the language" (`web/src/main.js:242`). |
 | TD-31 | Personal tabs keep the key `pn.openTabs.v1` (`web/src/tabs.js:9`). Work tabs use `pn.openTabs.work.v1`. `readOpenTabs` and `writeOpenTabs` take the key. | MIG-2 needs no data migration: the old key already holds the Personal tabs. |
@@ -185,7 +185,7 @@ API changes in `BUILD_PLAN.md` section 2.7 terms:
 - **Requirements:** WS-3, WS-4, C14.
 - **Implementation:** Rename `.workspace` to `.main-area` (TD-21). `web/src/workspace.js`: the stored choice (TD-28), `WORKSPACE_NAMES`, `titleFor(id)`. `theme-init.js` sets `data-workspace` and the title (TD-29).
 - **Dependencies:** None.
-- **Acceptance criteria:** A first visit and an unknown stored value give Personal and "Personal - Notepad". A stored `work` gives "Work - Notepad" at first paint. The sign-in page keeps the title "Notepad", also with a stored `work`. No `.workspace` class is left.
+- **Acceptance criteria:** A first visit and an unknown stored value give Personal and "Personal - Notepad". A stored `work` gives "Work - Notepad" at first paint. The sign-in page keeps its title "Sign in - Notepad", also with a stored `work`. No `.workspace` class is left.
 - **Validation:** `web/test/workspace.test.js` (stored value, blocked storage, title). Extend `web/test/build-web.test.js` for the `theme-init.js` bundle. `e2e/login.spec.js`: the sign-in page title with a stored `work`. Grep for `.workspace` in `web/`.
 
 #### T33 Workspace-scoped client calls and per-workspace tabs (M)
@@ -279,7 +279,7 @@ Numbering continues from v1 (R1 to R8).
 | R10 | A switch waits for every save. On a slow network it can take seconds. | The button is disabled during the switch. The save status shows "Saving...". |
 | R11 | Text typed during a move request reaches a 404 and opens the EDGE-1 dialog. | Accepted: no text is lost (TD-34). The e2e test covers it. |
 | R12 | The migration runs at app start on Railway (v1 TD-17). A failure stops the start. | It runs in one transaction (`migrate` in `server/src/db.js`). Upgrade check in section 5. |
-| R13 | This container runs Node 22. Production runs Node 24. | Run the suites on Node 24 before release, as in v2 (`PLAN_REVIEW.md` section 13). PR #6 ran on Node 22: `npm test` 355 pass, Chromium e2e 138 pass. |
+| R13 | The container default is Node 22. Production runs Node 24. | Run the suites on Node 24 before release, as in v2 (`PLAN_REVIEW.md` section 13). PR #6 ran on Node 22: `npm test` 355 pass, Chromium e2e 138 pass. PR #10 ran on Node 24.21.0 (`PLAN_REVIEW.md` section 14). |
 | R14 | A New that is in flight during a switch still creates its document in the old workspace, but its response is dropped (TD-41). | The document shows in the old workspace's list. No text is lost. |
 | R15 | A rollback to a v2 build after migration 2: the v2 build starts, because `migrate` skips a database whose `user_version` (2) is at or above its own count (1) (`server/src/db.js:31-32`). Its inserts get `personal` from the column default. It lists Personal and Work documents together. | No data is lost. Prefer a forward fix. The README states the effect (T39). |
 
@@ -291,16 +291,16 @@ Numbering continues from v1 (R1 to R8).
 |----|-------|-----------|------|------------|--------|--------------|-------|
 | T28 | Status bar layout | M17 | S | none | Done | PR #6 (aa926e0, 10eac16) | Narrow-window wrap from the Codex review. |
 | T29 | New-document defaults and recovery copies | M17 | S | none | Done | PR #6 (aa926e0, 70239d0, 10eac16) | Recovery copy fixes from the Codex review. |
-| T30 | Migration 2: workspace column | M18 | S | none | Planned | | |
-| T31 | Workspace-scoped document API | M18 | M | T30 | Planned | | |
-| T32 | Workspace state, title and class rename | M19 | S | none | Planned | | |
-| T33 | Workspace-scoped client calls and tabs | M19 | M | T31, T32 | Planned | | |
-| T34 | Switch control and switch safety | M19 | M | T33 | Planned | | |
-| T35 | Move route | M20 | S | T31 | Planned | | |
-| T36 | Move action in the Documents dropdown | M20 | M | T34, T35 | Planned | | |
-| T37 | Color settings API | M21 | S | none | Planned | | |
-| T38 | Colors in the UI | M21 | M | T34, T37 | Planned | | |
-| T39 | README and docs | M21 | S | T36, T38 | Planned | | |
+| T30 | Migration 2: workspace column | M18 | S | none | Done | PR #10 (14fda57) | Fresh and upgraded databases reach `user_version` 2. |
+| T31 | Workspace-scoped document API | M18 | M | T30 | Done | PR #10 (f5212e7) | `onRequest` hook checks `workspace` before the body is read. Upgrade check is a test. M18 review in `PLAN_REVIEW.md` section 14. |
+| T32 | Workspace state, title and class rename | M19 | S | none | Done | PR #10 (3b6c7a5) | `showWorkspace` in `web/src/workspace.js` sets `data-workspace` and, on `<html data-page="app">`, the title. `.workspace` is now `.main-area`. |
+| T33 | Workspace-scoped client calls and tabs | M19 | M | T31, T32 | Done | PR #10 (eb1686e) | `api.js` generation and `stale`. Personal calls keep the v1 paths (`PLAN_REVIEW.md` section 9). The e2e `drop` helper moved to `e2e/fixtures.js`. |
+| T34 | Switch control and switch safety | M19 | M | T33 | Done | PR #10 (542ff27) | M19 review in `PLAN_REVIEW.md` section 14. Owner check: the installed app window title changes on a switch (Chrome, Edge). |
+| T35 | Move route | M20 | S | T31 | Done | PR #10 (829e248) | A move can come with a rename in one PATCH. A non-string target returns 400 `invalid_workspace`. |
+| T36 | Move action in the Documents dropdown | M20 | M | T34, T35 | Done | PR #10 (c25dade) | Move sits between Rename and Delete. A 404 names the workspace and refreshes the list. M20 review in `PLAN_REVIEW.md` section 14. |
+| T37 | Color settings API | M21 | S | none | Done | PR #10 (b97cebd) | `workspaceColors` must name both workspaces and nothing else, else 400 `invalid_request`. v2 settings tests now compare `autosaveSeconds` only. |
+| T38 | Colors in the UI | M21 | M | T34, T37 | Done | PR #10 (aa8e697) | `--ws-strip-mark` keeps the Personal default dot (`PLAN_REVIEW.md` section 9). A reply without `workspaceColors` (a v2 server) keeps both defaults. Screenshots for the owner in the PR. |
+| T39 | README and docs | M21 | S | T36, T38 | Done | PR #10 | README section Workspaces. M21 review in `PLAN_REVIEW.md` section 14. |
 | T40 | Notion workspace rules | M15 | S | M15, T35 | Blocked | | C17 |
 
 ---

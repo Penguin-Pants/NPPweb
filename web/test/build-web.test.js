@@ -43,17 +43,33 @@ test('build copies the HTML pages and stylesheet unchanged', async () => {
   }
 });
 
-test('the theme-init bundle runs as a classic script, sets the theme and outline state and adds no globals', async () => {
+test('the theme-init bundle runs as a classic script, sets the theme, outline and workspace state and adds no globals', async () => {
   const { runInNewContext } = await import('node:vm');
   const code = await readFile(join(outDir, 'theme-init.js'), 'utf8');
-  for (const [theme, outline] of [[null, null], ['light', 'closed']]) {
-    const stored = { 'pn.theme': theme, 'pn.outline': outline };
-    const sandbox = { document: { documentElement: { dataset: {} } }, localStorage: { getItem: (key) => stored[key] } };
+  for (const [theme, outline, workspace] of [[null, null, null], ['light', 'closed', 'work']]) {
+    const stored = { 'pn.theme': theme, 'pn.outline': outline, 'pn.workspace': workspace };
+    const sandbox = {
+      document: { title: 'Notepad', documentElement: { dataset: { page: 'app' } } },
+      localStorage: { getItem: (key) => stored[key] },
+    };
     runInNewContext(code, sandbox);
     assert.deepEqual(Object.keys(sandbox).sort(), ['document', 'localStorage']);
     assert.equal(sandbox.document.documentElement.dataset.theme, theme ?? 'dark');
     assert.equal(sandbox.document.documentElement.dataset.outline, outline ?? 'open');
+    assert.equal(sandbox.document.documentElement.dataset.workspace, workspace ?? 'personal');
+    assert.equal(sandbox.document.title, workspace === 'work' ? 'Work - Notepad' : 'Personal - Notepad');
   }
+});
+
+test('on the sign-in page the theme-init bundle keeps the title (TD-29)', async () => {
+  const { runInNewContext } = await import('node:vm');
+  const code = await readFile(join(outDir, 'theme-init.js'), 'utf8');
+  const sandbox = {
+    document: { title: 'Sign in - Notepad', documentElement: { dataset: {} } },
+    localStorage: { getItem: (key) => (key === 'pn.workspace' ? 'work' : null) },
+  };
+  runInNewContext(code, sandbox);
+  assert.equal(sandbox.document.title, 'Sign in - Notepad');
 });
 
 test('Mermaid is only in the diagram frame, and the login page loads no chunk (MDV-13, NFR-4)', async () => {
