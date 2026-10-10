@@ -131,13 +131,24 @@ export function createTabs({ editor, autosave, api, getStorage, elements, onActi
     shownId = null;
   }
 
+  /** The tab element of a document, or undefined. */
+  const tabNode = (id) => [...elements.strip.children].find((node) => node.dataset.id === id);
+
+  // The ARIA tabs pattern with manual activation (audit C4). The tab list is
+  // one Tab stop, on the selected tab. The close mark is for the mouse only:
+  // a tab's content is presentational, so a button in it would be an
+  // unnamed Tab stop. The keyboard closes a tab with Delete.
   function render() {
+    const focused = elements.strip.contains(document.activeElement) ? document.activeElement.dataset.id : undefined;
+    const stop = find(activeId)?.id ?? tabs[0]?.id;
     elements.strip.replaceChildren(
       ...tabs.map((tab) => {
         const node = document.createElement('div');
         node.className = 'tab';
         node.setAttribute('role', 'tab');
         node.setAttribute('aria-label', tab.name);
+        node.setAttribute('aria-keyshortcuts', 'Delete');
+        node.tabIndex = tab.id === stop ? 0 : -1;
         node.dataset.id = tab.id;
         node.setAttribute('aria-selected', String(tab.id === activeId));
         if (!isClean(tab)) node.classList.add('dirty');
@@ -147,13 +158,11 @@ export function createTabs({ editor, autosave, api, getStorage, elements, onActi
         name.textContent = tab.name;
         const dot = document.createElement('span');
         dot.className = 'tab-dirty';
-        dot.setAttribute('aria-label', 'Unsaved changes');
-        const close = document.createElement('button');
-        close.type = 'button';
+        const close = document.createElement('span');
         close.className = 'tab-close';
+        close.setAttribute('aria-hidden', 'true');
         close.textContent = '×';
-        close.setAttribute('aria-label', `Close ${tab.name}`);
-        close.title = `Close (${modName()}+W in the installed app, Alt+W)`;
+        close.title = `Close (${modName()}+W in the installed app, Alt+W, or Delete on the tab)`;
         close.addEventListener('click', (event) => {
           event.stopPropagation();
           controller.close(tab.id);
@@ -163,10 +172,31 @@ export function createTabs({ editor, autosave, api, getStorage, elements, onActi
         return node;
       }),
     );
+    // New nodes replace the old ones, so a focused tab gets the focus back.
+    if (focused) tabNode(focused)?.focus();
     const empty = tabs.length === 0;
     elements.empty.hidden = !empty;
     elements.editor.hidden = empty;
   }
+
+  const MOVES = { ArrowLeft: -1, ArrowRight: 1 };
+  elements.strip.addEventListener('keydown', (event) => {
+    const id = event.target.dataset?.id;
+    if (!id || event.altKey || event.ctrlKey || event.metaKey) return;
+    const nodes = [...elements.strip.children];
+    const index = nodes.findIndex((node) => node.dataset.id === id);
+    if (event.key in MOVES) nodes[(index + MOVES[event.key] + nodes.length) % nodes.length].focus();
+    else if (event.key === 'Home') nodes[0].focus();
+    else if (event.key === 'End') nodes.at(-1).focus();
+    else if (event.key === 'Enter' || event.key === ' ') controller.activate(id);
+    else if (event.key === 'Delete' || event.key === 'Backspace') {
+      // A cancelled close leaves the focus on the tab, also after a re-render.
+      controller.close(id).then((closed) => {
+        if (!closed && document.activeElement === document.body) tabNode(id)?.focus();
+      });
+    } else return;
+    event.preventDefault();
+  });
 
   /** Makes the tab's state from server content and starts autosave for it. */
   function load(tab, doc) {

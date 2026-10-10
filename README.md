@@ -89,7 +89,7 @@ Ctrl+N and Ctrl+W (Cmd+N and Cmd+W) work only in the installed app window. In a 
 
 In the find panel, Enter goes to the next match, Shift+Enter to the previous one and Escape closes the panel. Search is literal text and ignores case.
 
-In a Markdown tab, Ctrl+B (Cmd+B) makes text bold, Ctrl+I (Cmd+I) italic and Ctrl+K (Cmd+K) a link. The outline list is one Tab stop: the arrow keys, Home and End move in it and Enter goes to the heading. In menus, the arrow keys move between the items and Escape closes the menu. In the editor, Tab indents: press Escape and then Tab to move the focus out of the editor.
+In a Markdown tab, Ctrl+B (Cmd+B) makes text bold, Ctrl+I (Cmd+I) italic and Ctrl+K (Cmd+K) a link. The outline list is one Tab stop: the arrow keys, Home and End move in it and Enter goes to the heading. The tab strip is one Tab stop too: the arrow keys, Home and End move between the tabs, Enter or Space opens one and Delete (or Backspace) closes it. In menus, the arrow keys move between the items and Escape closes the menu. In the editor, Tab indents: press Escape and then Tab to move the focus out of the editor.
 
 ## Markdown
 

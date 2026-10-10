@@ -1,6 +1,6 @@
 // v3 workspaces (REQUIREMENTS_V3.md). Fixture API calls send no workspace,
 // so they act on Personal (MIG-3).
-import { drop, expect, login, newDocument, test } from './fixtures.js';
+import { closeButton, drop, expect, login, newDocument, test } from './fixtures.js';
 import { contrastRatio } from '../web/src/workspace-color.js';
 
 /** rgb(r, g, b) from getComputedStyle as #rrggbb. */
@@ -561,7 +561,7 @@ test('a hovered close button on an inactive Work tab stays readable in the light
   });
   await login(page);
   await storeTabs(page, { work: [w1, w2] });
-  const close = page.getByRole('button', { name: 'Close w2.md' });
+  const close = closeButton(page, 'w2.md');
   await close.hover();
   const [color, background] = [await css(close, 'color'), await css(close, 'backgroundColor')];
   expect(contrastRatio(hex(color), hex(background))).toBeGreaterThanOrEqual(4.5);

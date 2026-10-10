@@ -1,6 +1,6 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
-import { drop, expect, login, openDocs, test } from './fixtures.js';
+import { closeButton, drop, expect, login, openDocs, test } from './fixtures.js';
 
 const exportButton = (page) => page.getByRole('button', { name: 'Export', exact: true });
 const formats = (page) => page.getByRole('group', { name: 'Export formats' }).getByRole('button');
@@ -32,7 +32,7 @@ test('the Export menu offers the formats of the active tab, and hides with no ta
   await expect(formats(page)).toHaveText(['Plain text (.txt)']);
   await page.keyboard.press('Escape');
   for (const name of ['notes.md', 'app.py', 'Untitled 3']) {
-    await page.getByRole('button', { name: `Close ${name}` }).click();
+    await closeButton(page, name).click();
     await page.getByRole('dialog', { name: 'Close document' }).getByRole('button', { name: 'Keep' }).click();
   }
   await expect(exportButton(page)).toBeHidden();
@@ -198,7 +198,7 @@ test('a cancelled file drag hides the overlay (DRP-5)', async ({ page, api }, te
 
 test('while a dialog is open, a file drag shows no overlay and a drop opens nothing (DRP-5)', async ({ page, api }, testInfo) => {
   await openDocs(page, api, [['a.md', 'keep']]);
-  await page.getByRole('button', { name: 'Close a.md' }).click();
+  await closeButton(page, 'a.md').click();
   const dialog = page.getByRole('dialog', { name: 'Close document' });
   await expect(dialog).toBeVisible();
   await writeFile(testInfo.outputPath('d.md'), 'x');

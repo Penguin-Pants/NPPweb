@@ -374,12 +374,10 @@ button.danger {
 }
 
 .tab-close {
-  border: 0;
-  background: none;
   padding: 0 6px;
+  border-radius: 4px;
   line-height: 1;
   font-size: 16px;
-  color: inherit;
 }
 
 /* The hover background is not the workspace color, so the text is the

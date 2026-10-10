@@ -153,6 +153,14 @@ export async function openDocs(page, api, docs, { mode } = {}) {
 }
 
 /**
+ * The close mark of a tab. It is for the mouse and hidden from assistive
+ * technology. The keyboard closes the focused tab with Delete (audit C4).
+ * @param {import('@playwright/test').Page} page
+ * @param {string} name The tab name.
+ */
+export const closeButton = (page, name) => page.getByRole('tab', { name, exact: true }).locator('.tab-close');
+
+/**
  * Clicks New and waits for the new tab and the editor.
  * @param {import('@playwright/test').Page} page
  */

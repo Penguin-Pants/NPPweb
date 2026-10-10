@@ -289,6 +289,7 @@ Not built. Each one needs a user decision.
 | 3 | Audit baseline (section 15) | `e2e/workspaces.spec.js:530`: replace the one-time `getComputedStyle` read with `await expect(dot).toHaveCSS('background-color', 'rgb(94, 161, 255)')`. | Flaky on `main` (2 of 3 runs failed): the click on `p2.md` starts a list refresh, and its reply renders the tab strip again (`tabs.render` makes new nodes). A read of a node that was replaced gives `""`. A web-first assertion reads the current node again. A copy with the change passed 6 of 6 runs. |
 | 4 | Audit baseline (section 15) | `e2e/export-drop.spec.js:127`: wait for the counts (`await expect(page.locator('#counts')).not.toBeEmpty()`) before the drop. | Flaky on `main` (2 of 3 runs failed): the counts show 100 ms after a tab opens (`web/src/main.js:358`). Before that, the first status-bar row has room for the message, so it does not wrap and the row check fails (579 < 598). A copy with the wait passed 6 of 6 runs. |
 | 5 | Audit task C1 (section 15) | `e2e/workspaces.spec.js:265`: read the message once after the reply (`expect(await message(page).textContent()).toBe('')`), as the C1 stale test does. | `toHaveText('')` retries for 5 seconds, and the status message clears itself after 5 seconds (`web/src/main.js:73`), so the check passes even when the message shows. With the `stale` check in `tabs.setLanguage` removed, the test still passed. |
+| 6 | Audit task C4 (section 15) | Announce the unsaved state of a tab to assistive technology, for example in its accessible name ("notes.md, unsaved") or with `aria-describedby`. | Only the dot shows it. The dot's `aria-label` was inside a tab, whose content is presentational, so it was never read. C4 removed that dead label. Tests that find tabs by exact name would change. |
 
 ## 12. V2 phase review log
 
@@ -590,6 +591,13 @@ Two-pass review of each fix task. Same method and verdicts as section 10.
 | C2 | 4 | After a Delete in the old workspace, its stored tab list can still name the deleted document. | Rejected | `boot` drops stored ids that are not in the list, so the switch back opens no tab for it. |
 | C2 | 5 | A failure message ("Delete failed", or a rename error) can now show after the switch. | Rejected | It is true for the row the owner chose. Before, the request went to the wrong workspace. |
 | C2 | 6 | `listDocuments(target)` had its own code for a named workspace. | Confirmed | One `docCall` with an optional workspace serves the list read, Rename and Delete. |
+| C4 | 1 | The audit proposed the close button as a sibling of the tab. axe 4.10 flags that as `aria-required-children` (a tab list holds only tabs), and a button inside a tab as `nested-interactive`, also with `tabindex="-1"`. | Confirmed | The close mark is a `span` with `aria-hidden="true"`. The keyboard closes the focused tab with Delete (or Backspace), and each tab has `aria-keyshortcuts="Delete"`. axe on the tab strip of the running app: 3 violations before, 0 after. |
+| C4 | 2 | `render` makes new tab nodes, so a re-render (after a list refresh or a save status change) dropped the keyboard focus on the page body. | Confirmed | `render` gives the focus back to the same tab. The e2e test refreshes the list while a tab has the focus. |
+| C4 | 3 | A close cancelled from the keyboard must leave the focus on the tab. | Confirmed | After a cancelled close, the focus goes back to the tab when it is on the page body. E2E step. |
+| C4 | 4 | The dot's `aria-label` ("Unsaved changes") is inside a tab, whose content is presentational, so it was never read. | Confirmed | The dead label is gone. Announcing the unsaved state is a new feature: section 11, row 6. |
+| C4 | 5 | Backspace also closes, so a stray Backspace on a focused tab opens the close dialog. | Rejected | The dialog focuses Keep. An empty "Untitled N" closes with no prompt (DOC-6), but it holds no text. macOS keyboards have no Delete key. |
+| C4 | 6 | The ARIA tabs pattern also links each tab to a tab panel (`aria-controls`). | Rejected | One editor view serves every tab. axe needs no `aria-controls`, and NFR-5 asks for names and keys. |
+| C4 | 7 | 12 e2e steps clicked the close button by its role and name. | Confirmed | `closeButton(page, name)` in `e2e/fixtures.js` finds the mark in the named tab. |
 
 ### Audit validation environment
 
@@ -598,3 +606,4 @@ Two-pass review of each fix task. Same method and verdicts as section 10.
 - Baseline on 8f6c968: `npm test` 424 of 424. Chromium e2e 169 passed and 2 failed. Both failures are flaky on `main` (section 11, rows 3 and 4). When they fail during a task, they run again alone.
 - C1: `npm test` 424 of 424. Chromium e2e 170 passed, plus the 2 known flakes. Alone, the STB-2 test passed and the CLR-6 test failed 5 of 5 retries. The CLR-6 rate is the same without C1 (3 of 6 failed) and with C1 (4 of 6 failed). The 2 new tests failed first on an assertion.
 - C2: `npm test` 425 of 425. Chromium e2e 174 passed, plus the CLR-6 flake, which passed on its first retry. The new unit test and both new e2e tests failed first on an assertion.
+- C4: `npm test` 425 of 425. Chromium e2e 174 passed, plus the 2 known flakes. Alone, STB-2 passed on a retry. CLR-6 failed 9 of 10 runs without C4 and 7 of 10 with C4. The new test failed first on an assertion (3 buttons in the tab list).

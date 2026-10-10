@@ -1,4 +1,4 @@
-import { expect, login, newDocument, openDocs, OWNER_PASSWORD, test } from './fixtures.js';
+import { closeButton, expect, login, newDocument, openDocs, OWNER_PASSWORD, test } from './fixtures.js';
 
 const editor = (page) => page.locator('.cm-content');
 const tab = (page, name) => page.getByRole('tab', { name });
@@ -26,6 +26,53 @@ test('a New that the server or the network fails shows a message and opens no ta
   await page.getByRole('button', { name: 'New document' }).click();
   await expect(message).toHaveText('Could not create a document. Try again.');
   await expect(page.getByRole('tab')).toHaveCount(0);
+});
+
+test('a keyboard-only run moves between tabs, opens one and closes one (audit C4)', async ({ page, api }) => {
+  await openDocs(page, api, [['a.txt', 'aaa'], ['b.txt', 'bbb'], ['c.txt', 'ccc']]);
+  const strip = page.getByRole('tablist', { name: 'Open documents' });
+  await expect(strip.getByRole('button')).toHaveCount(0);
+  await expect(editor(page)).toBeFocused();
+  // The tab list is one Tab stop, on the selected tab.
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Shift+Tab');
+  await expect(tab(page, 'a.txt')).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(editor(page)).toBeFocused();
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Shift+Tab');
+  await expect(tab(page, 'a.txt')).toBeFocused();
+
+  for (const [key, name] of [['ArrowRight', 'b.txt'], ['End', 'c.txt'], ['ArrowRight', 'a.txt'], ['ArrowLeft', 'c.txt'], ['Home', 'a.txt'], ['ArrowRight', 'b.txt']]) {
+    await page.keyboard.press(key);
+    await expect(tab(page, name)).toBeFocused();
+  }
+  await expect(tab(page, 'a.txt')).toHaveAttribute('aria-selected', 'true');
+
+  // A re-render of the strip (here after a list refresh) keeps the focus.
+  const listed = page.waitForResponse((res) => new URL(res.url()).pathname === '/api/documents');
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await listed;
+  await page.evaluate(() => new Promise((resolve) => setTimeout(resolve, 300)));
+  await expect(tab(page, 'b.txt')).toBeFocused();
+
+  await page.keyboard.press('Enter');
+  await expect(tab(page, 'b.txt')).toHaveAttribute('aria-selected', 'true');
+  await expect(editor(page)).toHaveText('bbb');
+  await expect(editor(page)).toBeFocused();
+
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Shift+Tab');
+  await expect(tab(page, 'b.txt')).toBeFocused();
+  const closeDialog = page.getByRole('dialog', { name: 'Close document' });
+  await page.keyboard.press('Delete');
+  await expect(closeDialog).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(closeDialog).toBeHidden();
+  await expect(tab(page, 'b.txt')).toBeFocused();
+  await page.keyboard.press('Delete');
+  await page.keyboard.press('Enter'); // Keep, the default choice.
+  await expect(page.getByRole('tab')).toHaveText([/^a\.txt/, /^c\.txt/]);
 });
 
 test('three tabs keep separate content and undo history', async ({ page }) => {
@@ -129,7 +176,7 @@ test('closing a tab saves it first and keeps the document', async ({ page, api }
   await newDocument(page);
   await editor(page).click();
   await page.keyboard.type('keep me');
-  await page.getByRole('button', { name: 'Close Untitled 1' }).click();
+  await closeButton(page, 'Untitled 1').click();
   await page.getByRole('dialog', { name: 'Close document' }).getByRole('button', { name: 'Keep' }).click();
   await expect(page.getByRole('tab')).toHaveCount(0);
   await expect(page.getByText('No document is open.')).toBeVisible();
