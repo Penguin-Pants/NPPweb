@@ -650,3 +650,31 @@ button.danger {
 #count-syntax[hidden] {
   display: none;
 }
+
+/* Mermaid diagrams in Visual mode (MDV-12, EDGE-15) */
+.cm-md-mermaid {
+  padding: 8px;
+  overflow-x: auto;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.cm-md-mermaid svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.cm-md-mermaid-error {
+  color: var(--danger);
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  white-space: pre-wrap;
+}
+
+/* Theme switch (THM-1): the new theme grows as a circle, so the default
+   cross-fade is off. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}

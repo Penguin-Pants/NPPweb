@@ -39,3 +39,34 @@ export function createTheme({ getStorage, root, onChange }) {
     },
   };
 }
+
+/**
+ * Switches the theme with a circle that grows from the toggle button, by the
+ * View Transitions API (THM-1). Without the API, or with reduced motion, the
+ * switch is instant (THM-2).
+ * @param {object} options
+ * @param {() => void} options.toggle Switches the theme.
+ * @param {{ getBoundingClientRect(): { left: number, top: number, width: number, height: number } }} options.button
+ * @param {Document} [options.doc]
+ * @param {Window} [options.win]
+ * @returns {'animated' | 'instant'}
+ */
+export function animateThemeSwitch({ toggle, button, doc = document, win = window }) {
+  const reduce = win.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  if (typeof doc.startViewTransition !== 'function' || reduce) {
+    toggle();
+    return 'instant';
+  }
+  const rect = button.getBoundingClientRect();
+  const x = rect.left + rect.width / 2;
+  const y = rect.top + rect.height / 2;
+  const radius = Math.hypot(Math.max(x, win.innerWidth - x), Math.max(y, win.innerHeight - y));
+  const transition = doc.startViewTransition(toggle);
+  transition.ready.then(() =>
+    doc.documentElement.animate(
+      { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${radius}px at ${x}px ${y}px)`] },
+      { duration: 450, easing: 'ease-in-out', pseudoElement: '::view-transition-new(root)' },
+    ),
+  );
+  return 'animated';
+}

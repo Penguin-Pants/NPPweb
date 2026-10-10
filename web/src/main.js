@@ -19,7 +19,7 @@ import { openFind, openReplace } from './search-panel.js';
 import { modName, setupShortcuts } from './shortcuts.js';
 import { setupSessionRecovery } from './session.js';
 import { createTabs } from './tabs.js';
-import { createTheme } from './theme.js';
+import { animateThemeSwitch, createTheme } from './theme.js';
 
 const $ = (id) => /** @type {HTMLElement} */ (document.getElementById(id));
 
@@ -37,7 +37,7 @@ function showTheme(current) {
   themeButton.textContent = current === 'dark' ? 'Light theme' : 'Dark theme';
 }
 showTheme(theme.get());
-themeButton.addEventListener('click', () => theme.toggle());
+themeButton.addEventListener('click', () => animateThemeSwitch({ toggle: () => theme.toggle(), button: themeButton }));
 
 // Status bar message for one-off notices.
 let messageTimer;

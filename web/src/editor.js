@@ -13,7 +13,7 @@ import {
   keymap,
   lineNumbers,
 } from '@codemirror/view';
-import { visualMode } from './markdown-visual.js';
+import { diagramTheme, visualMode } from './markdown-visual.js';
 import { searchExtension } from './search-panel.js';
 import { sizeLimit } from './size-limit.js';
 
@@ -32,7 +32,7 @@ const lightTheme = [
   syntaxHighlighting(defaultHighlightStyle),
 ];
 
-const themeExtension = (theme) => (theme === 'dark' ? oneDark : lightTheme);
+const themeExtension = (theme) => [theme === 'dark' ? oneDark : lightTheme, diagramTheme.of(theme)];
 // Visual mode acts only on Markdown documents (MDV-1).
 const modeExtension = (mode) => (mode === 'visual' ? visualMode : []);
 

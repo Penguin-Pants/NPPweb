@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { createTheme, readTheme } from '../src/theme.js';
+import { animateThemeSwitch, createTheme, readTheme } from '../src/theme.js';
 
 function fakeStorage(initial = {}) {
   const data = new Map(Object.entries(initial));
@@ -63,4 +63,46 @@ test('toggle switches the theme, stores it and reports it', () => {
   assert.equal(theme.toggle(), 'dark');
   assert.equal(storage.data.get('pn.theme'), 'dark');
   assert.deepEqual(changes, ['light', 'dark']);
+});
+
+function fakeWindow({ reduce = false } = {}) {
+  return { innerWidth: 1000, innerHeight: 800, matchMedia: (query) => ({ matches: reduce && query.includes('reduce') }) };
+}
+const button = { getBoundingClientRect: () => ({ left: 90, top: 10, width: 20, height: 20 }) };
+
+test('a theme switch animates as a circle from the toggle button (THM-1)', async () => {
+  const toggled = [];
+  const animations = [];
+  const doc = {
+    documentElement: { animate: (keyframes, options) => animations.push({ keyframes, options }) },
+    startViewTransition(update) {
+      update();
+      return { ready: Promise.resolve() };
+    },
+  };
+  const how = animateThemeSwitch({ toggle: () => toggled.push(1), button, doc, win: fakeWindow() });
+  assert.equal(how, 'animated');
+  assert.equal(toggled.length, 1);
+  await Promise.resolve();
+  const radius = Math.hypot(900, 780);
+  assert.deepEqual(animations, [
+    {
+      keyframes: { clipPath: ['circle(0px at 100px 20px)', `circle(${radius}px at 100px 20px)`] },
+      options: { duration: 450, easing: 'ease-in-out', pseudoElement: '::view-transition-new(root)' },
+    },
+  ]);
+});
+
+test('without the View Transitions API, or with reduced motion, the theme switches at once (THM-2)', () => {
+  const toggled = [];
+  const plain = { documentElement: {} };
+  assert.equal(animateThemeSwitch({ toggle: () => toggled.push(1), button, doc: plain, win: fakeWindow() }), 'instant');
+  const withApi = {
+    documentElement: {},
+    startViewTransition() {
+      throw new Error('must not animate');
+    },
+  };
+  assert.equal(animateThemeSwitch({ toggle: () => toggled.push(1), button, doc: withApi, win: fakeWindow({ reduce: true }) }), 'instant');
+  assert.equal(toggled.length, 2);
 });

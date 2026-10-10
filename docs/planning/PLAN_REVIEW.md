@@ -338,6 +338,13 @@ Two-pass review of each V2 phase diff (`REQUIREMENTS_V2.md` section 9). Same met
 | M12 | 5 | Only common named entities and numeric entities become characters (EXP-3). Others stay as written. | Risk | The full HTML entity list is large. The common ones cover typical text. |
 | M12 | 6 | A [text] with no URL or definition keeps its brackets in plain text, and definition lines ([r]: url) stay. | Rejected | Same as Visual mode (CNT-6). EXP-3 does not name definition lines. |
 | M12 | 7 | `markdown-mode.js` and a counts mode would have been two copies of the same stored choice. | Confirmed | One `stored-choice.js` serves both (AGENTS.md Edits rule 6). |
+| M13 | 1 | Mermaid 12 lays out with ELK by default and creates an ELK object when it loads. With elkjs left out (C6), every diagram failed. | Confirmed | Fixed before commit: the build replaces elkjs with an inert stub and the config selects the dagre layout (MIT). A build test checks that no chunk holds ELK code. |
+| M13 | 2 | A diagram that asks for the ELK layout in its own config shows "The ELK layout is not included." | Risk | Expected under C6. It shows as a diagram error (EDGE-15). |
+| M13 | 3 | Diagrams inside quotes or lists stay code, because a drawn block must cover whole lines. | Risk | Top-level diagrams draw. Others keep their source. |
+| M13 | 4 | The theme switch stores the choice in the view transition, one frame after the click. A reload in that frame keeps the old theme. | Rejected | One frame. `shell.spec.js` waits for the switch before it reloads. |
+| M13 | 5 | A 620-byte esbuild runtime chunk loads with main.js. | Rejected | It is not Mermaid. MDV-13 and NFR-4 are about the Mermaid chunks, which load only for a drawn diagram (E2E test). |
+| M13 | 6 | The E2E image test passed for the wrong reason with an empty image body: the diagram failed to draw. | Confirmed | The route serves a valid PNG. With the source guard removed, the test now fails on 2 image requests. |
+| M13 | 7 | THM-1 is checked in Chromium only. | Risk | Firefox 144+ and Safari 18+ are owner checks (section 13). |
 
 ## 13. V2 validation environment
 

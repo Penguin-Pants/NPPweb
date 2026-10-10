@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import { ensureSyntaxTree } from '@codemirror/language';
 import { EditorSelection, EditorState } from '@codemirror/state';
 import { languageSupport } from '../src/languages.js';
-import { collectVisual } from '../src/markdown-visual.js';
+import { collectMermaid, collectVisual } from '../src/markdown-visual.js';
 
 // A last line "end" holds the cursor, so the lines under test are not revealed.
 function specsFor(body, { selection, from, to } = {}) {
@@ -213,4 +213,36 @@ test('a long code block only adds line specs for the lines in the range (NFR-2)'
   const specs = collectVisual(state, from, from + 30);
   const lineSpecs = specs.filter((s) => s.kind === 'line');
   assert.ok(lineSpecs.length > 0 && lineSpecs.length <= 4, `line specs: ${lineSpecs.length}`);
+});
+
+function mermaidFor(body, cursorAt) {
+  const doc = `${body}\n\nend`;
+  const state = EditorState.create({
+    doc,
+    selection: EditorSelection.cursor(cursorAt === undefined ? doc.length : doc.indexOf(cursorAt)),
+    extensions: languageSupport('markdown'),
+  });
+  ensureSyntaxTree(state, doc.length, 5000);
+  return { doc, blocks: collectMermaid(state), specs: collectVisual(state, 0, doc.length) };
+}
+
+test('top-level mermaid blocks are drawn whole, with their source (MDV-12)', () => {
+  const body = 'intro\n\n```mermaid\ngraph TD\nA-->B\n```\n\n```Mermaid title\nsequenceDiagram\n```';
+  const { doc, blocks, specs } = mermaidFor(body);
+  assert.deepEqual(blocks.map((b) => ({ text: doc.slice(b.from, b.to), source: b.source })), [
+    { text: '```mermaid\ngraph TD\nA-->B\n```', source: 'graph TD\nA-->B' },
+    { text: '```Mermaid title\nsequenceDiagram\n```', source: 'sequenceDiagram' },
+  ]);
+  assert.equal(specs.filter((s) => s.from >= blocks[0].from && s.from <= blocks[1].to).length, 0);
+});
+
+test('a mermaid block under the cursor shows its source instead (MDV-12)', () => {
+  const { blocks, specs } = mermaidFor('```mermaid\ngraph TD\nA-->B\n```', 'A-->B');
+  assert.deepEqual(blocks, []);
+  assert.ok(specs.some((s) => s.kind === 'line' && s.cls.includes('cm-md-codeblock')));
+});
+
+test('mermaid blocks inside quotes or lists and other code stay code', () => {
+  const { blocks } = mermaidFor('> ```mermaid\n> graph TD\n> ```\n\n- item\n\n  ```mermaid\n  graph TD\n  ```\n\n```js\nx\n```');
+  assert.deepEqual(blocks, []);
 });

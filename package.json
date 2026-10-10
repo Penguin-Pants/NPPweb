@@ -36,7 +36,8 @@
     "@lezer/highlight": "^1.2.5",
     "@lezer/markdown": "^1.8.0",
     "esbuild": "^0.28.2",
-    "fastify": "^5.12.5"
+    "fastify": "^5.12.5",
+    "mermaid": "^12.1.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.64.0"

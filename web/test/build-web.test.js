@@ -19,6 +19,7 @@ after(() => rm(outDir, { recursive: true, force: true }));
 
 test('build writes each entry bundle with a sourcemap and copies the static files', async () => {
   assert.deepEqual((await readdir(outDir)).sort(), [
+    'chunks',
     'icons',
     'index.html',
     'login.html',
@@ -49,5 +50,22 @@ test('the theme-init bundle runs as a classic script, sets the theme and outline
     assert.deepEqual(Object.keys(sandbox).sort(), ['document', 'localStorage']);
     assert.equal(sandbox.document.documentElement.dataset.theme, theme ?? 'dark');
     assert.equal(sandbox.document.documentElement.dataset.outline, outline ?? 'open');
+  }
+});
+
+test('main.js loads Mermaid only through a chunk, and the login page loads no chunk (MDV-13, NFR-4)', async () => {
+  const main = await readFile(join(outDir, 'main.js'), 'utf8');
+  const login = await readFile(join(outDir, 'login.js'), 'utf8');
+  assert.match(main, /import\("\.\/chunks\//);
+  assert.doesNotMatch(main, /mermaid-js|flowchart-v2/i);
+  assert.doesNotMatch(login, /chunks\//);
+});
+
+test('no chunk holds the ELK layout, which is EPL-2.0 (MDV-13, C6)', async () => {
+  const chunks = await readdir(join(outDir, 'chunks'));
+  assert.ok(chunks.some((name) => name.endsWith('.js')));
+  for (const name of chunks.filter((file) => file.endsWith('.js'))) {
+    const code = await readFile(join(outDir, 'chunks', name), 'utf8');
+    assert.doesNotMatch(code, /org\.eclipse\.elk/, name);
   }
 });

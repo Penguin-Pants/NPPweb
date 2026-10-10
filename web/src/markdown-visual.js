@@ -3,10 +3,11 @@
 // document text never changes. Lines that the cursor or selection touch show
 // their marks (MDV-5). Raw HTML stays source text (MDV-8).
 import { syntaxTree } from '@codemirror/language';
-import { StateEffect } from '@codemirror/state';
+import { Facet, StateEffect, StateField } from '@codemirror/state';
 import { Decoration, EditorView, ViewPlugin, WidgetType } from '@codemirror/view';
 import { languageId } from './languages.js';
 import { linkTarget, normalizeLabel, referenceDefinitions } from './markdown-syntax.js';
+import { renderMermaid } from './mermaid-render.js';
 import { isMac } from './shortcuts.js';
 
 /**
@@ -26,6 +27,43 @@ const INLINE_STYLES = {
 };
 const LINK_PARENTS = new Set(['Link', 'Image', 'LinkReference']);
 
+/** The editor theme, so diagrams match it. */
+export const diagramTheme = Facet.define({ combine: (values) => values[0] ?? 'dark' });
+
+/** Line ranges that the selection touches (MDV-5). */
+const shownRanges = (state) => state.selection.ranges.map((range) => [state.doc.lineAt(range.from).from, state.doc.lineAt(range.to).to]);
+
+/**
+ * A fenced block tagged mermaid at the top level, which Visual mode draws as
+ * a diagram. Blocks in quotes or lists stay code.
+ */
+function isTopMermaid(node, doc) {
+  if (node.name !== 'FencedCode' || node.parent?.name !== 'Document') return false;
+  const info = node.getChild('CodeInfo');
+  return info !== null && doc.sliceString(info.from, info.to).trim().split(/\s+/, 1)[0].toLowerCase() === 'mermaid';
+}
+
+/**
+ * The mermaid blocks that Visual mode draws (MDV-12): whole lines, with their
+ * source. A block whose lines the selection touches shows its source instead.
+ * @param {import('@codemirror/state').EditorState} state
+ * @returns {{ from: number, to: number, source: string }[]}
+ */
+export function collectMermaid(state) {
+  const { doc } = state;
+  const shown = shownRanges(state);
+  const blocks = [];
+  for (let node = syntaxTree(state).topNode.firstChild; node; node = node.nextSibling) {
+    if (!isTopMermaid(node, doc)) continue;
+    const from = doc.lineAt(node.from).from;
+    const to = doc.lineAt(node.to).to;
+    if (shown.some(([a, b]) => a <= to && b >= from)) continue;
+    const code = node.getChild('CodeText');
+    blocks.push({ from, to, source: code ? doc.sliceString(code.from, code.to) : '' });
+  }
+  return blocks;
+}
+
 /**
  * What Visual mode shows for the part of the document from `from` to `to`.
  * Pure: it reads the state's syntax tree and selection. A hide never covers
@@ -40,7 +78,7 @@ export function collectVisual(state, from, to) {
   const { doc } = state;
   const tree = syntaxTree(state);
   // Lines that the selection touches show their marks (MDV-5).
-  const shown = state.selection.ranges.map((range) => [doc.lineAt(range.from).from, doc.lineAt(range.to).to]);
+  const shown = shownRanges(state);
   const isRevealed = (pos) => shown.some(([a, b]) => pos >= a && pos <= b);
   const oneLine = (a, b) => doc.lineAt(a).number === doc.lineAt(b).number;
   /** @type {VisualSpec[]} */
@@ -112,6 +150,12 @@ export function collectVisual(state, from, to) {
           return;
         case 'FencedCode':
         case 'CodeBlock': {
+          // A drawn diagram covers the whole block (collectMermaid).
+          if (isTopMermaid(node, doc)) {
+            const blockFrom = doc.lineAt(node.from).from;
+            const blockTo = doc.lineAt(node.to).to;
+            if (!shown.some(([a, b]) => a <= blockTo && b >= blockFrom)) return false;
+          }
           // Only the lines in the range, so a long block costs nothing off screen.
           const marks = name === 'FencedCode' ? node.getChildren('CodeMark') : [];
           const open = marks[0];
@@ -302,7 +346,64 @@ class ImageWidget extends WidgetType {
   }
 }
 
+class MermaidWidget extends WidgetType {
+  constructor(source, theme) {
+    super();
+    this.source = source;
+    this.theme = theme;
+  }
+
+  eq(other) {
+    return other.source === this.source && other.theme === this.theme;
+  }
+
+  get estimatedHeight() {
+    return 160;
+  }
+
+  toDOM(view) {
+    const box = document.createElement('div');
+    box.className = 'cm-md-mermaid';
+    box.textContent = 'Drawing the diagram...';
+    renderMermaid(this.source, this.theme).then(({ svg, error }) => {
+      if (svg !== undefined) {
+        box.innerHTML = svg; // Sanitized by Mermaid (strict) and without remote images.
+      } else {
+        box.classList.add('cm-md-mermaid-error'); // EDGE-15
+        box.textContent = `Diagram error: ${error}`;
+      }
+      view.requestMeasure();
+    });
+    return box;
+  }
+
+  // A click on the diagram puts the cursor in the block, which shows its source.
+  ignoreEvent() {
+    return false;
+  }
+}
+
 const isMarkdown = (state) => state.facet(languageId) === 'markdown';
+
+function mermaidDecorations(state) {
+  if (!isMarkdown(state)) return Decoration.none;
+  const theme = state.facet(diagramTheme);
+  return Decoration.set(
+    collectMermaid(state).map(({ from, to, source }) =>
+      Decoration.replace({ block: true, widget: new MermaidWidget(source, theme) }).range(from, to),
+    ),
+  );
+}
+
+// Diagrams replace whole lines, which only a state field may do.
+const mermaidField = StateField.define({
+  create: mermaidDecorations,
+  update(value, tr) {
+    const changed = tr.docChanged || tr.selection || tr.reconfigured || syntaxTree(tr.startState) !== syntaxTree(tr.state);
+    return changed ? mermaidDecorations(tr.state) : value;
+  },
+  provide: (field) => EditorView.decorations.from(field),
+});
 
 /** Builds the decorations for the visible part of the document. */
 function buildDecorations(view) {
@@ -391,4 +492,4 @@ const visualContent = EditorView.contentAttributes.compute([languageId], (state)
 );
 
 /** The Visual mode extension. It only acts on Markdown documents. */
-export const visualMode = [visualPlugin, clickHandlers, visualContent];
+export const visualMode = [visualPlugin, mermaidField, clickHandlers, visualContent];
