@@ -41,7 +41,7 @@ test('the arrow keys move into a diagram, so its source shows (MDV-12)', async (
   await expect(page.locator('.cm-line', { hasText: 'graph TD' })).toBeVisible();
 });
 
-test('Mermaid loads only for a diagram shown in Visual mode (MDV-13)', async ({ page, api }) => {
+test('Mermaid loads only for a diagram shown in Visual mode (MDV-13, NFR-4)', async ({ page, api }) => {
   const loads = countLoads(page);
   await openDocs(page, api, [
     ['plain.md', '# No diagram\n\ntext'],

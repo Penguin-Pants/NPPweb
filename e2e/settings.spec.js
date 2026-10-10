@@ -40,7 +40,7 @@ test('nonstop typing still saves at least every delay period', async ({ page }) 
   expect(puts).toBeGreaterThanOrEqual(2);
 });
 
-test('the Settings dialog rejects invalid delays and a saved one applies on every device', async ({ page, browser, server }) => {
+test('the Settings dialog rejects invalid delays and a saved one applies on every device (SAV-2, SAV-3)', async ({ page, browser, server }) => {
   await login(page);
   let dialog = await openSettings(page);
   const field = dialog.getByLabel('Autosave delay in seconds (1 to 60)');

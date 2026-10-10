@@ -13,7 +13,7 @@ const documentsButton = (page) => page.getByRole('button', { name: 'Documents' }
 const dropdown = (page) => page.locator('#doclist');
 const openButtons = (page) => page.locator('#doclist .doc-open');
 
-test('the outline panel is open on the first visit and its state survives a reload @smoke', async ({ page }) => {
+test('the outline panel is open on the first visit and its state survives a reload (LAY-2, LAY-5) @smoke', async ({ page }) => {
   await login(page);
   await newDocument(page);
   const toggle = page.getByRole('button', { name: 'Outline' });
@@ -34,7 +34,7 @@ test('the outline panel is open on the first visit and its state survives a relo
   await expect(panel).toBeVisible();
 });
 
-test('many open tabs stay in one scrolling row and the document list sits in the top bar', async ({ page, api }) => {
+test('many open tabs stay in one scrolling row and the document list sits in the top bar (LAY-1, LAY-3)', async ({ page, api }) => {
   await openDocs(
     page,
     api,
@@ -72,7 +72,7 @@ test('the empty-state button opens the dropdown and a click on a tab closes it',
   await expect(tab).toHaveAttribute('aria-selected', 'true');
 });
 
-test('the Documents dropdown closes on Escape, on a click outside and after Open', async ({ page, api }) => {
+test('the Documents dropdown closes on Escape, on a click outside and after Open (LAY-4)', async ({ page, api }) => {
   await createDoc(api, 'notes.txt', 'hello');
   await login(page);
 
@@ -168,7 +168,7 @@ test('in a narrow window every top-bar control and the Documents panel stay insi
   await page.setViewportSize({ width: 480, height: 700 });
   await openDocs(page, api, [['notes.md', '# Notes']]);
   await expect(page.getByRole('button', { name: 'Visual' })).toBeVisible();
-  for (const name of ['New', 'Outline', 'Documents', 'Find', 'Visual', 'Light theme', 'Account']) {
+  for (const name of ['New', 'Outline', 'Documents', 'Export', 'Find', 'Visual', 'Light theme', 'Account']) {
     const box = await page.getByRole('button', { name, exact: true }).boundingBox();
     expect(box.x + box.width, name).toBeLessThanOrEqual(480);
   }
@@ -176,4 +176,40 @@ test('in a narrow window every top-bar control and the Documents panel stay insi
   const panel = await page.locator('#doclist').boundingBox();
   expect(panel.x).toBeGreaterThanOrEqual(0);
   expect(panel.x + panel.width).toBeLessThanOrEqual(480);
+});
+
+test('a keyboard-only run reaches each top-bar control, the outline, the toolbar and the status bar, and opens the menus (NFR-5)', async ({ page, api }) => {
+  await openDocs(page, api, [['k.md', '# One\n\n## Two\n\ntext']]);
+  await expect(page.locator('.outline-entry')).toHaveCount(2);
+  await page.getByRole('button', { name: 'New', exact: true }).focus();
+  const describe = () =>
+    page.evaluate(() => {
+      const el = document.activeElement;
+      if (!el || el === document.body) return 'body';
+      if (el.classList.contains('cm-content')) return 'editor';
+      return el.getAttribute('aria-label') || el.textContent.trim() || el.tagName;
+    });
+  const reached = ['New'];
+  for (let i = 0; i < 60; i += 1) {
+    await page.keyboard.press('Tab');
+    const name = await describe();
+    reached.push(name);
+    if (name === 'editor') {
+      await page.keyboard.press('Escape'); // Leaves the editor's own Tab key (indent).
+      continue;
+    }
+    if (name === 'Language') break;
+  }
+  for (const name of ['New', 'Outline', 'Documents', 'Export', 'Find', 'Visual', 'Light theme', 'Account', 'One', 'Bold', 'Code block', 'editor', 'Count syntax', 'Language']) {
+    expect(reached, name).toContain(name);
+  }
+  expect(reached.filter((name) => name === 'One' || name === 'Two')).toEqual(['One']); // The outline is one tab stop.
+
+  for (const [button, first] of [['Export', 'Markdown (.md)'], ['Documents', 'k.md']]) {
+    await page.getByRole('button', { name: button, exact: true }).focus();
+    await page.keyboard.press('ArrowDown');
+    await expect(page.locator(':focus')).toContainText(first);
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('button', { name: button, exact: true })).toBeFocused();
+  }
 });

@@ -371,8 +371,11 @@ button.danger {
   }
 }
 
-/* Outline panel (LAY-2) */
+/* Outline panel (LAY-2). Its size comes from the row, not from its entries,
+   so a long outline is not laid out or painted again on each key press
+   (NFR-2). */
 .outline-panel {
+  contain: strict;
   width: 240px;
   flex: none;
   overflow-y: auto;

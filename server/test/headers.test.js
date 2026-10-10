@@ -25,7 +25,7 @@ async function sampleResponses(app) {
   };
 }
 
-test('every response carries the security headers and no HSTS outside production', async () => {
+test('every response carries the security headers and no HSTS outside production (NFR-3: script-src and connect-src stay self)', async () => {
   ctx = await createTestApp();
   for (const [name, res] of Object.entries(await sampleResponses(ctx.app))) {
     assert.equal(res.headers['content-security-policy'], CSP, name);

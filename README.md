@@ -4,6 +4,8 @@ A private, single-owner text editor in the browser, inspired by Notepad++. Docum
 
 Features: tabs, autosave, plain text editing with line numbers, syntax highlighting for 11 languages, literal find and replace in the current tab, a document list, a keep-or-delete prompt when you close a tab, a warning when another device changed the same document, dark and light themes, and install as a desktop app in Chrome or Edge.
 
+For Markdown: a Visual mode (live preview) with one Visual/Raw toggle, a formatting toolbar, an outline of the headings, word and character counts, Mermaid diagrams, export to `.md`, `.txt`, `.html` and PDF, and drag and drop to open `.md`, `.txt` and `.html` files.
+
 ## Local setup
 
 Needs Node.js 24.2 or later (24.x).
@@ -87,6 +89,26 @@ Ctrl+N and Ctrl+W (Cmd+N and Cmd+W) work only in the installed app window. In a 
 
 In the find panel, Enter goes to the next match, Shift+Enter to the previous one and Escape closes the panel. Search is literal text and ignores case.
 
+In a Markdown tab, Ctrl+B (Cmd+B) makes text bold, Ctrl+I (Cmd+I) italic and Ctrl+K (Cmd+K) a link. The outline list is one Tab stop: the arrow keys, Home and End move in it and Enter goes to the heading. In menus, the arrow keys move between the items and Escape closes the menu.
+
+## Markdown
+
+- **Visual and Raw:** the toggle in the top bar switches every Markdown tab. Visual mode hides the Markdown marks and shows the formatting. The line with the cursor shows its marks, so you can edit them. The choice is stored in this browser.
+- **Toolbar:** heading level, bold, italic, lists, link, quote, inline code and code block. Each button also removes the format when it is there.
+- **Outline:** the left panel lists the headings. Click one to go to it. The Outline button hides or shows the panel.
+- **Counts:** the status bar shows words and characters for the tab and for the selection. "Count syntax" switches between rendered text (default) and the raw Markdown.
+- **Images:** a remote `https:` image shows a Load button and loads only after a click, until the page reloads. `data:` images show at once.
+- **Diagrams:** a code block tagged `mermaid` shows as a diagram in Visual mode. Put the cursor in it (click it, or the arrow keys) to edit the source. Diagrams never load remote images in the editor.
+
+## Export and drag and drop
+
+- **Export menu:** exports the active tab with its current text, also unsaved edits. Markdown offers `.md`, `.txt` (Markdown marks removed), `.html` (one self-contained page, light theme, no scripts) and PDF (opens the print dialog; choose Save as PDF). Other documents offer their original source and `.txt`.
+- **Drop files:** drop `.md`, `.markdown`, `.txt`, `.html` or `.htm` files on the page. Each becomes a new document with the file name, and opens in a tab. A taken name gets ` (2)`, ` (3)` and so on. Files over 1 MB, other types and text that is not UTF-8 are not opened, and a message names them. While a dialog is open, dropped files are not opened.
+
+## Settings
+
+Account > Settings sets the autosave delay: a whole number of seconds from 1 to 60, default 5. A document saves that many seconds after the last edit, and during nonstop typing no later than that many seconds after the first unsaved edit. The server stores the value, so it applies on every device after a reload.
+
 ## Known limits
 
 - A document can hold at most 1 MB (1,048,576 bytes of UTF-8). A larger edit or paste is rejected with a message.
@@ -96,7 +118,15 @@ In the find panel, Enter goes to the next match, Shift+Enter to the previous one
 - A redeploy causes a short downtime (the service has a volume). Text typed meanwhile saves when the server is back.
 - Two devices editing one document get a conflict warning, not live sync.
 - New documents are named "Untitled N". An empty "Untitled N" tab closes without a prompt and its document is deleted.
+- Visual mode shows diagrams as images, so diagram text cannot be selected there. The Mermaid ELK layout is not included; diagrams use the dagre layout.
+- In PDF export, `http:` images do not load. `https:` images do.
+- Typing in a 1 MB Markdown document of notes keeps the 3-second target for 200 characters. In very dense Markdown (a heading, list, table or code block every few lines, all the way through 1 MB) each key takes longer, because the Markdown parser's work grows with the number of blocks.
+- Notion sync is not built yet.
 
 ## Backups
 
-The app has no export. Use Railway volume backups to protect `/data/notepad.db`.
+Export saves one document at a time. Use Railway volume backups to protect `/data/notepad.db`.
+
+## Third-party notices
+
+The build writes `THIRD-PARTY-NOTICES.txt` next to the bundles, with the license text of each npm package that ships to the browser. Signed in, it is at `/THIRD-PARTY-NOTICES.txt`.

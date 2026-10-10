@@ -38,7 +38,7 @@ test('1 and 60 are accepted', async () => {
   assert.deepEqual((await get()).json(), { autosaveSeconds: 60 });
 });
 
-test('values outside whole numbers 1 to 60 are rejected and the stored value stays', async () => {
+test('values outside whole numbers 1 to 60 are rejected and the stored value stays (SAV-3)', async () => {
   await put({ autosaveSeconds: 7 });
   for (const autosaveSeconds of [0, 61, 2.5, -1, '5', null, true]) {
     const res = await put({ autosaveSeconds });

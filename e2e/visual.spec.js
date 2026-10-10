@@ -13,7 +13,7 @@ async function stored(page, api, id) {
   return (await (await api.get(`/api/documents/${id}`)).json()).content;
 }
 
-test('Markdown tabs show the toggle and toolbar, Visual comes first and the choice survives a reload @smoke', async ({ page, api }) => {
+test('Markdown tabs show the toggle and toolbar, Visual comes first and the choice survives a reload (MDV-1, MDV-2) @smoke', async ({ page, api }) => {
   await openDocs(page, api, [
     ['notes.md', '# Title\n\nend'],
     ['code.py', 'x = 1'],
