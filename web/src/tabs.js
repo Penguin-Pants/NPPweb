@@ -163,7 +163,7 @@ export function createTabs({ editor, autosave, api, getStorage, elements, onActi
         close.className = 'tab-close';
         close.setAttribute('aria-hidden', 'true');
         close.textContent = '×';
-        close.title = `Close (${modName()}+W in the installed app, Alt+W, or Delete on the tab)`;
+        close.title = `Close (${modName()}+W in the installed app, Alt+W or Delete on the tab)`;
         close.addEventListener('click', (event) => {
           event.stopPropagation();
           controller.close(tab.id);
