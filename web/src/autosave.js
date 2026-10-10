@@ -1,5 +1,6 @@
-// Autosave scheduler (BUILD_PLAN.md section 2.8). Pure: the save function
-// is injected and timers are the global setTimeout, so tests can mock them.
+// Autosave scheduler (BUILD_PLAN.md section 2.8, REQUIREMENTS_V2.md SAV-1 to
+// SAV-5). Pure: the save function is injected and timers are the global
+// setTimeout and Date.now, so tests can mock them.
 // Status per document: 'saved', 'unsaved', 'saving' or 'error'.
 // Reason for 'error': 'network', 'conflict', 'deleted' or 'too-large'.
 
@@ -35,16 +36,16 @@ export function createAutosave({ save, onStatus = () => {}, onEvent = () => {}, 
   function clearTimer(doc) {
     clearTimeout(doc.timer);
     doc.timer = null;
-    doc.timerKind = null;
+    doc.dueAt = null;
   }
 
-  /** @param {'delay' | 'retry'} kind */
-  function schedule(doc, ms, kind) {
+  // dueAt is when the next save should start. It stays set when its timer
+  // fires during a save in flight, so that save's reply starts the next one.
+  function schedule(doc, ms) {
     clearTimer(doc);
-    doc.timerKind = kind;
+    doc.dueAt = Date.now() + ms;
     doc.timer = setTimeout(() => {
       doc.timer = null;
-      doc.timerKind = null;
       start(doc);
     }, ms);
   }
@@ -59,11 +60,16 @@ export function createAutosave({ save, onStatus = () => {}, onEvent = () => {}, 
   const canSave = (doc) => !sessionPaused && doc.hold === null;
 
   function start(doc) {
-    if (doc.inFlight || !doc.dirty) return;
+    if (doc.inFlight) return;
+    if (!doc.dirty) {
+      doc.dueAt = null;
+      return;
+    }
     if (!canSave(doc)) {
       settle(doc, false);
       return;
     }
+    clearTimer(doc);
     doc.dirty = false;
     setStatus(doc, 'saving');
     doc.inFlight = save(doc.id, doc.getContent(), doc.version).then((result) => {
@@ -88,7 +94,8 @@ export function createAutosave({ save, onStatus = () => {}, onEvent = () => {}, 
         setStatus(doc, 'saved');
         settle(doc, true);
       } else if (doc.flushRequested || doc.timer === null) {
-        // Edits arrived during the save and no delay timer is waiting: save again now.
+        // Edits arrived during the save and their deadline passed (or a flush
+        // asked for it): save again now.
         start(doc);
       } else {
         setStatus(doc, 'unsaved');
@@ -112,7 +119,7 @@ export function createAutosave({ save, onStatus = () => {}, onEvent = () => {}, 
     } else {
       // Network failure, 5xx or anything unexpected: retry with backoff.
       fail(doc, 'network', null);
-      schedule(doc, RETRY_DELAYS_MS[Math.min(doc.failures, RETRY_DELAYS_MS.length - 1)], 'retry');
+      schedule(doc, RETRY_DELAYS_MS[Math.min(doc.failures, RETRY_DELAYS_MS.length - 1)]);
       doc.failures += 1;
     }
   }
@@ -140,7 +147,7 @@ export function createAutosave({ save, onStatus = () => {}, onEvent = () => {}, 
         hold: null,
         failures: 0,
         timer: null,
-        timerKind: null,
+        dueAt: null,
         inFlight: null,
         flushRequested: false,
         waiters: [],
@@ -166,13 +173,14 @@ export function createAutosave({ save, onStatus = () => {}, onEvent = () => {}, 
       setStatus(doc, 'unsaved');
       // SAV-1: save N seconds after the last edit, but no later than N seconds
       // after the first unsaved edit. The second bound always comes first, so
-      // the first unsaved edit starts the timer and later edits keep it. An
-      // edit replaces a pending retry, so it never waits for the backoff.
-      if (doc.timerKind !== 'delay') schedule(doc, delay, 'delay');
+      // an edit keeps any earlier deadline (a pending save, one that passed
+      // during a save in flight, or a retry) and else sets one N from now.
+      if (doc.dueAt === null || doc.dueAt > Date.now() + delay) schedule(doc, delay);
     },
 
     /**
-     * Sets the autosave delay for timers started from now on (SAV-4).
+     * Sets the autosave delay for deadlines set from now on. The next edit
+     * also moves a later pending deadline earlier (SAV-4).
      * @param {number} ms
      */
     setDelay(ms) {

@@ -64,14 +64,17 @@ export const test = base.extend({
 });
 
 /**
- * Signs in through the login page and waits for the editor page.
+ * Signs in through the login page and waits for the editor page and its
+ * startup settings read, so the autosave delay is in force before typing.
  * @param {import('@playwright/test').Page} page
  */
 export async function login(page, password = OWNER_PASSWORD) {
   await page.goto('/login');
   await page.getByLabel('Password').fill(password);
+  const settings = page.waitForResponse((res) => res.url().endsWith('/api/settings') && res.request().method() === 'GET');
   await page.getByRole('button', { name: 'Sign in' }).click();
   await page.waitForURL((url) => url.pathname === '/');
+  await settings;
 }
 
 async function setAutosaveSeconds(url, autosaveSeconds) {

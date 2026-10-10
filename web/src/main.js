@@ -61,14 +61,19 @@ $('logout').addEventListener('click', async () => {
   else showMessage('Sign-out failed. Try again.');
 });
 
-// Settings (SAV-2, SAV-3): the autosave delay, one value on the server for
-// every device.
-const DELAY_ERROR = 'Use a whole number from 1 to 60.';
-// Set once the dialog saves a delay, so a slow startup read cannot undo it.
-let delaySavedHere = false;
+// Settings (SAV-2 to SAV-4): the autosave delay, one value on the server for
+// every device. It is read at startup, after a re-login and when the dialog
+// opens. The newest read or save wins, so a slow read cannot undo it.
+let delayRequest = 0;
+async function loadSettings() {
+  const request = (delayRequest += 1);
+  const result = await api.getSettings();
+  if (result.status === 200 && request === delayRequest) autosave.setDelay(result.data.autosaveSeconds * 1000);
+  return result;
+}
 $('settings').addEventListener('click', async () => {
   account.close();
-  const current = await api.getSettings();
+  const current = await loadSettings();
   if (current.status !== 200) {
     showMessage('Could not load the settings. Try again.');
     return;
@@ -78,16 +83,15 @@ $('settings').addEventListener('click', async () => {
     fields: [{ name: 'seconds', label: 'Autosave delay in seconds (1 to 60)', value: String(current.data.autosaveSeconds) }],
     submitLabel: 'Save',
     onSubmit: async ({ seconds }) => {
-      const text = seconds.trim();
-      const value = /^\d+$/.test(text) ? Number(text) : NaN;
-      if (!(value >= 1 && value <= 60)) return DELAY_ERROR;
-      const { status, data } = await api.saveSettings({ autosaveSeconds: value });
+      // The server checks the rule (whole number, 1 to 60). '' becomes 0 and
+      // text becomes NaN, which it rejects too.
+      const { status, data } = await api.saveSettings({ autosaveSeconds: Number(seconds.trim()) });
       if (status === 200) {
-        delaySavedHere = true;
+        delayRequest += 1;
         autosave.setDelay(data.autosaveSeconds * 1000);
         return null;
       }
-      if (data?.error === 'invalid_autosave_seconds') return DELAY_ERROR;
+      if (data?.error === 'invalid_autosave_seconds') return 'Use a whole number from 1 to 60.';
       if (status === 0) return 'Cannot connect to the server. Try again.';
       return 'Saving the settings failed. Try again.';
     },
@@ -137,10 +141,7 @@ const autosave = createAutosave({
   },
   onEvent: emit,
 });
-// SAV-4: other devices read a changed delay at the next page load.
-api.getSettings().then(({ status, data }) => {
-  if (status === 200 && !delaySavedHere) autosave.setDelay(data.autosaveSeconds * 1000);
-});
+loadSettings();
 tabs = createTabs({
   editor,
   autosave,
@@ -201,6 +202,7 @@ on('doc-renamed', ({ id, name }) => tabs.rename(id, name));
 
 setupSessionRecovery({
   onSignedIn: () => {
+    loadSettings();
     autosave.resumeAll();
     tabs.refresh();
   },

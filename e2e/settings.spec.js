@@ -64,7 +64,42 @@ test('the Settings dialog rejects invalid delays and a saved one applies on ever
   const other = await browser.newContext({ baseURL: server.url });
   const pageB = await other.newPage();
   await login(pageB);
+  await newDocument(pageB);
+  await pageB.locator('.cm-content').click();
+  await pageB.keyboard.type('c');
+  const typedOnB = Date.now();
+  await expect(status(pageB)).toHaveText('Saved', { timeout: 10_000 });
+  expect(Date.now() - typedOnB).toBeLessThan(4500);
   dialog = await openSettings(pageB);
   await expect(dialog.getByLabel('Autosave delay in seconds (1 to 60)')).toHaveValue('2');
   await other.close();
+});
+
+test('the Settings dialog reports load and save failures, and Cancel keeps the delay', async ({ page, api }) => {
+  await login(page);
+  await page.route('**/api/settings', (route) => route.fulfill({ status: 500, contentType: 'application/json', body: '{"error":"internal_error"}' }));
+  await page.getByRole('button', { name: 'Account' }).click();
+  await page.getByRole('button', { name: 'Settings' }).click();
+  await expect(page.locator('#status-message')).toHaveText('Could not load the settings. Try again.');
+  await page.unroute('**/api/settings');
+
+  const dialog = await openSettings(page);
+  const field = dialog.getByLabel('Autosave delay in seconds (1 to 60)');
+  await page.route('**/api/settings', (route) => (route.request().method() === 'PUT' ? route.abort() : route.continue()));
+  await field.fill('9');
+  await dialog.getByRole('button', { name: 'Save' }).click();
+  await expect(dialog.getByRole('alert')).toHaveText('Cannot connect to the server. Try again.');
+  await page.unroute('**/api/settings');
+  await page.route('**/api/settings', (route) =>
+    route.request().method() === 'PUT'
+      ? route.fulfill({ status: 500, contentType: 'application/json', body: '{"error":"internal_error"}' })
+      : route.continue(),
+  );
+  await dialog.getByRole('button', { name: 'Save' }).click();
+  await expect(dialog.getByRole('alert')).toHaveText('Saving the settings failed. Try again.');
+  await page.unroute('**/api/settings');
+
+  await dialog.getByRole('button', { name: 'Cancel' }).click();
+  await expect(dialog).toBeHidden();
+  expect((await (await api.get('/api/settings')).json()).autosaveSeconds).toBe(5);
 });

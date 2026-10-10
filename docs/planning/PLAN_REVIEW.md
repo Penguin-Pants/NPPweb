@@ -297,11 +297,23 @@ Two-pass review of each V2 phase diff (`REQUIREMENTS_V2.md` section 9). Same met
 | M9 | 15 | `BUILD_PLAN.md` T18 still says "toggle sidebar". | Rejected | v1 history. `REQUIREMENTS_V2.md` section 10 records the change. |
 | M9 | 16 | The open dropdown covers part of the tab strip. | Rejected | Expected for a dropdown (D19). A press outside closes it. |
 | M9 | 17 | The account menu kept its own open and close code. | Confirmed | Both menus use `dropdown.js` (AGENTS.md Edits rule 6). |
-| M10 | 1 | SAV-1 asks for "N after the last edit, but no later than N after the first unsaved edit". The second bound always comes first, so the rule equals one timer started by the first unsaved edit. | Confirmed (design note) | Implemented as one timer. An edit replaces a pending retry timer, so it never waits for the backoff. Unit tests cover the bound, nonstop typing and the 5-second default. |
-| M10 | 2 | The startup settings read could finish after the Settings dialog saved a new delay and set the old one back. | Confirmed | Fixed before commit: a delay saved in the dialog wins over the startup read. |
-| M10 | 3 | An E2E test name still said "about 1 second". | Confirmed | Renamed. The E2E fixture runs v1 save tests with a 1-second delay. `settings.spec.js` uses the 5-second default. |
-| M10 | 4 | The fixture signs in once more to set the delay, which adds a session per test server. | Rejected | No test counts sessions. Each test has its own server. |
-| M10 | 5 | Perf typing measured 2992 to 3263 ms after M10 (limit 3000 ms). | Risk | Same band as before V2 (section 13). M10 does not touch the typing path. |
+| M10 | 1 | SAV-1 asks for "N after the last edit, but no later than N after the first unsaved edit". The second bound always comes first. | Confirmed (design note) | Each document keeps one save deadline (`dueAt`). An edit keeps an earlier deadline and else sets one N from now. |
+| M10 | 2 | A deadline that passed while a save was in flight was lost. The next edit started a new N window (save 2.1 s after the first unsaved edit with N = 1). | Confirmed | Fixed in the review commit: the deadline stays set, so the reply starts the next save at once. Unit test added. |
+| M10 | 3 | An edit pushed a sooner retry back to N (N = 30: a 2-second retry moved to 30 s). | Confirmed | Fixed by the same deadline rule: an edit keeps a sooner retry. Unit test added. |
+| M10 | 4 | A smaller new N left a pending save at the old N (SAV-4 wording). | Confirmed | The same rule lets the next edit move the save earlier. No owner question needed. Unit test added. |
+| M10 | 5 | The startup settings read could finish after the dialog saved a new delay and set the old one back. | Confirmed | The newest read or save wins (request counter). |
+| M10 | 6 | A failed startup read was never repeated, and the dialog's fresh value was not applied. | Confirmed | Settings are read again after a re-login and when the dialog opens. Both apply the value. |
+| M10 | 7 | The cross-device E2E test only read the dialog value on device B. | Confirmed | Device B now types and must save within 4.5 s with N = 2. |
+| M10 | 8 | With the 1-second fixture, a broken Ctrl+S passed the 700 ms check by about 200 ms. | Confirmed | That test runs with a 60-second delay. |
+| M10 | 9 | The Settings dialog error paths had no tests. The 1 to 60 rule was in the client and the server. | Confirmed | E2E test for a failed load, a network failure, a 500 and Cancel. The rule is only on the server. |
+| M10 | 10 | v1 tests could type before the startup settings read finished. | Confirmed | `login()` in the fixtures waits for that read. |
+| M10 | 11 | A corrupt stored value became NaN, so the client saved on almost every keystroke. | Confirmed | A stored value that breaks the rule reads as the default. Server test added. |
+| M10 | 12 | Stale comments and docs said "debounce" or "1 second". `BUILD_PLAN.md` and `REQUIREMENTS_TRACEABILITY.md` had no pointer to V2. | Confirmed | Comments fixed. Both v1 docs point to the V2 docs. README Settings text comes in M16. |
+| M10 | 13 | Unused exports, and a session test that the gate sweep already covers and that passes even without the route. | Confirmed | Exports removed. The test is replaced by the stored-value test. |
+| M10 | 14 | The default of 5 seconds is in the client and the server. | Rejected | The client needs it before its first read. A comment links the two. |
+| M10 | 15 | The fixture signs in once more to set the delay. | Rejected | No test counts sessions. Each test has its own server. |
+| M10 | 16 | Perf typing was about 170 ms slower than `main` in 3 back-to-back runs. Cause: SAV-1 saves during nonstop typing, and with the 1-second test delay the 1 MB document saved 2 or 3 times inside the measured 3 seconds. The v1 debounce never saved during typing. | Confirmed | `perf.spec.js` now runs with the 5-second production default. Then 4 alternating runs gave 2771 to 2937 ms against 2625 to 3237 ms on `main`. Both stay near the 3000 ms limit in this container (section 13). |
+| M10 | 17 | Each save of a 1 MB document costs main-thread time while the user keeps typing (SAV-1 makes this happen every N seconds). | Risk | Unverified estimate: about 60 ms per save in this container, from M10 16. M16 measures typing during a save in Visual mode (NFR-2). |
 
 ## 13. V2 validation environment
 

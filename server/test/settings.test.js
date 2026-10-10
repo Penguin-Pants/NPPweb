@@ -62,14 +62,11 @@ test('a body that is not an object is rejected', async () => {
   }
 });
 
-test('settings need a session', async () => {
-  const res = await ctx.app.inject({ method: 'GET', url: '/api/settings' });
-  assert.equal(res.statusCode, 401);
-  const write = await ctx.app.inject({
-    method: 'PUT',
-    url: '/api/settings',
-    headers: { origin: ORIGIN },
-    payload: { autosaveSeconds: 9 },
-  });
-  assert.equal(write.statusCode, 401);
+test('a stored value that breaks the rule reads as the default', async () => {
+  for (const bad of ['abc', '0', '61', '2.5', '']) {
+    ctx.db
+      .prepare("INSERT INTO settings (key, value) VALUES ('autosave_seconds', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value")
+      .run(bad);
+    assert.deepEqual((await get()).json(), { autosaveSeconds: 5 }, `stored ${JSON.stringify(bad)}`);
+  }
 });

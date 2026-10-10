@@ -1,15 +1,20 @@
 // Owner settings (SAV-2, SAV-3). One value for all devices, stored in the
-// settings table. Today it holds only the autosave delay.
-export const AUTOSAVE_DEFAULT_SECONDS = 5;
+// settings table. Today it holds only the autosave delay. The client uses the
+// same default (web/src/autosave.js) until it has read this value.
+const AUTOSAVE_DEFAULT_SECONDS = 5;
 const AUTOSAVE_KEY = 'autosave_seconds';
 
+const isValidSeconds = (value) => Number.isInteger(value) && value >= 1 && value <= 60;
+
 /**
+ * A stored value that breaks the rule (for example after a manual edit)
+ * reads as the default.
  * @param {import('node:sqlite').DatabaseSync} db
  * @returns {{ autosaveSeconds: number }}
  */
-export function getSettings(db) {
-  const stored = db.prepare('SELECT value FROM settings WHERE key = ?').get(AUTOSAVE_KEY)?.value;
-  return { autosaveSeconds: stored === undefined ? AUTOSAVE_DEFAULT_SECONDS : Number(stored) };
+function getSettings(db) {
+  const stored = Number(db.prepare('SELECT value FROM settings WHERE key = ?').get(AUTOSAVE_KEY)?.value);
+  return { autosaveSeconds: isValidSeconds(stored) ? stored : AUTOSAVE_DEFAULT_SECONDS };
 }
 
 /**
@@ -25,7 +30,7 @@ export async function settingsRoutes(app, { db }) {
       return reply.code(400).send({ error: 'invalid_request' });
     }
     const seconds = body.autosaveSeconds;
-    if (!Number.isInteger(seconds) || seconds < 1 || seconds > 60) {
+    if (!isValidSeconds(seconds)) {
       return reply.code(400).send({ error: 'invalid_autosave_seconds' });
     }
     db.prepare(

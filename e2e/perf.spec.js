@@ -1,8 +1,11 @@
 import { expect, login, test } from './fixtures.js';
 
 // NFR-1 targets (T25): open and render under 2 s, 200 typed characters under
-// 3 s, Ctrl+End under 0.5 s, no console errors.
+// 3 s, Ctrl+End under 0.5 s, no console errors. Runs with the default 5-second
+// autosave delay (SAV-2), as in production.
 const TARGET_BYTES = 1_048_000;
+
+test.use({ autosaveSeconds: null });
 
 function pythonLikeText() {
   const parts = [];
