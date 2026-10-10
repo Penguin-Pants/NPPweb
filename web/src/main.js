@@ -12,6 +12,7 @@ import { createEditor } from './editor.js';
 import { emit, on } from './events.js';
 import { download, exportContent, exportFormats, fullTree, printPage } from './export.js';
 import { LANGUAGES } from './languages.js';
+import { loginErrorText } from './login-errors.js';
 import { mermaidSources } from './markdown-html.js';
 import { createCounter, createSummary } from './markdown-text.js';
 import { createToolbar } from './markdown-toolbar.js';
@@ -135,6 +136,8 @@ $('change-password').addEventListener('click', async () => {
       if (status === 204) return null;
       if (data?.error === 'wrong_current_password') return 'The current password is wrong.';
       if (data?.error === 'weak_password') return 'The new password must have 12 to 256 characters.';
+      // Wrong current passwords count in the login limiter.
+      if (status === 429) return loginErrorText(status, data);
       if (status === 0) return 'Cannot connect to the server. Try again.';
       return 'Password change failed. Try again.';
     },
